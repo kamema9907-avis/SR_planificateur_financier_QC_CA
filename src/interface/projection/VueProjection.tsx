@@ -8,7 +8,7 @@ import {
   type TypeCompte,
 } from '../../moteur';
 import { formatDollars } from '../format';
-import { Interrupteur } from '../Champ';
+import { BoutonReinitialiser, Interrupteur } from '../Champ';
 import { FormulaireProjection } from './FormulaireProjection';
 import { GraphiqueProjection } from './GraphiqueProjection';
 import { TableauProjection } from './TableauProjection';
@@ -38,30 +38,31 @@ export function detailsStrategie(s: {
 
 const CLE_STOCKAGE = 'pf2026:projection';
 
+/** Hypothèses vierges (champs à zéro) — comptes présents mais vides, paramètres du modèle par défaut. */
 function defautHypotheses(): HypothesesProjection {
   return {
     ageActuel: 40,
     ageRetraite: 60,
     ageDeces: 95,
     vitSeul: false,
-    revenuEmploi: 90_000,
+    revenuEmploi: 0,
     croissanceSalaireReelle: 0,
-    epargneAnnuelle: { REER: 12_000, CELI: 7_000 },
+    epargneAnnuelle: {},
     comptes: [
-      { type: 'REER', solde: 150_000, profil: 'equilibre' },
-      { type: 'CELI', solde: 60_000, profil: 'dynamique' },
+      { type: 'REER', solde: 0, profil: 'equilibre' },
+      { type: 'CELI', solde: 0, profil: 'dynamique' },
       { type: 'CELIAPP', solde: 0, profil: 'equilibre' },
       { type: 'CRI', solde: 0, profil: 'equilibre' },
-      { type: 'NON_ENREGISTRE', solde: 40_000, profil: 'equilibre', coutBase: 30_000 },
+      { type: 'NON_ENREGISTRE', solde: 0, profil: 'equilibre', coutBase: 0 },
       { type: 'REEE', solde: 0, profil: 'equilibre' },
     ],
     immeubles: [],
-    rrqA65: 15_000,
-    svA65: 8_500,
+    rrqA65: 0,
+    svA65: 0,
     ageDebutRRQ: 65,
     ageDebutSV: 65,
     rentesEmployeur: [],
-    depensesRetraite: 55_000,
+    depensesRetraite: 0,
     ordreDecaissement: ['NON_ENREGISTRE', 'CRI', 'FRV', 'REER', 'FERR', 'CELIAPP', 'CELI'],
     inflation: 0.021,
     fraisGestion: 0.01,
@@ -154,6 +155,9 @@ export function VueProjection() {
             {calcul ? 'Optimisation…' : 'Optimiser la stratégie'}
           </button>
           <span className="text-xs text-slate-400">Meilleure combinaison : décaissement, fonte du REER, RRQ/SV, ventes.</span>
+          <div className="ml-auto">
+            <BoutonReinitialiser onReset={() => setH(defautHypotheses())} />
+          </div>
         </div>
         {optim && (
           <PanneauOptimisation

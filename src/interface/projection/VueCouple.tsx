@@ -9,7 +9,7 @@ import {
   type TypeCompte,
 } from '../../moteur';
 import { formatDollars } from '../format';
-import { ChampMonetaire, ChampPourcent, Interrupteur, TitreSection } from '../Champ';
+import { BoutonReinitialiser, ChampMonetaire, ChampPourcent, Interrupteur, TitreSection } from '../Champ';
 import { FormulairePersonne } from './FormulairePersonne';
 import { SectionImmobilier } from './SectionImmobilier';
 import { GraphiqueProjection } from './GraphiqueProjection';
@@ -29,17 +29,18 @@ function detailsCouple(s: HypothesesCouple): { label: string; valeur: string }[]
 
 const CLE_STOCKAGE = 'pf2026:couple';
 
+/** Conjoint vierge (champs à zéro) — comptes de base présents mais vides. */
 function personneDefaut(nom: string, sexe: 'H' | 'F', ageActuel: number, ageDeces: number): PersonneProjection {
   return {
     nom, sexe, ageActuel, ageRetraite: 62, ageDeces,
-    revenuEmploi: 75_000, croissanceSalaireReelle: 0,
-    epargneAnnuelle: { REER: 8_000, CELI: 5_000 }, epargneReerConjoint: 0,
+    revenuEmploi: 0, croissanceSalaireReelle: 0,
+    epargneAnnuelle: {}, epargneReerConjoint: 0,
     comptes: [
-      { type: 'REER', solde: 120_000, profil: 'equilibre' },
-      { type: 'CELI', solde: 40_000, profil: 'dynamique' },
+      { type: 'REER', solde: 0, profil: 'equilibre' },
+      { type: 'CELI', solde: 0, profil: 'dynamique' },
       { type: 'NON_ENREGISTRE', solde: 0, profil: 'equilibre', coutBase: 0 },
     ],
-    rrqA65: 12_000, svA65: 8_500, ageDebutRRQ: 65, ageDebutSV: 65, rentesEmployeur: [],
+    rrqA65: 0, svA65: 0, ageDebutRRQ: 65, ageDebutSV: 65, rentesEmployeur: [],
   };
 }
 
@@ -47,7 +48,7 @@ function defautCouple(): HypothesesCouple {
   return {
     personne1: personneDefaut('Conjoint 1', 'H', 45, 89),
     personne2: personneDefaut('Conjoint 2', 'F', 43, 92),
-    depensesRetraite: 70_000,
+    depensesRetraite: 0,
     fractionSurvivant: 0.67,
     immeubles: [],
     ordreDecaissement: ['NON_ENREGISTRE', 'CRI', 'FRV', 'REER', 'FERR', 'CELIAPP', 'CELI'],
@@ -168,6 +169,9 @@ export function VueCouple() {
             {calcul ? 'Optimisation…' : 'Optimiser la stratégie du couple'}
           </button>
           <span className="text-xs text-slate-400">Fractionnement, décaissement coordonné, fonte, RRQ/SV, ventes.</span>
+          <div className="ml-auto">
+            <BoutonReinitialiser onReset={() => setH(defautCouple())} />
+          </div>
         </div>
         {optim && (
           <PanneauOptimisation

@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { calculerImpot, entreeVide, type EntreeFiscale } from '../moteur';
-import { ChampMonetaire, ChampNombre, Interrupteur, TitreSection } from './Champ';
+import { BoutonReinitialiser, ChampMonetaire, ChampNombre, Interrupteur, TitreSection } from './Champ';
 import { Resultats } from './Resultats';
 
 const CLE_STOCKAGE = 'pf2026:entree';
 
-/** Charge l'entrée sauvegardée localement, sinon un exemple par défaut. */
+/** Charge l'entrée sauvegardée localement, sinon une entrée vierge (champs à zéro). */
 function chargerEntree(): EntreeFiscale {
   try {
     const brut = localStorage.getItem(CLE_STOCKAGE);
@@ -13,8 +13,7 @@ function chargerEntree(): EntreeFiscale {
   } catch {
     /* ignore */
   }
-  // Exemple par défaut : salarié de 40 ans, 75 000 $, cotisation REER de 5 000 $.
-  return { ...entreeVide(), age: 40, revenuEmploi: 75_000, deductionReer: 5_000 };
+  return entreeVide();
 }
 
 /** Vue « Impôt (1 année) » — le calculateur d'impôt de la Phase 1. */
@@ -37,6 +36,10 @@ export function VueImpotAnnuel() {
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
       <div className="space-y-6">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs text-slate-400">Tes données restent sur ton appareil — rien n'est envoyé en ligne.</p>
+          <BoutonReinitialiser onReset={() => setEntree(entreeVide())} />
+        </div>
         <section className="carte p-6">
           <TitreSection numero={1} titre="Votre situation" />
           <div className="grid grid-cols-2 items-start gap-4">
