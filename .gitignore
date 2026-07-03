@@ -4,3 +4,9 @@ dist/
 .DS_Store
 .vite/
 coverage/
+
+# Cache de compilation TypeScript (régénéré au build)
+*.tsbuildinfo
+
+# Réglages locaux de l'outil Claude Code (ne pas publier)
+.claude/settings.local.json

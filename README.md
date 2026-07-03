@@ -9,6 +9,14 @@ sur toute la vie (vie active + retraite), pour une personne seule ou en couple.
 > ⚖️ Outil de **calcul et de simulation** à des fins personnelles. Le titre « planificateur
 > financier » est protégé au Québec (IQPF) ; cet outil ne fournit pas d'avis personnalisé à des clients.
 
+## 🌐 Essayer en ligne
+
+Une fois déployé sur GitHub Pages : **https://TON-PSEUDO.github.io/NOM-DU-REPO/** *(remplace par ton lien)*.
+Rien à installer — tout tourne dans le navigateur, et **tes données restent sur ton appareil**.
+
+> Hypothèses : résident du **Québec**, **salarié**, paramètres fiscaux **2026**. Hors de ce cadre
+> (autre province, travailleur autonome), les chiffres sont des estimations moins précises.
+
 ---
 
 ## 🚀 Démarrer
