@@ -1,0 +1,94 @@
+import type { HypothesesProjection, TypeCompte } from '../../moteur';
+import { ChampMonetaire, ChampNombre, ChampPourcent, Interrupteur, TitreSection } from '../Champ';
+import { EditeurComptes } from './EditeurComptes';
+import { SectionRentesEmployeur } from './SectionRentesEmployeur';
+import { SectionImmobilier } from './SectionImmobilier';
+
+interface FormulaireProps {
+  h: HypothesesProjection;
+  onChange: (h: HypothesesProjection) => void;
+}
+
+/** Épargne annuelle éditable (types déductibles ou abrités pertinents). */
+const EPARGNES: readonly { type: TypeCompte; label: string; indice?: string }[] = [
+  { type: 'REER', label: 'REER', indice: 'Déductible' },
+  { type: 'CELI', label: 'CELI' },
+  { type: 'CELIAPP', label: 'CELIAPP', indice: 'Déductible' },
+  { type: 'NON_ENREGISTRE', label: 'Non-enregistré' },
+  { type: 'REEE', label: 'REEE', indice: 'Subvention 30 %' },
+];
+
+export function FormulaireProjection({ h, onChange }: FormulaireProps) {
+  const maj = <K extends keyof HypothesesProjection>(cle: K, valeur: HypothesesProjection[K]) =>
+    onChange({ ...h, [cle]: valeur });
+
+  const majEpargne = (type: TypeCompte, montant: number) =>
+    onChange({ ...h, epargneAnnuelle: { ...h.epargneAnnuelle, [type]: montant } });
+
+  return (
+    <div className="space-y-6">
+      <section className="carte p-6">
+        <TitreSection numero={1} titre="Horizon" />
+        <div className="grid grid-cols-3 gap-3">
+          <ChampNombre label="Âge actuel" valeur={h.ageActuel} onChange={(v) => maj('ageActuel', v)} />
+          <ChampNombre label="Âge retraite" valeur={h.ageRetraite} onChange={(v) => maj('ageRetraite', v)} />
+          <ChampNombre label="Âge décès" valeur={h.ageDeces} onChange={(v) => maj('ageDeces', v)} />
+        </div>
+        <div className="mt-4">
+          <Interrupteur label="Vit seul(e)" valeur={h.vitSeul} onChange={(v) => maj('vitSeul', v)} />
+        </div>
+      </section>
+
+      <section className="carte p-6">
+        <TitreSection numero={2} titre="Vie active" />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <ChampMonetaire label="Revenu d'emploi actuel" valeur={h.revenuEmploi} onChange={(v) => maj('revenuEmploi', v)} />
+          <ChampPourcent label="Croissance réelle du salaire" valeur={h.croissanceSalaireReelle} onChange={(v) => maj('croissanceSalaireReelle', v)} indice="Au-delà de l'inflation" />
+        </div>
+        <p className="etiquette mt-5 mb-2">Épargne annuelle (en $ d'aujourd'hui)</p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {EPARGNES.map(({ type, label, indice }) => (
+            <ChampMonetaire key={type} label={label} valeur={h.epargneAnnuelle[type] ?? 0} onChange={(v) => majEpargne(type, v)} indice={indice} />
+          ))}
+        </div>
+      </section>
+
+      <section className="carte p-6">
+        <TitreSection numero={3} titre="Comptes actuels" />
+        <p className="-mt-2 mb-4 text-xs text-slate-400">
+          Le rendement affiché est net de frais, calibré sur les Normes IQPF. Choisissez « Autre » pour
+          fixer votre propre taux.
+        </p>
+        <EditeurComptes comptes={h.comptes} fraisGestion={h.fraisGestion} onChange={(comptes) => onChange({ ...h, comptes })} />
+      </section>
+
+      <section className="carte p-6">
+        <TitreSection numero={4} titre="Rentes publiques" />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <ChampMonetaire label="RRQ estimée à 65 ans" valeur={h.rrqA65} onChange={(v) => maj('rrqA65', v)} indice="Montant annuel (relevé Retraite Québec)" />
+          <ChampMonetaire label="SV estimée à 65 ans" valeur={h.svA65} onChange={(v) => maj('svA65', v)} indice="Montant annuel" />
+          <ChampNombre label="Âge de début RRQ" valeur={h.ageDebutRRQ} min={60} max={72} onChange={(v) => maj('ageDebutRRQ', v)} />
+          <ChampNombre label="Âge de début SV" valeur={h.ageDebutSV} min={65} max={70} onChange={(v) => maj('ageDebutSV', v)} />
+        </div>
+      </section>
+
+      <SectionRentesEmployeur
+        rentes={h.rentesEmployeur}
+        ageRetraite={h.ageRetraite}
+        onChange={(rentes) => onChange({ ...h, rentesEmployeur: rentes })}
+      />
+
+      <SectionImmobilier immeubles={h.immeubles} onChange={(immeubles) => onChange({ ...h, immeubles })} numero={6} />
+
+      <section className="carte p-6">
+        <TitreSection numero={7} titre="Décaissement & hypothèses" />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <ChampMonetaire label="Dépenses de retraite (net d'impôt)" valeur={h.depensesRetraite} onChange={(v) => maj('depensesRetraite', v)} indice="Cible annuelle, en $ d'aujourd'hui" />
+          <div />
+          <ChampPourcent label="Inflation" valeur={h.inflation} onChange={(v) => maj('inflation', v)} indice="Norme IQPF : 2,1 %" />
+          <ChampPourcent label="Frais de gestion" valeur={h.fraisGestion} onChange={(v) => maj('fraisGestion', v)} indice="Réduisent le rendement" />
+        </div>
+      </section>
+    </div>
+  );
+}
