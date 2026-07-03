@@ -17,6 +17,23 @@ export interface Palier {
 }
 
 /**
+ * Ventilation des cotisations sociales d'un salarié (RRQ, AE, RQAP) selon leur traitement fiscal.
+ * Calculée à partir du revenu d'emploi — voir `cotisations.ts`.
+ */
+export interface Cotisations {
+  /** RRQ — cotisation de base : donne un CRÉDIT non remboursable (féd. + QC). */
+  readonly rrqBase: number;
+  /** RRQ — cotisation bonifiée (1re + 2e additionnelles) : DÉDUCTIBLE du revenu (féd. + QC). */
+  readonly rrqBonifie: number;
+  /** Assurance-emploi : CRÉDIT non remboursable. */
+  readonly ae: number;
+  /** RQAP : CRÉDIT non remboursable. */
+  readonly rqap: number;
+  /** Total retenu sur la paie (sortie de trésorerie). */
+  readonly total: number;
+}
+
+/**
  * Données saisies pour une personne, une année.
  * Tous les montants sont en dollars réels reçus (avant tout traitement fiscal).
  */
@@ -33,6 +50,11 @@ export interface EntreeFiscale {
   readonly revenuEmploi: number;
   /** Rente du RRQ / RPC — imposable, mais NON admissible au crédit pour revenu de pension. */
   readonly revenuRRQ: number;
+  /**
+   * Rente de conjoint survivant du RRQ (y compris avant 65 ans) — imposable, traitée comme la RRQ
+   * (aucun crédit pour revenu de pension, non admissible au fractionnement).
+   */
+  readonly renteSurvivantRRQ: number;
   /** Pension de la Sécurité de la vieillesse — imposable, assujettie à la récupération (clawback). */
   readonly revenuPensionSV: number;
   /**
@@ -61,6 +83,21 @@ export interface EntreeFiscale {
    * 0 si aucun.
    */
   readonly cotisationFondsTravailleurs: number;
+
+  /**
+   * Cotisation syndicale ou professionnelle versée. Traitement : DÉDUCTION au fédéral,
+   * CRÉDIT de 10 % au Québec (ligne 397.1). Les cotisations RRQ/AE/RQAP, elles, sont calculées
+   * automatiquement à partir du revenu d'emploi (voir `cotisations.ts`).
+   */
+  readonly cotisationSyndicale: number;
+  /**
+   * Prime d'assurance-salaire (assurance invalidité) versée par l'employé. Par défaut NON
+   * déductible : réduit le revenu net « en poche », pas l'impôt (en contrepartie, les prestations
+   * reçues seront non imposables).
+   */
+  readonly primeAssuranceSalaire: number;
+  /** La prime d'assurance-salaire est-elle déductible du revenu ? (cas particulier ; défaut : false). */
+  readonly assuranceSalaireDeductible: boolean;
 }
 
 /** Base fiscale intermédiaire commune au fédéral et au Québec. */
@@ -76,8 +113,18 @@ export interface BaseFiscale {
   readonly revenuTotalReel: number;
   /** Revenu total aux fins de l'impôt (avec majoration des dividendes et inclusion des gains). */
   readonly revenuTotalImpose: number;
-  /** Déductions communes au fédéral et au Québec (REER + autres). */
-  readonly deductionsCommunes: number;
+  /** Cotisations sociales du salarié (RRQ base/bonifié, AE, RQAP), ventilées. */
+  readonly cotisations: Cotisations;
+  /**
+   * Déductions du revenu net au FÉDÉRAL : REER + autres + RRQ bonifié + cotisation syndicale
+   * (+ prime d'assurance-salaire si déductible).
+   */
+  readonly deductionsFederal: number;
+  /**
+   * Déductions du revenu net au QUÉBEC : REER + autres + RRQ bonifié (+ prime si déductible).
+   * La cotisation syndicale N'EST PAS déduite au Québec — elle y donne plutôt un crédit de 10 %.
+   */
+  readonly deductionsQuebec: number;
 }
 
 /** Détail du calcul d'impôt pour un palier de gouvernement (fédéral ou Québec). */
@@ -87,6 +134,11 @@ export interface DetailImpot {
   readonly impotParTranches: number;
   /** Valeur en dollars des crédits non remboursables (déjà multipliés par le taux). */
   readonly creditsNonRemboursables: number;
+  /**
+   * Crédit d'impôt pour cotisations (en dollars) : RRQ base + AE + RQAP au taux du crédit
+   * (et, au Québec seulement, cotisation syndicale à 10 %).
+   */
+  readonly creditCotisations: number;
   /** Crédit d'impôt pour dividendes (en dollars). */
   readonly creditDividendes: number;
   /** Crédit d'impôt pour fonds de travailleurs FTQ/CSN (en dollars). */
@@ -110,8 +162,17 @@ export interface ResultatFiscal {
   readonly quebec: DetailImpot;
   /** Impôt total (fédéral net + Québec net). */
   readonly impotTotal: number;
-  /** Revenu réellement disponible après impôt. */
+  /** Revenu réellement disponible après impôt (revenu total réel − impôt total). */
   readonly revenuApresImpot: number;
+  /** Cotisations sociales du salarié (RRQ base/bonifié, AE, RQAP), ventilées. */
+  readonly cotisations: Cotisations;
+  /**
+   * Retenues sur la paie autres que l'impôt (sortie de trésorerie) : RRQ + AE + RQAP +
+   * cotisation syndicale + prime d'assurance-salaire.
+   */
+  readonly retenuesTotales: number;
+  /** Revenu net « en poche » : revenu après impôt − retenues sur la paie. */
+  readonly revenuNetEnPoche: number;
   /** Taux moyen d'imposition (impôt total / revenu total réel). */
   readonly tauxMoyen: number;
   /** Taux marginal sur le prochain dollar de revenu ordinaire. */

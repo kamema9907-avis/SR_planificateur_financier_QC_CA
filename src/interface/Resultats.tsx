@@ -70,6 +70,38 @@ function BarreRepartition({ r }: { r: ResultatFiscal }) {
   );
 }
 
+/** Carte des retenues sur la paie (cotisations sociales + syndicat + assurance-salaire) et net en poche. */
+function Retenues({ r }: { r: ResultatFiscal }) {
+  if (r.retenuesTotales <= 0) return null;
+  const c = r.cotisations;
+  const rrq = c.rrqBase + c.rrqBonifie;
+  return (
+    <div className="carte p-5">
+      <div className="mb-2 flex items-center justify-between">
+        <h3 className="font-semibold text-slate-800">Retenues sur la paie & net en poche</h3>
+        <span className="h-2.5 w-2.5 rounded-full bg-slate-400" />
+      </div>
+      <div className="divide-y divide-slate-100">
+        {rrq > 0 && <Ligne libelle="RRQ (base + bonifié)" montant={`− ${formatDollarsCents(rrq)}`} sourdine />}
+        {c.ae > 0 && <Ligne libelle="Assurance-emploi (AE)" montant={`− ${formatDollarsCents(c.ae)}`} sourdine />}
+        {c.rqap > 0 && <Ligne libelle="RQAP" montant={`− ${formatDollarsCents(c.rqap)}`} sourdine />}
+        {r.entree.cotisationSyndicale > 0 && (
+          <Ligne libelle="Cotisation syndicale" montant={`− ${formatDollarsCents(r.entree.cotisationSyndicale)}`} sourdine />
+        )}
+        {r.entree.primeAssuranceSalaire > 0 && (
+          <Ligne libelle="Assurance-salaire" montant={`− ${formatDollarsCents(r.entree.primeAssuranceSalaire)}`} sourdine />
+        )}
+        <Ligne libelle="Revenu après impôt" montant={formatDollars(r.revenuApresImpot)} sourdine />
+        <Ligne libelle="Revenu net en poche" montant={formatDollars(r.revenuNetEnPoche)} gras />
+      </div>
+      <p className="mt-2 text-xs text-slate-400">
+        Après impôt <span className="font-medium">et</span> retenues. Le RRQ de base, l'AE et le RQAP donnent des
+        crédits d'impôt ; la portion bonifiée du RRQ est déduite du revenu.
+      </p>
+    </div>
+  );
+}
+
 /** Tuile de statistique (taux). */
 function TuileTaux({ label, valeur, aide }: { label: string; valeur: string; aide: string }) {
   return (
@@ -125,6 +157,9 @@ export function Resultats({ r }: { r: ResultatFiscal }) {
         />
       </div>
 
+      {/* Retenues sur la paie & net en poche (salarié) */}
+      <Retenues r={r} />
+
       {/* Détails fédéral + Québec */}
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="carte p-5">
@@ -136,6 +171,9 @@ export function Resultats({ r }: { r: ResultatFiscal }) {
             <Ligne libelle="Revenu imposable" montant={formatDollars(r.federal.revenuImposable)} sourdine />
             <Ligne libelle="Impôt selon les tranches" montant={formatDollarsCents(r.federal.impotParTranches)} sourdine />
             <Ligne libelle="Crédits non remboursables" montant={`− ${formatDollarsCents(r.federal.creditsNonRemboursables)}`} sourdine />
+            {r.federal.creditCotisations > 0 && (
+              <Ligne libelle="Crédit cotisations (RRQ, AE, RQAP)" montant={`− ${formatDollarsCents(r.federal.creditCotisations)}`} sourdine />
+            )}
             {r.federal.creditDividendes > 0 && (
               <Ligne libelle="Crédit pour dividendes" montant={`− ${formatDollarsCents(r.federal.creditDividendes)}`} sourdine />
             )}
@@ -159,6 +197,9 @@ export function Resultats({ r }: { r: ResultatFiscal }) {
             <Ligne libelle="Revenu imposable" montant={formatDollars(r.quebec.revenuImposable)} sourdine />
             <Ligne libelle="Impôt selon les tranches" montant={formatDollarsCents(r.quebec.impotParTranches)} sourdine />
             <Ligne libelle="Crédits non remboursables" montant={`− ${formatDollarsCents(r.quebec.creditsNonRemboursables)}`} sourdine />
+            {r.quebec.creditCotisations > 0 && (
+              <Ligne libelle="Crédit cotisations (RRQ, AE, RQAP, syndicat)" montant={`− ${formatDollarsCents(r.quebec.creditCotisations)}`} sourdine />
+            )}
             {r.quebec.creditDividendes > 0 && (
               <Ligne libelle="Crédit pour dividendes" montant={`− ${formatDollarsCents(r.quebec.creditDividendes)}`} sourdine />
             )}

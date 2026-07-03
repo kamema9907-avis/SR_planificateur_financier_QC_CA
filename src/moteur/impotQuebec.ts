@@ -1,5 +1,6 @@
 import { QUEBEC_2026 } from './constantes/quebec2026';
 import { FONDS_TRAVAILLEURS_2026 as FT } from './constantes/fondsTravailleurs2026';
+import { TAUX_CREDIT_SYNDICAL_QC } from './constantes/cotisations2026';
 import type { ParametresQuebec } from './constantes/indexation';
 import { impotProgressif } from './bareme';
 import type { BaseFiscale, DetailImpot } from './types';
@@ -44,7 +45,7 @@ export function calculerImpotQuebec(
   const { entree } = base;
 
   const deductionTravailleur = deductionTravailleurQuebec(entree.revenuEmploi, params);
-  const revenuNet = base.revenuTotalImpose - base.deductionsCommunes - deductionTravailleur;
+  const revenuNet = base.revenuTotalImpose - base.deductionsQuebec - deductionTravailleur;
   const revenuImposable = Math.max(0, revenuNet);
 
   const impotParTranches = impotProgressif(revenuImposable, params.paliers);
@@ -60,6 +61,12 @@ export function calculerImpotQuebec(
   const baseCredits = params.montantPersonnelBase + montantsSociaux;
   const creditsNonRemboursables = params.tauxCredit * baseCredits;
 
+  // Crédit pour cotisations : RRQ de base + AE + RQAP (au taux du crédit) et cotisation syndicale
+  // (à 10 %, ligne 397.1). La portion bonifiée du RRQ est plutôt déduite du revenu.
+  const creditCotisations =
+    params.tauxCredit * (base.cotisations.rrqBase + base.cotisations.ae + base.cotisations.rqap) +
+    TAUX_CREDIT_SYNDICAL_QC * entree.cotisationSyndicale;
+
   // Crédit d'impôt pour dividendes (sur le dividende majoré).
   const creditDividendes =
     base.dividendesMajoresDetermines * params.dividendes.determines.creditSurMajore +
@@ -70,7 +77,11 @@ export function calculerImpotQuebec(
 
   const impotNet = Math.max(
     0,
-    impotParTranches - creditsNonRemboursables - creditDividendes - creditFondsTravailleurs,
+    impotParTranches -
+      creditsNonRemboursables -
+      creditCotisations -
+      creditDividendes -
+      creditFondsTravailleurs,
   );
 
   return {
@@ -78,6 +89,7 @@ export function calculerImpotQuebec(
     revenuImposable,
     impotParTranches,
     creditsNonRemboursables,
+    creditCotisations,
     creditDividendes,
     creditFondsTravailleurs,
     impotDeBase: impotNet,

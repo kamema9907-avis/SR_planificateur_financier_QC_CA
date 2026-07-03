@@ -45,8 +45,14 @@ src/
 Impôt **fédéral + Québec 2026** (fidélité « planification ») : tranches, montant personnel de base
 (avec réduction), montant en raison de l'âge, crédit pour revenu de pension, majoration et crédit
 pour dividendes, inclusion des gains en capital (50 %), déduction pour travailleur (QC), abattement
-du Québec (16,5 %), récupération de la PSV, crédit fonds de travailleurs FTQ/CSN. Taux **moyen** et
-**marginal**. Onglet « Impôt (1 année) ».
+du Québec (16,5 %), récupération de la PSV, crédit fonds de travailleurs FTQ/CSN.
+
+**Cotisations sociales du salarié** (calculées automatiquement à partir du salaire, avec leur vrai
+traitement fiscal 2026) : **RRQ scindé** — cotisation de base → *crédit*, portion bonifiée
+(1re additionnelle + RRQ2) → *déduction* ; **assurance-emploi** et **RQAP** → *crédits*. **Cotisation
+syndicale** (déduction au fédéral + crédit québécois de 10 %), **assurance-salaire** (non déductible
+par défaut) et **rente de survivant du RRQ** (imposable comme la RRQ). Affiche les **retenues sur la
+paie** et le **revenu net « en poche »**, en plus des taux **moyen** et **marginal**. Onglet « Impôt (1 année) ».
 
 ## ✅ Phase 2 — Projection cycle de vie complet
 
@@ -65,10 +71,12 @@ l'inflation** chaque année (calcul nominal, affichage en dollars d'aujourd'hui)
 
 ### Simplifications assumées (à raffiner)
 
-Cotisations et crédits associés (RRQ, AE, RQAP), montant canadien pour emploi, crédits mineurs ;
-maximum de retrait FRV provincial, mécaniques fines du CELIAPP et du REEE ; plafonds de cotisation
-annuels. Indexation uniforme à l'inflation IQPF. Les montants sont donc de bonnes
-**estimations de planification**, pas une déclaration au dollar près.
+Traitement **salarié** (le travailleur autonome, qui paie les deux parts du RRQ/RQAP et déduit la
+part « employeur », n'est pas modélisé) ; montant canadien pour emploi et crédits mineurs ; maximum
+de retrait FRV provincial, mécaniques fines du CELIAPP et du REEE ; plafonds de cotisation annuels.
+Indexation uniforme à l'inflation IQPF pour l'impôt (les plafonds RRQ/AE/RQAP suivent plutôt la
+croissance du MGA, +1 %). Les montants sont donc de bonnes **estimations de planification**, pas une
+déclaration au dollar près.
 
 ## ✅ Phase 3 — Le couple
 
@@ -130,6 +138,10 @@ trop non linéaire pour un LP fiable, et notre moteur est déjà un simulateur e
 - **Fédéral** : ARC / Canada.ca, TaxTips.ca, Investment Executive (« Essential tax numbers 2026 »).
 - **Québec** : Ministère des Finances du Québec, « Paramètres du régime d'imposition des
   particuliers pour l'année d'imposition 2026 » (novembre 2025, indexation 2,05 %).
+- **Cotisations sociales (2026)** : Retraite Québec / Revenu Québec (RRQ — MGA 74 600 $, MSGA
+  85 000 $, base 5,30 % + bonifié 1,00 % + RRQ2 4,00 %) ; Commission de l'assurance-emploi (AE
+  Québec — max 68 900 $, 1,30 %) ; RQAP (max 103 000 $, 0,430 %) ; tableaux consolidés de la CFFP
+  (Université de Sherbrooke) et de PBI Actuarial. Crédit syndical QC 10 % (Revenu Québec, ligne 397.1).
 - **Hypothèses de projection** : « Normes d'hypothèses de projection 2026 »,
   Institut de planification financière & FP Canada (avril 2026).
 

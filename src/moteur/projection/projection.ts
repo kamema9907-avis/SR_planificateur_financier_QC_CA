@@ -10,6 +10,7 @@ import { ANNEE_BASE } from '../constantes/indexation';
 import { AGE_CONVERSION_FERR, facteurRetraitMinimumFERR } from '../constantes/ferr';
 import type { ProfilRendement } from '../constantes/profilsRendement';
 import { impotTotalPour } from '../moteurFiscal';
+import { calculerCotisations, parametresCotisations } from '../cotisations';
 import type { EntreeFiscale } from '../types';
 import {
   clonerComptes,
@@ -38,6 +39,7 @@ function nouvelleEntree(age: number, vitSeul: boolean): EntreeFiscale {
     vitSeul,
     revenuEmploi: 0,
     revenuRRQ: 0,
+    renteSurvivantRRQ: 0,
     revenuPensionSV: 0,
     revenuPensionPrivee: 0,
     autresRevenus: 0,
@@ -47,6 +49,9 @@ function nouvelleEntree(age: number, vitSeul: boolean): EntreeFiscale {
     deductionReer: 0,
     autresDeductions: 0,
     cotisationFondsTravailleurs: 0,
+    cotisationSyndicale: 0,
+    primeAssuranceSalaire: 0,
+    assuranceSalaireDeductible: false,
   };
 }
 
@@ -155,8 +160,11 @@ export function projeter(h: HypothesesProjection): ResultatProjection {
         deductionReer: deductible,
       };
       impotAnnee = impotTotalPour(entreeAnnee, annee);
+      // Retenues sur la paie (RRQ + AE + RQAP) : sortie de trésorerie en plus de l'impôt.
+      const retenuesPaie = calculerCotisations(revenuEmploi, parametresCotisations(annee)).total;
       revenuDisponible =
-        revenuEmploi + rrq + sv + minimumFERR + renteEmp + immo.loyerCash - immo.paiement - impotAnnee - cotisations;
+        revenuEmploi + rrq + sv + minimumFERR + renteEmp + immo.loyerCash -
+        immo.paiement - impotAnnee - cotisations - retenuesPaie;
       if (immo.cashVente > 0) {
         const nonEnr = trouverOuCreer(comptes, 'NON_ENREGISTRE', profilDefaut);
         nonEnr.solde += immo.cashVente;

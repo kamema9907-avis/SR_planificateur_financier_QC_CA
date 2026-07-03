@@ -5,6 +5,7 @@
 export type {
   Province,
   Palier,
+  Cotisations,
   EntreeFiscale,
   BaseFiscale,
   DetailImpot,
@@ -15,6 +16,8 @@ export { FEDERAL_2026 } from './constantes/federal2026';
 export { QUEBEC_2026 } from './constantes/quebec2026';
 export { IQPF_2026 } from './constantes/iqpf2026';
 export { FONDS_TRAVAILLEURS_2026 } from './constantes/fondsTravailleurs2026';
+export { COTISATIONS_2026, TAUX_CREDIT_SYNDICAL_QC, type ParametresCotisations } from './constantes/cotisations2026';
+export { calculerCotisations, parametresCotisations } from './cotisations';
 export {
   ANNEE_BASE,
   facteurIndexation,
@@ -78,6 +81,7 @@ export function entreeVide(): EntreeFiscale {
     vitSeul: false,
     revenuEmploi: 0,
     revenuRRQ: 0,
+    renteSurvivantRRQ: 0,
     revenuPensionSV: 0,
     revenuPensionPrivee: 0,
     autresRevenus: 0,
@@ -87,5 +91,8 @@ export function entreeVide(): EntreeFiscale {
     deductionReer: 0,
     autresDeductions: 0,
     cotisationFondsTravailleurs: 0,
+    cotisationSyndicale: 0,
+    primeAssuranceSalaire: 0,
+    assuranceSalaireDeductible: false,
   };
 }

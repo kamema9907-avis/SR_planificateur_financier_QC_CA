@@ -41,7 +41,7 @@ export function calculerImpotFederal(
 ): DetailImpot {
   const { entree } = base;
 
-  const revenuNet = base.revenuTotalImpose - base.deductionsCommunes;
+  const revenuNet = base.revenuTotalImpose - base.deductionsFederal;
   const revenuImposable = Math.max(0, revenuNet);
 
   const impotParTranches = impotProgressif(revenuImposable, params.paliers);
@@ -53,12 +53,19 @@ export function calculerImpotFederal(
   const baseCredits = mpb + montantAge + montantPension;
   const creditsNonRemboursables = params.tauxCredit * baseCredits;
 
+  // Crédit pour cotisations RRQ de base + AE + RQAP (la portion bonifiée du RRQ est plutôt déduite).
+  const creditCotisations =
+    params.tauxCredit * (base.cotisations.rrqBase + base.cotisations.ae + base.cotisations.rqap);
+
   // Crédit d'impôt pour dividendes (sur le dividende majoré).
   const creditDividendes =
     base.dividendesMajoresDetermines * params.dividendes.determines.creditSurMajore +
     base.dividendesMajoresOrdinaires * params.dividendes.ordinaires.creditSurMajore;
 
-  const impotDeBase = Math.max(0, impotParTranches - creditsNonRemboursables - creditDividendes);
+  const impotDeBase = Math.max(
+    0,
+    impotParTranches - creditsNonRemboursables - creditCotisations - creditDividendes,
+  );
 
   // Abattement du Québec : 16,5 % de l'impôt fédéral de base.
   const abattementQuebec = impotDeBase * params.abattementQuebec;
@@ -80,6 +87,7 @@ export function calculerImpotFederal(
     revenuImposable,
     impotParTranches,
     creditsNonRemboursables,
+    creditCotisations,
     creditDividendes,
     creditFondsTravailleurs,
     impotDeBase,

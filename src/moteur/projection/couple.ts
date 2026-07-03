@@ -10,6 +10,7 @@ import { ANNEE_BASE } from '../constantes/indexation';
 import { AGE_CONVERSION_FERR, facteurRetraitMinimumFERR } from '../constantes/ferr';
 import type { ProfilRendement } from '../constantes/profilsRendement';
 import { construireBase, impotTotalPour } from '../moteurFiscal';
+import { calculerCotisations, parametresCotisations } from '../cotisations';
 import type { EntreeFiscale } from '../types';
 import {
   clonerComptes,
@@ -52,9 +53,10 @@ interface EtatPersonne {
 function nouvelleEntree(age: number, vitSeul: boolean): EntreeFiscale {
   return {
     annee: 2026, province: 'QC', age, vitSeul,
-    revenuEmploi: 0, revenuRRQ: 0, revenuPensionSV: 0, revenuPensionPrivee: 0,
+    revenuEmploi: 0, revenuRRQ: 0, renteSurvivantRRQ: 0, revenuPensionSV: 0, revenuPensionPrivee: 0,
     autresRevenus: 0, dividendesDetermines: 0, dividendesOrdinaires: 0, gainsCapital: 0,
     deductionReer: 0, autresDeductions: 0, cotisationFondsTravailleurs: 0,
+    cotisationSyndicale: 0, primeAssuranceSalaire: 0, assuranceSalaireDeductible: false,
   };
 }
 
@@ -355,7 +357,12 @@ export function projeterCouple(h: HypothesesCouple): ResultatCouple {
         const opt = impotCoupleOptimal(e1, e2, annee, splittable(e1, ctx1.age, ctx1.renteEmp), splittable(e2, ctx2.age, ctx2.renteEmp));
         impotAnnee = opt.impot;
         fractionnement = Math.abs(opt.transfert);
-        revenuDisponible = ctx1.encaisse + ctx2.encaisse - impotAnnee - cot1.cotisations - cot2.cotisations - paiementImmo;
+        // Retenues sur la paie (RRQ + AE + RQAP) de chaque conjoint qui travaille.
+        const retenuesPaie =
+          calculerCotisations(ctx1.salaire, parametresCotisations(annee)).total +
+          calculerCotisations(ctx2.salaire, parametresCotisations(annee)).total;
+        revenuDisponible =
+          ctx1.encaisse + ctx2.encaisse - impotAnnee - cot1.cotisations - cot2.cotisations - paiementImmo - retenuesPaie;
       }
 
       appliquerCroissance(etat1, ctx1.croissances);
@@ -379,7 +386,8 @@ export function projeterCouple(h: HypothesesCouple): ResultatCouple {
         const cot = appliquerCotisations(vivant, facteurInflation, vivant);
         const e = { ...ctx.entree, deductionReer: cot.deductible };
         impotAnnee = impotTotalPour(e, annee);
-        revenuDisponible = ctx.encaisse - impotAnnee - cot.cotisations - paiementImmo;
+        const retenuesPaie = calculerCotisations(ctx.salaire, parametresCotisations(annee)).total;
+        revenuDisponible = ctx.encaisse - impotAnnee - cot.cotisations - paiementImmo - retenuesPaie;
       } else {
         const cible = h.depensesRetraite * h.fractionSurvivant * facteurInflation + paiementImmo;
         const res = financerDepenses(vivant.comptes, h.ordreDecaissement, ctx.entree, ctx.encaisse, cible, annee, ctx.age);

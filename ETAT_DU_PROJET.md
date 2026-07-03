@@ -3,7 +3,8 @@
 > **Document vivant** : synthèse de tout ce que le projet fait à ce jour. À mettre à jour au fil des
 > phases. Voir le [journal des modifications](#-journal-des-modifications) à la fin pour l'historique.
 >
-> Dernière mise à jour : **2026-07-02** — fin de la Phase 4 (l'optimiseur automatique).
+> Dernière mise à jour : **2026-07-03** — ajout des cotisations sociales (RRQ/AE/RQAP), de la
+> cotisation syndicale, de l'assurance-salaire et de la rente de survivant RRQ à la Phase 1.
 
 ## Table des matières
 1. [Vision et objectif](#-vision-et-objectif)
@@ -51,6 +52,11 @@ Calcule l'impôt **fédéral + Québec 2026** pour une personne, une année (fid
 - Déduction pour travailleur (Québec), **abattement du Québec** (16,5 %).
 - **Récupération de la PSV** (clawback).
 - **Crédit pour fonds de travailleurs** FTQ / Fondaction CSN (30 % sur le 1er 5 000 $).
+- **Cotisations sociales du salarié** (calculées du salaire, vrai traitement 2026) : **RRQ scindé**
+  (base → crédit ; bonifié 1re + RRQ2 → déduction), **AE** et **RQAP** → crédits.
+- **Cotisation syndicale** (déduction fédérale + crédit québécois 10 %), **assurance-salaire** (non
+  déductible par défaut), **rente de survivant RRQ** (imposable comme la RRQ).
+- Affiche les **retenues sur la paie** et le **revenu net « en poche »** (après impôt *et* cotisations).
 
 ### Onglet « Projection (cycle de vie) » — Phase 2
 Projette le patrimoine et l'impôt **année par année**, de l'âge actuel jusqu'au décès, avec barèmes
@@ -86,7 +92,7 @@ Deux conjoints entièrement modélisés (colonnes côte à côte), un ménage à
   tableau (avec le montant fractionné).
 
 ### Qualité / validation
-- **84 cas-tests automatisés** (moteur fiscal, indexation, comptes, projection, décaissement, couple, immobilier, optimiseur).
+- **96 cas-tests automatisés** (moteur fiscal, cotisations, indexation, comptes, projection, décaissement, couple, immobilier, optimiseur).
 - Propriété clé du couple : le **fractionnement ne hausse jamais** l'impôt combiné (testé).
 - **Validation croisée** contre les taux marginaux combinés **publiés** du Québec 2026 :
   sommet **53,31 %**, 140 000 $ → **47,46 %**, 60 000 $ → **36,12 %**.
@@ -133,8 +139,10 @@ src/
 │   │   ├── indexation.ts           # Indexation des barèmes pour une année future
 │   │   ├── profilsRendement.ts     # Profils prudent/équilibré/dynamique → rendement IQPF
 │   │   ├── ferr.ts                 # Minimums de retrait FERR/FRV
-│   │   └── fondsTravailleurs2026.ts# Crédit FTQ/CSN
+│   │   ├── fondsTravailleurs2026.ts# Crédit FTQ/CSN
+│   │   └── cotisations2026.ts      # Cotisations RRQ/AE/RQAP 2026 + crédit syndical QC
 │   ├── bareme.ts                   # Impôt progressif
+│   ├── cotisations.ts              # Cotisations du salarié (RRQ scindé, AE, RQAP) + indexation
 │   ├── impotFederal.ts             # Impôt fédéral (+ abattement, PSV) — barèmes indexables
 │   ├── impotQuebec.ts              # Impôt du Québec — barèmes indexables
 │   ├── moteurFiscal.ts             # Orchestrateur (assemble tout, taux moyen/marginal)
@@ -145,7 +153,7 @@ src/
 │   │   ├── decaissement.ts         # Solveur de retrait (cible nette d'impôt)
 │   │   └── projection.ts           # Boucle année par année (cycle de vie)
 │   ├── index.ts                    # API publique du moteur
-│   └── *.test.ts                   # 49 cas-tests
+│   └── *.test.ts                   # 96 cas-tests
 └── interface/                      # UI React (habillage)
     ├── Champ.tsx                   # Champs de saisie réutilisables
     ├── format.ts                   # Formatage $ / % (fr-CA)
@@ -182,6 +190,15 @@ src/
 ### Fonds de travailleurs
 - Crédit 15 % fédéral + 15 % Québec (= 30 %) sur le 1er 5 000 $ investi (FTQ / Fondaction CSN).
 
+### Cotisations sociales 2026 (salarié — CFFP Sherbrooke, PBI Actuarial, Retraite/Revenu Québec)
+- **RRQ** : exemption **3 500 $** (gelée) · MGA **74 600 $** · MSGA **85 000 $** · taux de base
+  **5,30 %** (→ crédit) · 1re additionnelle **1,00 %** + 2e additionnelle RRQ2 **4,00 %** (→ déduction).
+  Cotisation max (base + 1re) 4 479,30 $.
+- **Assurance-emploi (Québec)** : max assurable **68 900 $** · taux **1,30 %** (→ crédit) · max 895,70 $.
+- **RQAP** : max assurable **103 000 $** · taux **0,430 %** (→ crédit) · max 442,90 $.
+- **Cotisation syndicale/professionnelle** : crédit **10 %** au Québec (ligne 397.1) ; déduction au fédéral.
+- Plafonds indexés au rythme du MGA (**+1 %** sur l'inflation) pour les années futures ; exemption gelée.
+
 **Sources détaillées** : voir `sources_planificateur_financier_QC_CA.md`.
 
 ---
@@ -191,7 +208,7 @@ src/
 ```bash
 npm install      # installer les dépendances
 npm run dev      # développement (http://localhost:5173)
-npm test         # les 49 cas-tests
+npm test         # les 96 cas-tests
 npm run build    # version de production (dossier dist/, à héberger)
 npm run preview  # prévisualiser la version de production
 ```
@@ -201,8 +218,9 @@ npm run preview  # prévisualiser la version de production
 ## ⚠️ Limites et simplifications actuelles
 
 À raffiner lors des prochaines phases ou de la validation croisée :
-- Cotisations et crédits associés **RRQ / AE / RQAP** non modélisés ; **montant canadien pour emploi**
-  et crédits mineurs (dons, frais médicaux) non inclus.
+- Traitement **salarié** : le **travailleur autonome** (deux parts du RRQ/RQAP, déduction de la part
+  « employeur », AE facultative) n'est pas modélisé. **Montant canadien pour emploi** et crédits mineurs
+  (dons, frais médicaux) non inclus.
 - Seuil exact d'indexation du montant fédéral en raison de l'âge à confirmer.
 - **Maximum de retrait FRV** provincial ; mécaniques fines du **CELIAPP** (achat 1re propriété) et du
   **REEE** (règles de retrait) simplifiées ; plafonds de cotisation annuels non validés dynamiquement.
@@ -235,6 +253,21 @@ options d'employé, analyse de sensibilité / Monte Carlo, autres provinces.
 ---
 
 ## 📓 Journal des modifications
+
+### 2026-07-03 — Cotisations sociales, cotisation syndicale, assurance-salaire, rente de survivant
+- Nouveaux `constantes/cotisations2026.ts` (RRQ/AE/RQAP + crédit syndical QC, indexables) et
+  `cotisations.ts` (`calculerCotisations` : RRQ **scindé** base/bonifié, AE, RQAP ; `parametresCotisations`).
+- Moteur : `EntreeFiscale` gagne `renteSurvivantRRQ`, `cotisationSyndicale`, `primeAssuranceSalaire`,
+  `assuranceSalaireDeductible`. `construireBase` scinde les déductions **fédéral vs Québec** (le syndicat
+  est déductible au fédéral, crédit au Québec) et calcule les cotisations du salaire. Fédéral/Québec :
+  nouveau **crédit pour cotisations** (RRQ base + AE + RQAP ; + 10 % du syndicat au Québec) et déduction
+  de la portion **bonifiée** du RRQ. `ResultatFiscal` : `cotisations`, `retenuesTotales`, `revenuNetEnPoche`.
+- Projection (solo + couple) : l'impôt des années actives inclut désormais ces crédits/déduction ; le
+  revenu disponible soustrait les retenues de paie (RRQ/AE/RQAP).
+- Interface : champs « rente de survivant », « cotisation syndicale », « assurance-salaire » (+ interrupteur
+  déductible) ; carte **« Retenues sur la paie & net en poche »** et lignes de crédit cotisations au détail féd./QC.
+- **Traitement correct crédit-vs-déduction** (une déduction ≈ taux marginal ~50 %, un crédit ~14-15 %) ;
+  paramètres 2026 sourcés (CFFP Sherbrooke + PBI Actuarial). **96 cas-tests verts**, build OK.
 
 ### 2026-07-02 — Phase 4 : l'optimiseur automatique
 - Fonte anticipée du REER (`fonteReer.ts`) : nouveau paramètre `cibleFonteReer` + comportement dans la

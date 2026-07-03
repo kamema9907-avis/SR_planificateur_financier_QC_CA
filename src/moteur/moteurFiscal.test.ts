@@ -48,26 +48,40 @@ describe('majoration des dividendes et inclusion des gains', () => {
 // 2. Cas-tests étalons (valeurs calculées à la main à partir des constantes 2026)
 // ---------------------------------------------------------------------------
 
-describe('Scénario A — salarié 60 000 $, 40 ans, Québec', () => {
+describe('Scénario A — salarié 60 000 $, 40 ans, Québec (avec cotisations RRQ/AE/RQAP)', () => {
   const r = calculerImpot(entree({ age: 40, revenuEmploi: 60_000 }));
 
-  it('impôt fédéral net (après abattement du Québec)', () => {
-    // Tranches 8 496,005 − crédit MPB 2 303,28 = 6 192,725 ; abattement 16,5 %
-    expect(r.federal.impotNet).toBeCloseTo(5_170.9254, 2);
+  // Cotisations 2026 sur 60 000 $ : assiette RRQ = 60 000 − 3 500 = 56 500.
+  //  RRQ base = 5,30 % × 56 500 = 2 994,50 (crédit) ; RRQ bonifié = 1,00 % × 56 500 = 565 (déduction).
+  //  AE = 1,30 % × 60 000 = 780 ; RQAP = 0,430 % × 60 000 = 258. Crédit sur (2 994,50 + 780 + 258) = 4 032,50.
+
+  it('impôt fédéral net (déduction RRQ bonifié + crédit cotisations, puis abattement)', () => {
+    // Revenu imposable 60 000 − 565 = 59 435 ; tranches 8 380,18.
+    // − MPB 2 303,28 − crédit cotisations 0,14 × 4 032,50 = 564,55 ⇒ 5 512,35 ; abattement 16,5 %.
+    expect(r.federal.creditCotisations).toBeCloseTo(564.55, 2);
+    expect(r.federal.impotNet).toBeCloseTo(4_602.81225, 2);
   });
 
-  it('impôt du Québec net (avec déduction pour travailleur de 1 450 $)', () => {
-    // Tranches : 54 345 × 14 % + (58 550 − 54 345) × 19 % = 8 407,25 ; crédit de base 2 653,28
-    expect(r.quebec.impotNet).toBeCloseTo(5_753.97, 2);
+  it('impôt du Québec net (déduction pour travailleur 1 450 $ + crédit cotisations)', () => {
+    // Revenu imposable 60 000 − 565 − 1 450 = 57 985 ; tranches 8 299,90.
+    // − base 2 653,28 − crédit cotisations 564,55 ⇒ 5 082,07.
+    expect(r.quebec.creditCotisations).toBeCloseTo(564.55, 2);
+    expect(r.quebec.impotNet).toBeCloseTo(5_082.07, 2);
   });
 
   it('impôt total et revenu après impôt', () => {
-    expect(r.impotTotal).toBeCloseTo(10_924.8954, 2);
-    expect(r.revenuApresImpot).toBeCloseTo(49_075.1046, 2);
+    expect(r.impotTotal).toBeCloseTo(9_684.88225, 2);
+    expect(r.revenuApresImpot).toBeCloseTo(50_315.11775, 2);
+  });
+
+  it('cotisations retenues et revenu net « en poche »', () => {
+    expect(r.cotisations.total).toBeCloseTo(4_597.5, 2); // 2 994,50 + 565 + 780 + 258
+    expect(r.retenuesTotales).toBeCloseTo(4_597.5, 2);
+    expect(r.revenuNetEnPoche).toBeCloseTo(45_717.61775, 2); // 50 315,11775 − 4 597,50
   });
 
   it('taux moyen et taux marginal', () => {
-    expect(r.tauxMoyen).toBeCloseTo(0.18210, 4);
+    expect(r.tauxMoyen).toBeCloseTo(0.16141, 4);
     expect(r.tauxMarginal).toBeCloseTo(0.361175, 5);
   });
 });
@@ -130,6 +144,51 @@ describe('Scénario D — crédit pour fonds de travailleurs (FTQ / Fondaction C
     );
     expect(plafonne.federal.creditFondsTravailleurs).toBeCloseTo(750, 2);
     expect(plafonne.quebec.creditFondsTravailleurs).toBeCloseTo(750, 2);
+  });
+});
+
+describe('Scénario E — rente de conjoint survivant du RRQ (imposable comme la RRQ)', () => {
+  it('est pleinement incluse dans le revenu total réel', () => {
+    const r = calculerImpot(entree({ age: 60, renteSurvivantRRQ: 30_000 }));
+    expect(r.revenuTotalReel).toBeCloseTo(30_000, 2);
+  });
+
+  it('n’ouvre PAS droit au crédit pour revenu de pension (donc plus imposée qu’un revenu de pension privé)', () => {
+    const survivant = calculerImpot(entree({ age: 60, renteSurvivantRRQ: 50_000 }));
+    const pension = calculerImpot(entree({ age: 60, revenuPensionPrivee: 50_000 }));
+    expect(survivant.impotTotal).toBeGreaterThan(pension.impotTotal);
+  });
+});
+
+describe('Scénario F — cotisation syndicale (déduction au fédéral, crédit de 10 % au Québec)', () => {
+  const sans = calculerImpot(entree({ age: 45, revenuEmploi: 80_000 }));
+  const avec = calculerImpot(entree({ age: 45, revenuEmploi: 80_000, cotisationSyndicale: 1_000 }));
+
+  it('accorde au Québec un crédit additionnel de 10 % du montant (100 $ sur 1 000 $)', () => {
+    expect(avec.quebec.creditCotisations - sans.quebec.creditCotisations).toBeCloseTo(100, 6);
+  });
+
+  it('réduit l’impôt fédéral (déduction du revenu), pas via un crédit', () => {
+    expect(avec.federal.impotNet).toBeLessThan(sans.federal.impotNet);
+    expect(avec.federal.creditCotisations).toBeCloseTo(sans.federal.creditCotisations, 6);
+  });
+});
+
+describe('Scénario G — prime d’assurance-salaire', () => {
+  const base = calculerImpot(entree({ age: 45, revenuEmploi: 60_000 }));
+  const nonDeduct = calculerImpot(entree({ age: 45, revenuEmploi: 60_000, primeAssuranceSalaire: 2_000 }));
+  const deduct = calculerImpot(
+    entree({ age: 45, revenuEmploi: 60_000, primeAssuranceSalaire: 2_000, assuranceSalaireDeductible: true }),
+  );
+
+  it('par défaut : ne change pas l’impôt, mais réduit le revenu net en poche de la prime', () => {
+    expect(nonDeduct.impotTotal).toBeCloseTo(base.impotTotal, 6);
+    expect(nonDeduct.retenuesTotales - base.retenuesTotales).toBeCloseTo(2_000, 6);
+    expect(nonDeduct.revenuNetEnPoche).toBeCloseTo(base.revenuNetEnPoche - 2_000, 6);
+  });
+
+  it('si rendue déductible : réduit l’impôt', () => {
+    expect(deduct.impotTotal).toBeLessThan(nonDeduct.impotTotal);
   });
 });
 

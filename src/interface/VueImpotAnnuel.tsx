@@ -53,6 +53,7 @@ export function VueImpotAnnuel() {
             <ChampMonetaire label="Revenu d'emploi (salaire)" valeur={entree.revenuEmploi} onChange={(v) => maj('revenuEmploi', v)} />
             <ChampMonetaire label="Autres revenus" valeur={entree.autresRevenus} onChange={(v) => maj('autresRevenus', v)} indice="Intérêts, loyers nets, entreprise" />
             <ChampMonetaire label="Rente RRQ / RPC" valeur={entree.revenuRRQ} onChange={(v) => maj('revenuRRQ', v)} indice="Imposable (sans crédit de pension)" />
+            <ChampMonetaire label="Rente de survivant RRQ (avant 65 ans)" valeur={entree.renteSurvivantRRQ} onChange={(v) => maj('renteSurvivantRRQ', v)} indice="Imposable comme la RRQ (sans crédit de pension)" />
             <ChampMonetaire label="Pension Sécurité vieillesse" valeur={entree.revenuPensionSV} onChange={(v) => maj('revenuPensionSV', v)} indice="Assujettie à la récupération" />
             <ChampMonetaire label="Revenu de pension (FERR, rente)" valeur={entree.revenuPensionPrivee} onChange={(v) => maj('revenuPensionPrivee', v)} indice="FERR, rente viagère, RPA — donne droit au crédit" />
             <ChampMonetaire label="Dividendes déterminés" valeur={entree.dividendesDetermines} onChange={(v) => maj('dividendesDetermines', v)} indice="Grandes sociétés cotées" />
@@ -66,7 +67,23 @@ export function VueImpotAnnuel() {
           <div className="grid gap-4 sm:grid-cols-2">
             <ChampMonetaire label="Cotisation REER" valeur={entree.deductionReer} onChange={(v) => maj('deductionReer', v)} />
             <ChampMonetaire label="Autres déductions" valeur={entree.autresDeductions} onChange={(v) => maj('autresDeductions', v)} indice="RPA, pension alimentaire…" />
+            <ChampMonetaire label="Cotisation syndicale / professionnelle" valeur={entree.cotisationSyndicale} onChange={(v) => maj('cotisationSyndicale', v)} indice="Déduction au fédéral, crédit de 10 % au Québec" />
+            <ChampMonetaire label="Prime d'assurance-salaire" valeur={entree.primeAssuranceSalaire} onChange={(v) => maj('primeAssuranceSalaire', v)} indice={entree.assuranceSalaireDeductible ? 'Déduite du revenu' : 'Non déductible : réduit le net en poche'} />
           </div>
+          {entree.primeAssuranceSalaire > 0 && (
+            <div className="mt-3">
+              <Interrupteur
+                label="Prime d'assurance-salaire déductible du revenu"
+                valeur={entree.assuranceSalaireDeductible}
+                onChange={(v) => maj('assuranceSalaireDeductible', v)}
+              />
+            </div>
+          )}
+          <p className="mt-4 text-xs text-slate-400">
+            Les cotisations <span className="font-medium text-slate-500">RRQ, assurance-emploi et RQAP</span> sont
+            calculées automatiquement à partir de ton salaire et détaillées dans les résultats (crédits + déduction
+            de la portion bonifiée du RRQ).
+          </p>
           <div className="mt-5 rounded-xl bg-marque-50/60 p-4 ring-1 ring-marque-500/15">
             <Interrupteur
               label="Fonds de travailleurs (FTQ / Fondaction CSN)"

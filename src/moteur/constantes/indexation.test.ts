@@ -44,16 +44,19 @@ describe('paramètres indexés', () => {
 });
 
 describe('cohérence de l’indexation (préservation en dollars réels)', () => {
-  it('un revenu indexé à l’inflation paie le même impôt en dollars réels', () => {
+  it('un revenu ordinaire indexé à l’inflation paie le même impôt en dollars réels', () => {
+    // On utilise un revenu ordinaire (sans emploi) pour isoler l'indexation de l'IMPÔT : les
+    // cotisations RRQ/AE/RQAP, elles, s'indexent au rythme du MGA (3,1 %) et l'exemption RRQ est
+    // gelée, ce qui décale légèrement l'impôt réel d'un salarié (comportement voulu, testé ailleurs).
     const f = 1 + IQPF_2026.inflation;
-    const impot2026 = calculerImpot(entreeVide2026(60_000), 2026).impotTotal;
-    const impot2027 = calculerImpot(entreeVide2026(60_000 * f), 2027).impotTotal;
+    const impot2026 = calculerImpot(revenuOrdinaire2026(60_000), 2026).impotTotal;
+    const impot2027 = calculerImpot(revenuOrdinaire2026(60_000 * f), 2027).impotTotal;
     // L'impôt nominal 2027 doit être exactement l'impôt 2026 × (1 + inflation).
     expect(impot2027).toBeCloseTo(impot2026 * f, 2);
   });
 });
 
-/** Salarié simple d'un montant donné, sans autres revenus ni crédits particuliers. */
-function entreeVide2026(revenuEmploi: number) {
-  return { ...entreeVide(), age: 40, revenuEmploi };
+/** Revenu ordinaire (intérêts, loyers…) d'un montant donné, sans cotisations sociales. */
+function revenuOrdinaire2026(autresRevenus: number) {
+  return { ...entreeVide(), age: 40, autresRevenus };
 }
