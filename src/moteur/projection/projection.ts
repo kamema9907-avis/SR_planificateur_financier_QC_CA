@@ -22,6 +22,7 @@ import { financerDepenses } from './decaissement';
 import { rrqNominale, svNominale } from './rentesPubliques';
 import { totalRentesEmployeur } from './rentesEmployeur';
 import { clonerImmeubles, determinerBienAbrite, gainAuDeces, traiterImmeublesAnnee, type AgregatImmo } from './immobilier';
+import { fondreReer } from './fonteReer';
 import type { AnneeProjection, Compte, HypothesesProjection, ResultatProjection, TypeCompte } from './types';
 
 const TYPES_ENREGISTRES: readonly TypeCompte[] = ['REER', 'FERR', 'CRI', 'FRV'];
@@ -193,6 +194,14 @@ export function projeter(h: HypothesesProjection): ResultatProjection {
 
       // Épuisement du capital : impossible de financer la cible.
       if (res.disponible < cible - 1 && ageEpuisement === null) ageEpuisement = age;
+
+      // Fonte anticipée du REER (optionnelle) : remplir les tranches basses, réinvestir au CELI.
+      if (h.cibleFonteReer && h.cibleFonteReer > 0) {
+        const f = fondreReer(comptes, entreeAnnee, h.cibleFonteReer * facteurInflation, annee, age, profilDefaut);
+        retraitsEnregistres += f.retraitSupplementaire;
+        impotAnnee = f.impot;
+        entreeAnnee = f.entree;
+      }
     }
 
     // Appliquer la croissance de l'année (sur les soldes de début), après les mouvements.

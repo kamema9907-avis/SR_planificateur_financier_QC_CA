@@ -3,7 +3,7 @@
 > **Document vivant** : synthèse de tout ce que le projet fait à ce jour. À mettre à jour au fil des
 > phases. Voir le [journal des modifications](#-journal-des-modifications) à la fin pour l'historique.
 >
-> Dernière mise à jour : **2026-07-02** — fin de la Phase 3.5 (l'immobilier).
+> Dernière mise à jour : **2026-07-02** — fin de la Phase 4 (l'optimiseur automatique).
 
 ## Table des matières
 1. [Vision et objectif](#-vision-et-objectif)
@@ -69,6 +69,12 @@ Projette le patrimoine et l'impôt **année par année**, de l'âge actuel jusqu
 - Sorties : **graphique** du patrimoine, **tableau** annuel, indicateurs clés (« le capital dure jusqu'à
   X ans », valeur nette au décès, **impôt total sur la vie**), interrupteur nominal/réel.
 
+### Optimiseur automatique (bouton dans la Projection) — Phase 4
+Le bouton « Optimiser la stratégie » (solo et couple) explore les stratégies avec notre simulateur et
+retourne celle qui **maximise le patrimoine net au décès** : ordre de décaissement, **fonte du REER**,
+âges de début RRQ/SV, moment des ventes immobilières. Affiche le gain (patrimoine + / impôt −) et
+permet d'appliquer la stratégie recommandée.
+
 ### Mode « Couple » (bascule dans l'onglet Projection) — Phase 3
 Deux conjoints entièrement modélisés (colonnes côte à côte), un ménage à optimiser :
 - **Fractionnement du revenu de pension** optimisé automatiquement chaque année.
@@ -80,7 +86,7 @@ Deux conjoints entièrement modélisés (colonnes côte à côte), un ménage à
   tableau (avec le montant fractionné).
 
 ### Qualité / validation
-- **80 cas-tests automatisés** (moteur fiscal, indexation, comptes, projection, décaissement, couple, immobilier).
+- **84 cas-tests automatisés** (moteur fiscal, indexation, comptes, projection, décaissement, couple, immobilier, optimiseur).
 - Propriété clé du couple : le **fractionnement ne hausse jamais** l'impôt combiné (testé).
 - **Validation croisée** contre les taux marginaux combinés **publiés** du Québec 2026 :
   sommet **53,31 %**, 140 000 $ → **47,46 %**, 60 000 $ → **36,12 %**.
@@ -217,6 +223,8 @@ Conséquence : les montants sont de bonnes **estimations de planification**, pas
    phase de survie (roulement + rente de survivant RRQ).
 4. **✅ Phase 3.5** — **Immobilier** : résidence, chalet, immeuble à revenu (hypothèque, loyers, vente,
    downsizing, arbitrage d'exemption, roulement au conjoint).
+5. **✅ Phase 4** — **Optimiseur automatique** (recherche sur le moteur) : ordre de décaissement, fonte
+   du REER, âges RRQ/SV, ventes immobilières. Maximise le patrimoine net au décès.
 4. **Phase 4** — **Optimiseur automatique** : programmation linéaire (`glpk.js` / WebAssembly, in-browser)
    pour trouver la stratégie fiscalement optimale, plutôt que de simuler un scénario donné.
 5. **Phase 5** — Finitions UI, export/import chiffré, partage, hébergement.
@@ -227,6 +235,15 @@ options d'employé, analyse de sensibilité / Monte Carlo, autres provinces.
 ---
 
 ## 📓 Journal des modifications
+
+### 2026-07-02 — Phase 4 : l'optimiseur automatique
+- Fonte anticipée du REER (`fonteReer.ts`) : nouveau paramètre `cibleFonteReer` + comportement dans la
+  projection solo et couple (retirer du REER jusqu'à une cible de revenu imposable, réinvestir au CELI).
+- Optimiseur par recherche (`optimiseur.ts`) : descente de coordonnées sur 4 leviers (ordre, fonte,
+  âges RRQ/SV, ventes immobilières), évaluée par le simulateur, maximise le patrimoine net au décès.
+  Révise la décision n°7 (glpk.js → recherche).
+- Interface : bouton « Optimiser la stratégie » (solo + couple) + panneau d'amélioration (gain patrimoine,
+  baisse d'impôt, stratégie recommandée) + « Appliquer ». 84 cas-tests verts.
 
 ### 2026-07-02 — Phase 3.5 : l'immobilier
 - Modèle `Immeuble` (résidence/chalet/immeuble à revenu) : appréciation, hypothèque (amortissement),

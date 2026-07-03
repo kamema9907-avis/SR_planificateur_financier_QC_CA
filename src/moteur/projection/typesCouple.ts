@@ -35,6 +35,8 @@ export interface HypothesesCouple {
   /** Immobilier du ménage (chaque bien a un propriétaire : 1, 2 ou commun). */
   immeubles: readonly Immeuble[];
   ordreDecaissement: readonly TypeCompte[];
+  /** Fonte anticipée du REER : revenu imposable cible par conjoint chaque année de retraite (0 = aucune). */
+  cibleFonteReer?: number;
   inflation: number;
   fraisGestion: number;
 }

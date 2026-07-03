@@ -57,6 +57,7 @@ export type {
 } from './projection/typesCouple';
 export { projeterCouple } from './projection/couple';
 export { impotCoupleOptimal } from './projection/fractionnement';
+export { optimiserProjection, optimiserCouple, type ResultatOptimisation } from './projection/optimiseur';
 export {
   estImposableAuRetrait,
   estLibreImpot,

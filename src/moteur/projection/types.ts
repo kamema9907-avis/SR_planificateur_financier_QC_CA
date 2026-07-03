@@ -82,6 +82,8 @@ export interface HypothesesProjection {
   /** Dépenses de retraite cibles, annuelles, NET d'impôt, en $ d'aujourd'hui. */
   readonly depensesRetraite: number;
   readonly ordreDecaissement: readonly TypeCompte[];
+  /** Fonte anticipée du REER : revenu imposable cible à atteindre chaque année de retraite (0 = aucune). */
+  readonly cibleFonteReer?: number;
 
   // Hypothèses économiques
   readonly inflation: number;

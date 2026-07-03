@@ -1,12 +1,40 @@
 import { useEffect, useMemo, useState } from 'react';
-import { projeter, type HypothesesProjection } from '../../moteur';
+import {
+  optimiserProjection,
+  projeter,
+  type HypothesesProjection,
+  type ResultatOptimisation,
+  type ResultatProjection,
+  type TypeCompte,
+} from '../../moteur';
 import { formatDollars } from '../format';
 import { Interrupteur } from '../Champ';
 import { FormulaireProjection } from './FormulaireProjection';
 import { GraphiqueProjection } from './GraphiqueProjection';
 import { TableauProjection } from './TableauProjection';
 import { TableauComptes } from './TableauComptes';
+import { PanneauOptimisation } from './PanneauOptimisation';
 import { VueCouple } from './VueCouple';
+
+const LIBELLE_TYPE: Record<TypeCompte, string> = {
+  REER: 'REER', FERR: 'FERR', CRI: 'CRI', FRV: 'FRV', CELI: 'CELI', CELIAPP: 'CELIAPP',
+  NON_ENREGISTRE: 'Non-enregistré', REEE: 'REEE',
+};
+
+/** Décrit les leviers d'une stratégie optimisée. */
+export function detailsStrategie(s: {
+  cibleFonteReer?: number; ordreDecaissement: readonly TypeCompte[];
+  ageDebutRRQ?: number; ageDebutSV?: number;
+  immeubles: readonly { nom: string; ageVente: number | null }[];
+}): { label: string; valeur: string }[] {
+  const d: { label: string; valeur: string }[] = [];
+  d.push({ label: 'Fonte du REER', valeur: s.cibleFonteReer && s.cibleFonteReer > 0 ? `${formatDollars(s.cibleFonteReer)} / an` : 'Aucune' });
+  if (s.ageDebutRRQ != null) d.push({ label: 'Début RRQ', valeur: `${s.ageDebutRRQ} ans` });
+  if (s.ageDebutSV != null) d.push({ label: 'Début SV', valeur: `${s.ageDebutSV} ans` });
+  d.push({ label: 'Décaisser d’abord', valeur: LIBELLE_TYPE[s.ordreDecaissement[0]] });
+  for (const im of s.immeubles) if (im.ageVente != null) d.push({ label: `Vendre « ${im.nom} »`, valeur: `${im.ageVente} ans` });
+  return d;
+}
 
 const CLE_STOCKAGE = 'pf2026:projection';
 
@@ -67,6 +95,16 @@ export function VueProjection() {
   const [h, setH] = useState<HypothesesProjection>(charger);
   const [reel, setReel] = useState(true);
   const [mode, setMode] = useState<'solo' | 'couple'>('solo');
+  const [optim, setOptim] = useState<ResultatOptimisation<HypothesesProjection, ResultatProjection> | null>(null);
+  const [calcul, setCalcul] = useState(false);
+
+  const lancerOptim = () => {
+    setCalcul(true);
+    setTimeout(() => {
+      setOptim(optimiserProjection(h));
+      setCalcul(false);
+    }, 20);
+  };
 
   useEffect(() => {
     try {
@@ -102,6 +140,37 @@ export function VueProjection() {
         <FormulaireProjection h={h} onChange={setH} />
 
       <div className="space-y-5">
+        {/* Optimiseur */}
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={lancerOptim}
+            disabled={calcul}
+            className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
+          >
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 3v4M3 5h4M13 3l2.5 6.5L22 12l-6.5 2.5L13 21l-2.5-6.5L4 12l6.5-2.5z" />
+            </svg>
+            {calcul ? 'Optimisation…' : 'Optimiser la stratégie'}
+          </button>
+          <span className="text-xs text-slate-400">Meilleure combinaison : décaissement, fonte du REER, RRQ/SV, ventes.</span>
+        </div>
+        {optim && (
+          <PanneauOptimisation
+            gainPatrimoine={optim.gainPatrimoineReel}
+            gainImpot={optim.gainImpotVieReel}
+            details={detailsStrategie({
+              cibleFonteReer: optim.strategie.cibleFonteReer,
+              ordreDecaissement: optim.strategie.ordreDecaissement,
+              ageDebutRRQ: optim.strategie.rrqA65 > 0 ? optim.strategie.ageDebutRRQ : undefined,
+              ageDebutSV: optim.strategie.svA65 > 0 ? optim.strategie.ageDebutSV : undefined,
+              immeubles: optim.strategie.immeubles,
+            })}
+            onAppliquer={() => { setH(optim.strategie); setOptim(null); }}
+            onFermer={() => setOptim(null)}
+          />
+        )}
+
         {/* Indicateurs clés */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Tuile

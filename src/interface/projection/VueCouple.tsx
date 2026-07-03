@@ -1,10 +1,31 @@
 import { useEffect, useMemo, useState } from 'react';
-import { projeterCouple, type HypothesesCouple, type PersonneProjection, type TypeCompte } from '../../moteur';
+import {
+  optimiserCouple,
+  projeterCouple,
+  type HypothesesCouple,
+  type PersonneProjection,
+  type ResultatCouple,
+  type ResultatOptimisation,
+  type TypeCompte,
+} from '../../moteur';
 import { formatDollars } from '../format';
 import { ChampMonetaire, ChampPourcent, Interrupteur, TitreSection } from '../Champ';
 import { FormulairePersonne } from './FormulairePersonne';
 import { SectionImmobilier } from './SectionImmobilier';
 import { GraphiqueProjection } from './GraphiqueProjection';
+import { PanneauOptimisation } from './PanneauOptimisation';
+
+/** Décrit les leviers d'une stratégie de couple optimisée. */
+function detailsCouple(s: HypothesesCouple): { label: string; valeur: string }[] {
+  const d: { label: string; valeur: string }[] = [];
+  d.push({ label: 'Fonte du REER', valeur: s.cibleFonteReer && s.cibleFonteReer > 0 ? `${formatDollars(s.cibleFonteReer)} / an` : 'Aucune' });
+  if (s.personne1.rrqA65 > 0) d.push({ label: `Début RRQ — ${s.personne1.nom}`, valeur: `${s.personne1.ageDebutRRQ} ans` });
+  if (s.personne2.rrqA65 > 0) d.push({ label: `Début RRQ — ${s.personne2.nom}`, valeur: `${s.personne2.ageDebutRRQ} ans` });
+  if (s.personne1.svA65 > 0) d.push({ label: `Début SV — ${s.personne1.nom}`, valeur: `${s.personne1.ageDebutSV} ans` });
+  if (s.personne2.svA65 > 0) d.push({ label: `Début SV — ${s.personne2.nom}`, valeur: `${s.personne2.ageDebutSV} ans` });
+  for (const im of s.immeubles) if (im.ageVente != null) d.push({ label: `Vendre « ${im.nom} »`, valeur: `${im.ageVente} ans` });
+  return d;
+}
 
 const CLE_STOCKAGE = 'pf2026:couple';
 
@@ -66,6 +87,16 @@ function Tuile({ label, valeur, ton, aide }: { label: string; valeur: string; to
 export function VueCouple() {
   const [h, setH] = useState<HypothesesCouple>(charger);
   const [reel, setReel] = useState(true);
+  const [optim, setOptim] = useState<ResultatOptimisation<HypothesesCouple, ResultatCouple> | null>(null);
+  const [calcul, setCalcul] = useState(false);
+
+  const lancerOptim = () => {
+    setCalcul(true);
+    setTimeout(() => {
+      setOptim(optimiserCouple(h));
+      setCalcul(false);
+    }, 20);
+  };
 
   useEffect(() => {
     try {
@@ -123,6 +154,31 @@ export function VueCouple() {
 
       {/* Résultats */}
       <div className="space-y-5">
+        {/* Optimiseur */}
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={lancerOptim}
+            disabled={calcul}
+            className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
+          >
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 3v4M3 5h4M13 3l2.5 6.5L22 12l-6.5 2.5L13 21l-2.5-6.5L4 12l6.5-2.5z" />
+            </svg>
+            {calcul ? 'Optimisation…' : 'Optimiser la stratégie du couple'}
+          </button>
+          <span className="text-xs text-slate-400">Fractionnement, décaissement coordonné, fonte, RRQ/SV, ventes.</span>
+        </div>
+        {optim && (
+          <PanneauOptimisation
+            gainPatrimoine={optim.gainPatrimoineReel}
+            gainImpot={optim.gainImpotVieReel}
+            details={detailsCouple(optim.strategie)}
+            onAppliquer={() => { setH(optim.strategie); setOptim(null); }}
+            onFermer={() => setOptim(null)}
+          />
+        )}
+
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Tuile
             label="Autonomie du capital"

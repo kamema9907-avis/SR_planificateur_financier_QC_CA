@@ -101,13 +101,28 @@ Section « Immobilier » dans la projection (solo et couple) : résidence princi
 
 Simplifications : DPA/amortissement fiscal et récupération omis ; frais de vente non modélisés ; arbitrage d'exemption par heuristique.
 
+## ✅ Phase 4 — Optimiseur automatique
+
+Bouton « Optimiser la stratégie » (solo et couple) : trouve la combinaison qui **maximise le patrimoine
+net au décès** (le capital ne doit pas s'épuiser), puis affiche l'amélioration et permet de l'appliquer.
+
+- **Approche par recherche** (pas de programmation linéaire) : on évalue les stratégies candidates avec
+  le simulateur exact (`projeter` / `projeterCouple`) et on garde la meilleure — descente de coordonnées.
+- **Leviers optimisés** : ordre de décaissement, **fonte anticipée du REER** (remplir les tranches basses
+  tôt en retraite, réinvestir au CELI), **âges de début RRQ (60-72) et SV (65-70)**, **moment des ventes
+  immobilières**.
+- Résultat : gain de patrimoine au décès, réduction de l'impôt sur la vie, et la stratégie recommandée.
+
+*Révision de la décision n°7 : l'approche par recherche remplace `glpk.js`, car l'impôt QC+fédéral est
+trop non linéaire pour un LP fiable, et notre moteur est déjà un simulateur exact et rapide.*
+
 ## 🗺️ Feuille de route
 
 1. **✅ Phase 1** — Moteur fiscal (une personne, une année).
 2. **✅ Phase 2** — Projection long terme cycle de vie (accumulation + décaissement).
 3. **✅ Phase 3** — Le couple : fractionnement optimisé, REER de conjoint, décaissement coordonné, survie.
 4. **✅ Phase 3.5** — Immobilier : résidence, chalet, immeuble à revenu (hypothèque, loyers, vente, exemption).
-5. **Phase 4** — Optimiseur automatique (programmation linéaire, `glpk.js` / WebAssembly, in-browser).
+5. **✅ Phase 4** — Optimiseur automatique (recherche sur le moteur) : trouve la meilleure stratégie fiscale.
 5. **Phase 5** — Interface soignée + partage.
 
 ## 📚 Sources des données (2026)

@@ -171,6 +171,21 @@ describe('immobilier dans la projection', () => {
   });
 });
 
+describe('fonte anticipée du REER', () => {
+  it('retire davantage du REER tôt en retraite et réinvestit au CELI', () => {
+    const base = hypotheses({
+      ageActuel: 65, ageRetraite: 65, ageDeces: 90, depensesRetraite: 40_000, fraisGestion: 0,
+      comptes: [{ type: 'REER', solde: 800_000, profil: 'equilibre' }],
+    });
+    const sans = projeter(base);
+    const avec = projeter({ ...base, cibleFonteReer: 60_000 });
+    const anSans = sans.annees.find((a) => a.age === 66)!;
+    const anAvec = avec.annees.find((a) => a.age === 66)!;
+    expect(anAvec.retraitsEnregistres).toBeGreaterThan(anSans.retraitsEnregistres);
+    expect(anAvec.soldes.CELI).toBeGreaterThan(anSans.soldes.CELI + 1);
+  });
+});
+
 describe('projection complète (fumée)', () => {
   it('produit une année par âge, sans valeur invalide', () => {
     const r = projeter(

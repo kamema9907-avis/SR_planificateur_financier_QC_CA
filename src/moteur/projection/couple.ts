@@ -24,6 +24,7 @@ import { financerDepenses } from './decaissement';
 import { rrqNominale, svNominale, renteSurvivantRRQ } from './rentesPubliques';
 import { totalRentesEmployeur } from './rentesEmployeur';
 import { impotCoupleOptimal } from './fractionnement';
+import { fondreReer } from './fonteReer';
 import {
   clonerImmeubles,
   determinerBienAbrite,
@@ -238,7 +239,7 @@ function financerCouple(
   }
 
   const opt = impotCoupleOptimal(e1, e2, annee, splittable(e1, ctx1.age, ctx1.renteEmp), splittable(e2, ctx2.age, ctx2.renteEmp));
-  return { impot: opt.impot, transfert: opt.transfert, disponible: encaisse - opt.impot, retraits };
+  return { impot: opt.impot, transfert: opt.transfert, disponible: encaisse - opt.impot, retraits, e1, e2 };
 }
 
 function roulement(defunt: EtatPersonne, survivant: EtatPersonne) {
@@ -337,6 +338,14 @@ export function projeterCouple(h: HypothesesCouple): ResultatCouple {
         } else if (res.disponible < cible - 1 && anneeEpuisement === null) {
           anneeEpuisement = annee;
         }
+        if (h.cibleFonteReer && h.cibleFonteReer > 0) {
+          const cibleNom = h.cibleFonteReer * facteurInflation;
+          const f1 = fondreReer(etat1.comptes, res.e1, cibleNom, annee, ctx1.age, etat1.profilDefaut);
+          const f2 = fondreReer(etat2.comptes, res.e2, cibleNom, annee, ctx2.age, etat2.profilDefaut);
+          const opt = impotCoupleOptimal(f1.entree, f2.entree, annee, splittable(f1.entree, ctx1.age, ctx1.renteEmp), splittable(f2.entree, ctx2.age, ctx2.renteEmp));
+          impotAnnee = opt.impot;
+          fractionnement = Math.abs(opt.transfert);
+        }
       } else {
         phase = 'accumulation';
         const cot1 = appliquerCotisations(etat1, facteurInflation, etat2);
@@ -383,6 +392,10 @@ export function projeterCouple(h: HypothesesCouple): ResultatCouple {
           revenuDisponible = cible;
         } else if (res.disponible < cible - 1 && anneeEpuisement === null) {
           anneeEpuisement = annee;
+        }
+        if (h.cibleFonteReer && h.cibleFonteReer > 0) {
+          const f = fondreReer(vivant.comptes, res.entree, h.cibleFonteReer * facteurInflation, annee, ctx.age, vivant.profilDefaut);
+          impotAnnee = f.impot;
         }
       }
       appliquerCroissance(vivant, ctx.croissances);
