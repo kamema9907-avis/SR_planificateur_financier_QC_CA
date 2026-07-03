@@ -123,6 +123,12 @@ export function VueCouple() {
 
   return (
     <div className="space-y-8">
+      {/* Barre supérieure : réinitialiser (visible sans défiler) */}
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs text-slate-400">Chaque conjoint a ses propres comptes, rentes et droits.</p>
+        <BoutonReinitialiser onReset={() => setH(defautCouple())} />
+      </div>
+
       {/* Deux colonnes : les conjoints */}
       <div className="grid gap-6 lg:grid-cols-2">
         {([h.personne1, h.personne2] as const).map((p, idx) => (
@@ -169,9 +175,6 @@ export function VueCouple() {
             {calcul ? 'Optimisation…' : 'Optimiser la stratégie du couple'}
           </button>
           <span className="text-xs text-slate-400">Fractionnement, décaissement coordonné, fonte, RRQ/SV, ventes.</span>
-          <div className="ml-auto">
-            <BoutonReinitialiser onReset={() => setH(defautCouple())} />
-          </div>
         </div>
         {optim && (
           <PanneauOptimisation
