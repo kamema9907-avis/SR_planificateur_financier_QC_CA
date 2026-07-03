@@ -20,6 +20,24 @@ export function estNonEnregistre(type: TypeCompte): boolean {
   return type === 'NON_ENREGISTRE';
 }
 
+/** CELIAPP : plafonds de cotisation fixés par la loi (montants NOMINAUX, non indexés). */
+export const CELIAPP_PLAFOND_ANNUEL = 8_000;
+export const CELIAPP_PLAFOND_VIE = 40_000;
+
+/**
+ * Répartit une cotisation CELIAPP voulue (montant NOMINAL d'une année) entre la part admissible
+ * au CELIAPP — plafonnée à 8 000 $/an ET à 40 000 $ à vie — et l'excédent (à rediriger, p. ex. au
+ * CELI). `dejaCotiseCumul` = total nominal déjà cotisé au CELIAPP jusqu'ici.
+ */
+export function repartirCotisationCeliapp(
+  montant: number,
+  dejaCotiseCumul: number,
+): { celiapp: number; excedent: number } {
+  const roomVie = Math.max(0, CELIAPP_PLAFOND_VIE - dejaCotiseCumul);
+  const celiapp = Math.max(0, Math.min(montant, CELIAPP_PLAFOND_ANNUEL, roomVie));
+  return { celiapp, excedent: Math.max(0, montant - celiapp) };
+}
+
 /** Rendement net annuel d'un profil (brut − frais de gestion). */
 export function rendementNet(profil: ProfilRendement, frais: number): number {
   return rendementBrut(profil) - frais;

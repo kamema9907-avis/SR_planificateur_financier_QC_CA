@@ -16,6 +16,7 @@ import {
   clonerComptes,
   croissanceAnnuelle,
   estNonEnregistre,
+  repartirCotisationCeliapp,
   soldesParType,
   valeurNette,
 } from './comptes';
@@ -74,6 +75,7 @@ export function projeter(h: HypothesesProjection): ResultatProjection {
 
   let ageEpuisement: number | null = null;
   let impotTotalVieReel = 0;
+  let celiappCotiseCumul = h.celiappDejaCotise ?? 0; // cumul nominal des cotisations CELIAPP (plafond 40 000 $)
 
   for (let i = 0; h.ageActuel + i <= h.ageDeces; i++) {
     const age = h.ageActuel + i;
@@ -138,10 +140,27 @@ export function projeter(h: HypothesesProjection): ResultatProjection {
       for (const [type, montantAujourdhui] of Object.entries(h.epargneAnnuelle) as [TypeCompte, number][]) {
         if (!montantAujourdhui) continue;
         const montant = montantAujourdhui * facteurInflation;
+
+        // CELIAPP : plafonner (8 000 $/an, 40 000 $ à vie) et rediriger l'excédent au CELI.
+        if (type === 'CELIAPP') {
+          const { celiapp, excedent } = repartirCotisationCeliapp(montant, celiappCotiseCumul);
+          if (celiapp > 0) {
+            trouverOuCreer(comptes, 'CELIAPP', profilDefaut).solde += celiapp;
+            deductible += celiapp; // seule la part réellement versée au CELIAPP est déductible
+            celiappCotiseCumul += celiapp;
+            cotisations += celiapp;
+          }
+          if (excedent > 0) {
+            trouverOuCreer(comptes, 'CELI', profilDefaut).solde += excedent; // redirigé (non déductible)
+            cotisations += excedent;
+          }
+          continue;
+        }
+
         const compte = trouverOuCreer(comptes, type, profilDefaut);
         compte.solde += montant;
         cotisations += montant;
-        if (type === 'REER' || type === 'CELIAPP') deductible += montant; // déductibles
+        if (type === 'REER') deductible += montant; // déductible
         if (type === 'NON_ENREGISTRE') compte.coutBase = (compte.coutBase ?? 0) + montant;
         if (type === 'REEE') {
           compte.solde += TAUX_SUBVENTION_REEE * Math.min(montant, PLAFOND_SUBVENTION_REEE * facteurInflation);

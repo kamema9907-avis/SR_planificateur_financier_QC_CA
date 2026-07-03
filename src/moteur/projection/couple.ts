@@ -17,6 +17,7 @@ import {
   croissanceAnnuelle,
   estLibreImpot,
   estNonEnregistre,
+  repartirCotisationCeliapp,
   soldesParType,
   valeurNette,
   type CroissanceCompte,
@@ -48,6 +49,8 @@ interface EtatPersonne {
   comptes: Compte[];
   profilDefaut: ProfilRendement;
   survivant: boolean;
+  /** Cumul nominal des cotisations CELIAPP (plafond à vie de 40 000 $). */
+  celiappCotiseCumul: number;
 }
 
 function nouvelleEntree(age: number, vitSeul: boolean): EntreeFiscale {
@@ -131,10 +134,27 @@ function appliquerCotisations(etat: EtatPersonne, facteurInflation: number, conj
   for (const [type, montantAuj] of Object.entries(etat.p.epargneAnnuelle) as [TypeCompte, number][]) {
     if (!montantAuj) continue;
     const montant = montantAuj * facteurInflation;
+
+    // CELIAPP : plafonner (8 000 $/an, 40 000 $ à vie) et rediriger l'excédent au CELI.
+    if (type === 'CELIAPP') {
+      const { celiapp, excedent } = repartirCotisationCeliapp(montant, etat.celiappCotiseCumul);
+      if (celiapp > 0) {
+        trouverOuCreer(etat.comptes, 'CELIAPP', etat.profilDefaut).solde += celiapp;
+        deductible += celiapp;
+        etat.celiappCotiseCumul += celiapp;
+        cotisations += celiapp;
+      }
+      if (excedent > 0) {
+        trouverOuCreer(etat.comptes, 'CELI', etat.profilDefaut).solde += excedent;
+        cotisations += excedent;
+      }
+      continue;
+    }
+
     const c = trouverOuCreer(etat.comptes, type, etat.profilDefaut);
     c.solde += montant;
     cotisations += montant;
-    if (type === 'REER' || type === 'CELIAPP') deductible += montant;
+    if (type === 'REER') deductible += montant;
     if (type === 'NON_ENREGISTRE') c.coutBase = (c.coutBase ?? 0) + montant;
     if (type === 'REEE') c.solde += TAUX_SUBVENTION_REEE * Math.min(montant, PLAFOND_SUBVENTION_REEE * facteurInflation);
   }
@@ -283,8 +303,8 @@ function equiteTotale(etats: readonly EtatImmeuble[]): number {
 
 /** Projette un couple sur tout le cycle de vie. */
 export function projeterCouple(h: HypothesesCouple): ResultatCouple {
-  const etat1: EtatPersonne = { p: h.personne1, comptes: clonerComptes(h.personne1.comptes), profilDefaut: h.personne1.comptes[0]?.profil ?? 'equilibre', survivant: false };
-  const etat2: EtatPersonne = { p: h.personne2, comptes: clonerComptes(h.personne2.comptes), profilDefaut: h.personne2.comptes[0]?.profil ?? 'equilibre', survivant: false };
+  const etat1: EtatPersonne = { p: h.personne1, comptes: clonerComptes(h.personne1.comptes), profilDefaut: h.personne1.comptes[0]?.profil ?? 'equilibre', survivant: false, celiappCotiseCumul: h.personne1.celiappDejaCotise ?? 0 };
+  const etat2: EtatPersonne = { p: h.personne2, comptes: clonerComptes(h.personne2.comptes), profilDefaut: h.personne2.comptes[0]?.profil ?? 'equilibre', survivant: false, celiappCotiseCumul: h.personne2.celiappDejaCotise ?? 0 };
 
   const etatsImmo = clonerImmeubles(h.immeubles);
   const bienAbrite = determinerBienAbrite(h.immeubles);

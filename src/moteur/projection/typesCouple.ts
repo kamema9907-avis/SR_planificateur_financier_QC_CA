@@ -14,6 +14,8 @@ export interface PersonneProjection {
   revenuEmploi: number;
   croissanceSalaireReelle: number;
   epargneAnnuelle: Partial<Record<TypeCompte, number>>;
+  /** Montant total déjà cotisé au CELIAPP par cette personne (nominal), pour le plafond de 40 000 $. Défaut : 0. */
+  celiappDejaCotise?: number;
   /** Cotisation REER de conjoint : déduite par CETTE personne, versée au REER de l'autre. */
   epargneReerConjoint: number;
   comptes: readonly Compte[];

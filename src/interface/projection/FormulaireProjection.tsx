@@ -1,8 +1,23 @@
+import { CELIAPP_PLAFOND_ANNUEL, CELIAPP_PLAFOND_VIE } from '../../moteur';
 import type { HypothesesProjection, TypeCompte } from '../../moteur';
 import { ChampMonetaire, ChampNombre, ChampPourcent, Interrupteur, TitreSection } from '../Champ';
+import { formatDollars } from '../format';
 import { EditeurComptes } from './EditeurComptes';
 import { SectionRentesEmployeur } from './SectionRentesEmployeur';
 import { SectionImmobilier } from './SectionImmobilier';
+
+/** Message d'aide sur les plafonds CELIAPP (droits restants, plafond annuel, redirection au CELI). */
+export function avertissementCeliapp(dejaCotise: number, epargneAnnuelle: number): string {
+  const reste = Math.max(0, CELIAPP_PLAFOND_VIE - dejaCotise);
+  if (reste <= 0) {
+    return `Plafond à vie de ${formatDollars(CELIAPP_PLAFOND_VIE)} atteint : les cotisations CELIAPP seront redirigées vers le CELI.`;
+  }
+  let msg = `Il reste ${formatDollars(reste)} de droits à vie (plafond ${formatDollars(CELIAPP_PLAFOND_VIE)}).`;
+  if (epargneAnnuelle > CELIAPP_PLAFOND_ANNUEL) {
+    msg += ` Plafond annuel de ${formatDollars(CELIAPP_PLAFOND_ANNUEL)} : l'excédent ira au CELI.`;
+  }
+  return msg;
+}
 
 interface FormulaireProps {
   h: HypothesesProjection;
@@ -51,6 +66,19 @@ export function FormulaireProjection({ h, onChange }: FormulaireProps) {
             <ChampMonetaire key={type} label={label} valeur={h.epargneAnnuelle[type] ?? 0} onChange={(v) => majEpargne(type, v)} indice={indice} />
           ))}
         </div>
+        {(h.epargneAnnuelle.CELIAPP ?? 0) > 0 && (
+          <div className="mt-4 rounded-xl bg-marque-50/60 p-4 ring-1 ring-marque-500/15">
+            <ChampMonetaire
+              label="CELIAPP — déjà cotisé (à vie)"
+              valeur={h.celiappDejaCotise ?? 0}
+              onChange={(v) => maj('celiappDejaCotise', Math.min(v, CELIAPP_PLAFOND_VIE))}
+              indice="Total déjà versé à ton CELIAPP, distinct du solde (qui inclut la croissance)."
+            />
+            <p className="mt-2 text-xs text-slate-500">
+              {avertissementCeliapp(h.celiappDejaCotise ?? 0, h.epargneAnnuelle.CELIAPP ?? 0)}
+            </p>
+          </div>
+        )}
       </section>
 
       <section className="carte p-6">

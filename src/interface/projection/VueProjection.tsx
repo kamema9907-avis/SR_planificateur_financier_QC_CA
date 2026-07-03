@@ -48,6 +48,7 @@ function defautHypotheses(): HypothesesProjection {
     revenuEmploi: 0,
     croissanceSalaireReelle: 0,
     epargneAnnuelle: {},
+    celiappDejaCotise: 0,
     comptes: [
       { type: 'REER', solde: 0, profil: 'equilibre' },
       { type: 'CELI', solde: 0, profil: 'dynamique' },

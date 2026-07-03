@@ -62,6 +62,11 @@ export interface HypothesesProjection {
   readonly croissanceSalaireReelle: number;
   /** Épargne annuelle versée pendant l'accumulation, par type de compte (en $ d'aujourd'hui). */
   readonly epargneAnnuelle: Partial<Record<TypeCompte, number>>;
+  /**
+   * Montant total déjà cotisé au CELIAPP à ce jour (nominal, distinct du solde du compte).
+   * Sert à respecter le plafond à vie de 40 000 $. Défaut : 0.
+   */
+  readonly celiappDejaCotise?: number;
 
   // Comptes de départ
   readonly comptes: readonly Compte[];

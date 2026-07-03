@@ -34,7 +34,7 @@ function personneDefaut(nom: string, sexe: 'H' | 'F', ageActuel: number, ageDece
   return {
     nom, sexe, ageActuel, ageRetraite: 62, ageDeces,
     revenuEmploi: 0, croissanceSalaireReelle: 0,
-    epargneAnnuelle: {}, epargneReerConjoint: 0,
+    epargneAnnuelle: {}, celiappDejaCotise: 0, epargneReerConjoint: 0,
     comptes: [
       { type: 'REER', solde: 0, profil: 'equilibre' },
       { type: 'CELI', solde: 0, profil: 'dynamique' },

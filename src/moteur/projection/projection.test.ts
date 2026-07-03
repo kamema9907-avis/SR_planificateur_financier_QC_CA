@@ -186,6 +186,42 @@ describe('fonte anticipée du REER', () => {
   });
 });
 
+describe('plafond CELIAPP', () => {
+  const comptesSansCroissance = [
+    { type: 'CELIAPP', solde: 0, profil: 'equilibre', rendementPersonnalise: 0 },
+    { type: 'CELI', solde: 0, profil: 'equilibre', rendementPersonnalise: 0 },
+  ] as const;
+
+  it('plafonne à 8 000 $/an et 40 000 $ à vie, l’excédent allant au CELI', () => {
+    const r = projeter(
+      hypotheses({
+        ageActuel: 40, ageRetraite: 100, ageDeces: 50, // 11 années d'accumulation
+        epargneAnnuelle: { CELIAPP: 12_000 }, // au-delà du plafond annuel de 8 000
+        comptes: comptesSansCroissance.map((c) => ({ ...c })),
+      }),
+    );
+    // 1re année : 8 000 au CELIAPP (plafond annuel), 4 000 redirigés au CELI.
+    expect(r.annees[0].soldes.CELIAPP).toBeCloseTo(8_000, 2);
+    expect(r.annees[0].soldes.CELI).toBeCloseTo(4_000, 2);
+    // Le CELIAPP ne dépasse jamais 40 000 $ (plafond à vie).
+    const fin = r.annees[r.annees.length - 1];
+    expect(fin.soldes.CELIAPP).toBeCloseTo(40_000, 2);
+  });
+
+  it('tient compte du montant déjà cotisé', () => {
+    const r = projeter(
+      hypotheses({
+        ageActuel: 40, ageRetraite: 100, ageDeces: 45,
+        epargneAnnuelle: { CELIAPP: 8_000 },
+        celiappDejaCotise: 36_000, // il ne reste que 4 000 $ de droits
+        comptes: comptesSansCroissance.map((c) => ({ ...c })),
+      }),
+    );
+    const fin = r.annees[r.annees.length - 1];
+    expect(fin.soldes.CELIAPP).toBeCloseTo(4_000, 2);
+  });
+});
+
 describe('projection complète (fumée)', () => {
   it('produit une année par âge, sans valeur invalide', () => {
     const r = projeter(

@@ -66,6 +66,9 @@ export {
   estLibreImpot,
   estNonEnregistre,
   rendementNet,
+  repartirCotisationCeliapp,
+  CELIAPP_PLAFOND_ANNUEL,
+  CELIAPP_PLAFOND_VIE,
 } from './projection/comptes';
 export { rendementBrut, type ProfilRendement } from './constantes/profilsRendement';
 export { facteurAjustementRRQ, facteurAjustementSV } from './projection/rentesPubliques';

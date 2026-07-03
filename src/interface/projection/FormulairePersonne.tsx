@@ -1,5 +1,7 @@
+import { CELIAPP_PLAFOND_VIE } from '../../moteur';
 import type { PersonneProjection, TypeCompte } from '../../moteur';
 import { ChampMonetaire, ChampNombre, ChampPourcent, ChampSelect, TitreSection } from '../Champ';
+import { avertissementCeliapp } from './FormulaireProjection';
 import { EditeurComptes } from './EditeurComptes';
 import { SectionRentesEmployeur } from './SectionRentesEmployeur';
 
@@ -12,6 +14,7 @@ interface Props {
 const EPARGNES: readonly { type: TypeCompte; label: string; indice?: string }[] = [
   { type: 'REER', label: 'REER', indice: 'Déductible' },
   { type: 'CELI', label: 'CELI' },
+  { type: 'CELIAPP', label: 'CELIAPP', indice: 'Déductible' },
   { type: 'NON_ENREGISTRE', label: 'Non-enregistré' },
 ];
 
@@ -58,6 +61,19 @@ export function FormulairePersonne({ p, fraisGestion, onChange }: Props) {
           ))}
           <ChampMonetaire label="REER de conjoint" valeur={p.epargneReerConjoint} onChange={(v) => maj('epargneReerConjoint', v)} indice="Vous déduisez, versé au REER de l'autre" />
         </div>
+        {(p.epargneAnnuelle.CELIAPP ?? 0) > 0 && (
+          <div className="mt-4 rounded-xl bg-marque-50/60 p-4 ring-1 ring-marque-500/15">
+            <ChampMonetaire
+              label="CELIAPP — déjà cotisé (à vie)"
+              valeur={p.celiappDejaCotise ?? 0}
+              onChange={(v) => maj('celiappDejaCotise', Math.min(v, CELIAPP_PLAFOND_VIE))}
+              indice="Total déjà versé, distinct du solde du compte."
+            />
+            <p className="mt-2 text-xs text-slate-500">
+              {avertissementCeliapp(p.celiappDejaCotise ?? 0, p.epargneAnnuelle.CELIAPP ?? 0)}
+            </p>
+          </div>
+        )}
       </section>
 
       <section className="carte p-6">

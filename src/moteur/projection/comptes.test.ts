@@ -1,6 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import { rendementBrut, composantesRendementBrut } from '../constantes/profilsRendement';
-import { croissanceAnnuelle, rendementNet, estImposableAuRetrait, estLibreImpot } from './comptes';
+import {
+  croissanceAnnuelle,
+  rendementNet,
+  estImposableAuRetrait,
+  estLibreImpot,
+  repartirCotisationCeliapp,
+  CELIAPP_PLAFOND_ANNUEL,
+  CELIAPP_PLAFOND_VIE,
+} from './comptes';
 
 describe('profils de rendement calibrés IQPF', () => {
   it('le profil équilibré (60/35/5) donne un rendement brut cohérent', () => {
@@ -50,5 +58,24 @@ describe('classification fiscale des comptes', () => {
   it('CELI et CELIAPP sont libres d’impôt', () => {
     expect(estLibreImpot('CELI')).toBe(true);
     expect(estLibreImpot('NON_ENREGISTRE')).toBe(false);
+  });
+});
+
+describe('répartition d’une cotisation CELIAPP (plafonds)', () => {
+  it('laisse passer une cotisation sous les deux plafonds', () => {
+    expect(repartirCotisationCeliapp(5_000, 0)).toEqual({ celiapp: 5_000, excedent: 0 });
+  });
+
+  it('plafonne à 8 000 $/an et renvoie l’excédent', () => {
+    expect(repartirCotisationCeliapp(10_000, 0)).toEqual({ celiapp: CELIAPP_PLAFOND_ANNUEL, excedent: 2_000 });
+  });
+
+  it('respecte le plafond à vie restant (droits presque épuisés)', () => {
+    // Déjà 36 000 $ cotisés → il ne reste que 4 000 $.
+    expect(repartirCotisationCeliapp(8_000, 36_000)).toEqual({ celiapp: 4_000, excedent: 4_000 });
+  });
+
+  it('renvoie tout en excédent quand le plafond à vie est atteint', () => {
+    expect(repartirCotisationCeliapp(8_000, CELIAPP_PLAFOND_VIE)).toEqual({ celiapp: 0, excedent: 8_000 });
   });
 });
