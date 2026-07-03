@@ -33,7 +33,8 @@ mon conjoint) gagner, cotiser, encaisser et décaisser chaque dollar, sur toute 
 moins d'impôt total possible ? »*
 
 - **100 % local** : les données financières ne quittent jamais le navigateur (aucun serveur).
-- **Hébergeable** comme site statique gratuit, partageable par un simple lien.
+- **✅ En ligne** : <https://kamema9907-avis.github.io/SR_planificateur_financier_QC_CA/> — site statique
+  gratuit (GitHub Pages), redéployé automatiquement à chaque `git push origin main`.
 - ⚖️ **Note légale** : outil de **calcul et de simulation**. Le titre « planificateur financier » est
   protégé au Québec (IQPF) ; l'outil ne fournit pas de conseil personnalisé à des clients.
 
@@ -217,6 +218,10 @@ npm run build    # version de production (dossier dist/, à héberger)
 npm run preview  # prévisualiser la version de production
 ```
 
+**Mise en ligne** : `git push origin main` → GitHub Actions lance les tests, bâtit le site et le déploie
+sur GitHub Pages (~1-2 min). Si un test échoue, le déploiement est bloqué (garde-fou). Dépôt :
+`kamema9907-avis/SR_planificateur_financier_QC_CA` ; branches `version-1/2/3` = jalons figés, `main` = déployée.
+
 ---
 
 ## ⚠️ Limites et simplifications actuelles
@@ -248,9 +253,8 @@ Conséquence : les montants sont de bonnes **estimations de planification**, pas
    downsizing, arbitrage d'exemption, roulement au conjoint).
 5. **✅ Phase 4** — **Optimiseur automatique** (recherche sur le moteur) : ordre de décaissement, fonte
    du REER, âges RRQ/SV, ventes immobilières. Maximise le patrimoine net au décès.
-4. **Phase 4** — **Optimiseur automatique** : programmation linéaire (`glpk.js` / WebAssembly, in-browser)
-   pour trouver la stratégie fiscalement optimale, plutôt que de simuler un scénario donné.
-5. **Phase 5** — Finitions UI, export/import chiffré, partage, hébergement.
+6. **Phase 5** — Finitions UI, export/import chiffré, partage. (**Hébergement : ✅ fait** — GitHub Pages,
+   déploiement automatique à chaque `git push`.)
 
 Idées / à explorer : immobilier détaillé (résidence/chalet/immeuble à revenu, arbitrage d'exemption),
 options d'employé, analyse de sensibilité / Monte Carlo, autres provinces.
@@ -270,6 +274,20 @@ options d'employé, analyse de sensibilité / Monte Carlo, autres provinces.
   (droits par personne ; roulement au survivant sans consommer ses droits — titulaire remplaçant).
 - Interface : blocs « CELIAPP déjà cotisé » et « Droits CELI disponibles » (solo + couple) ; le CELIAPP
   devient aussi une épargne du couple. **109 cas-tests verts.**
+
+### 2026-07-03 — Bouton « Réinitialiser » + ouverture vierge
+- Nouveau `BoutonReinitialiser` (avec confirmation) dans les trois vues : Impôt, Projection, Couple.
+- L'application ouvre désormais **vide** par défaut (plus de valeurs d'exemple) — première visite propre
+  pour les amis. Note « tes données restent sur ton appareil » ajoutée à la vue Impôt.
+
+### 2026-07-03 — Mise en ligne : GitHub Pages
+- Dépôt public `kamema9907-avis/SR_planificateur_financier_QC_CA` ; branche `main` créée (déployée),
+  `version-1/2/3` conservées comme jalons.
+- Workflow GitHub Actions (`.github/workflows/deploy.yml`) : à chaque push sur `main` → `npm ci` →
+  **tests** → build → déploiement Pages. Un test rouge bloque le déploiement.
+- `.gitignore` : exclusion de `*.tsbuildinfo` et `.claude/settings.local.json` (retirés du suivi).
+- Site : <https://kamema9907-avis.github.io/SR_planificateur_financier_QC_CA/> (le `base: './'` de Vite
+  permet le sous-chemin). README : section « Essayer en ligne » + hypothèses (QC, salarié, 2026).
 
 ### 2026-07-03 — Cotisations sociales, cotisation syndicale, assurance-salaire, rente de survivant
 - Nouveaux `constantes/cotisations2026.ts` (RRQ/AE/RQAP + crédit syndical QC, indexables) et
