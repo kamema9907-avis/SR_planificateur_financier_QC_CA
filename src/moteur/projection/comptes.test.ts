@@ -8,6 +8,9 @@ import {
   repartirCotisationCeliapp,
   CELIAPP_PLAFOND_ANNUEL,
   CELIAPP_PLAFOND_VIE,
+  droitsCeliAnnuels,
+  droitsCeliParDefaut,
+  CELI_DROITS_MAX_2026,
 } from './comptes';
 
 describe('profils de rendement calibrés IQPF', () => {
@@ -77,5 +80,24 @@ describe('répartition d’une cotisation CELIAPP (plafonds)', () => {
 
   it('renvoie tout en excédent quand le plafond à vie est atteint', () => {
     expect(repartirCotisationCeliapp(8_000, CELIAPP_PLAFOND_VIE)).toEqual({ celiapp: 0, excedent: 8_000 });
+  });
+});
+
+describe('droits de cotisation CELI', () => {
+  it('accorde 7 000 $ pour l’année de base 2026', () => {
+    expect(droitsCeliAnnuels(2026, 0.021)).toBe(7_000);
+  });
+
+  it('indexe le plafond annuel à l’inflation, arrondi au 500 $ le plus près', () => {
+    // 7 000 × 1,021⁴ ≈ 7 607 → arrondi à 7 500.
+    expect(droitsCeliAnnuels(2030, 0.021)).toBe(7_500);
+    // Sans inflation : reste 7 000 pour toujours.
+    expect(droitsCeliAnnuels(2040, 0)).toBe(7_000);
+  });
+
+  it('défaut heuristique : 109 000 $ moins le solde CELI actuel, plancher à 0', () => {
+    expect(droitsCeliParDefaut([{ type: 'CELI', solde: 60_000, profil: 'equilibre' }])).toBe(49_000);
+    expect(droitsCeliParDefaut([])).toBe(CELI_DROITS_MAX_2026);
+    expect(droitsCeliParDefaut([{ type: 'CELI', solde: 200_000, profil: 'equilibre' }])).toBe(0);
   });
 });

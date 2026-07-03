@@ -69,6 +69,10 @@ export {
   repartirCotisationCeliapp,
   CELIAPP_PLAFOND_ANNUEL,
   CELIAPP_PLAFOND_VIE,
+  droitsCeliAnnuels,
+  droitsCeliParDefaut,
+  CELI_DROITS_MAX_2026,
+  CELI_PLAFOND_ANNUEL_2026,
 } from './projection/comptes';
 export { rendementBrut, type ProfilRendement } from './constantes/profilsRendement';
 export { facteurAjustementRRQ, facteurAjustementSV } from './projection/rentesPubliques';

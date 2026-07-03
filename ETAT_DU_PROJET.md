@@ -3,8 +3,9 @@
 > **Document vivant** : synthèse de tout ce que le projet fait à ce jour. À mettre à jour au fil des
 > phases. Voir le [journal des modifications](#-journal-des-modifications) à la fin pour l'historique.
 >
-> Dernière mise à jour : **2026-07-03** — ajout des cotisations sociales (RRQ/AE/RQAP), de la
-> cotisation syndicale, de l'assurance-salaire et de la rente de survivant RRQ à la Phase 1.
+> Dernière mise à jour : **2026-07-03** — plafonds CELIAPP (40 000 $ / 8 000 $ par an) et droits de
+> cotisation CELI (compteur vivant) vérifiés dans la projection ; cotisations sociales (RRQ/AE/RQAP),
+> cotisation syndicale, assurance-salaire et rente de survivant RRQ ajoutées à la Phase 1.
 
 ## Table des matières
 1. [Vision et objectif](#-vision-et-objectif)
@@ -62,6 +63,9 @@ Calcule l'impôt **fédéral + Québec 2026** pour une personne, une année (fid
 Projette le patrimoine et l'impôt **année par année**, de l'âge actuel jusqu'au décès, avec barèmes
 **indexés à l'inflation** (calcul nominal, affichage en dollars d'aujourd'hui) :
 - **Tous les comptes** : REER→FERR, CELI, CELIAPP, CRI→FRV, non-enregistré, REEE.
+- **Plafonds vérifiés** : CELIAPP (8 000 $/an, 40 000 $ à vie, champ « déjà cotisé ») et **droits CELI**
+  (droits ARC saisis, +7 000 $/an indexé arrondi au 500 $, retraits restaurés l'année suivante ; la
+  fonte du REER respecte les droits). Excédent en chaîne : CELIAPP → CELI → non-enregistré.
 - **Profils de rendement** (prudent / équilibré / dynamique) calibrés sur les Normes IQPF 2026.
 - **Rentes publiques** RRQ et SV (saisie manuelle) avec ajustement report/anticipation et indexation.
 - **Rentes d'employeur / RREGOP** : rente de base + ponts, indexation configurable, calculateur RREGOP
@@ -92,7 +96,7 @@ Deux conjoints entièrement modélisés (colonnes côte à côte), un ménage à
   tableau (avec le montant fractionné).
 
 ### Qualité / validation
-- **96 cas-tests automatisés** (moteur fiscal, cotisations, indexation, comptes, projection, décaissement, couple, immobilier, optimiseur).
+- **109 cas-tests automatisés** (moteur fiscal, cotisations, plafonds CELIAPP/CELI, indexation, comptes, projection, décaissement, couple, immobilier, optimiseur).
 - Propriété clé du couple : le **fractionnement ne hausse jamais** l'impôt combiné (testé).
 - **Validation croisée** contre les taux marginaux combinés **publiés** du Québec 2026 :
   sommet **53,31 %**, 140 000 $ → **47,46 %**, 60 000 $ → **36,12 %**.
@@ -153,7 +157,7 @@ src/
 │   │   ├── decaissement.ts         # Solveur de retrait (cible nette d'impôt)
 │   │   └── projection.ts           # Boucle année par année (cycle de vie)
 │   ├── index.ts                    # API publique du moteur
-│   └── *.test.ts                   # 96 cas-tests
+│   └── *.test.ts                   # 109 cas-tests
 └── interface/                      # UI React (habillage)
     ├── Champ.tsx                   # Champs de saisie réutilisables
     ├── format.ts                   # Formatage $ / % (fr-CA)
@@ -208,7 +212,7 @@ src/
 ```bash
 npm install      # installer les dépendances
 npm run dev      # développement (http://localhost:5173)
-npm test         # les 96 cas-tests
+npm test         # les 109 cas-tests
 npm run build    # version de production (dossier dist/, à héberger)
 npm run preview  # prévisualiser la version de production
 ```
@@ -222,8 +226,9 @@ npm run preview  # prévisualiser la version de production
   « employeur », AE facultative) n'est pas modélisé. **Montant canadien pour emploi** et crédits mineurs
   (dons, frais médicaux) non inclus.
 - Seuil exact d'indexation du montant fédéral en raison de l'âge à confirmer.
-- **Maximum de retrait FRV** provincial ; mécaniques fines du **CELIAPP** (achat 1re propriété) et du
-  **REEE** (règles de retrait) simplifiées ; plafonds de cotisation annuels non validés dynamiquement.
+- **Maximum de retrait FRV** provincial ; mécaniques fines du **CELIAPP** (achat 1re propriété,
+  fermeture à 15 ans / 71 ans, report du droit annuel) et du **REEE** (règles de retrait) simplifiées ;
+  plafond de cotisation **REER** non vérifié (les plafonds CELIAPP et les droits CELI le sont).
 - Couple : rente de survivant RRQ avant 65 ans **approximée** ; max RRQ (plafond survivant) et règle
   d'attribution du REER de conjoint (3 ans) simplifiés.
 - Indexation uniforme à l'inflation IQPF (certains seuils réels s'indexent différemment).
@@ -253,6 +258,18 @@ options d'employé, analyse de sensibilité / Monte Carlo, autres provinces.
 ---
 
 ## 📓 Journal des modifications
+
+### 2026-07-03 — Plafonds CELIAPP et droits de cotisation CELI
+- **CELIAPP** : plafonds 8 000 $/an et 40 000 $ à vie (`repartirCotisationCeliapp`), champ « déjà
+  cotisé », excédent redirigé ; seule la part réellement versée est déductible.
+- **CELI** : compteur de **droits vivant** — départ = « droits disponibles » (ARC, défaut heuristique
+  109 000 $ − solde CELI), **+7 000 $/an indexé arrondi au 500 $** (`droitsCeliAnnuels`), cotisations
+  déduites, **retraits restaurés l'année suivante** (mesurés autour du décaissement). La **fonte du
+  REER** réinvestit au CELI dans la limite des droits (excédent au non-enregistré, `celiUtilise`).
+- Chaîne de débordement : CELIAPP plein → CELI (selon droits) → non-enregistré. Solo **et** couple
+  (droits par personne ; roulement au survivant sans consommer ses droits — titulaire remplaçant).
+- Interface : blocs « CELIAPP déjà cotisé » et « Droits CELI disponibles » (solo + couple) ; le CELIAPP
+  devient aussi une épargne du couple. **109 cas-tests verts.**
 
 ### 2026-07-03 — Cotisations sociales, cotisation syndicale, assurance-salaire, rente de survivant
 - Nouveaux `constantes/cotisations2026.ts` (RRQ/AE/RQAP + crédit syndical QC, indexables) et

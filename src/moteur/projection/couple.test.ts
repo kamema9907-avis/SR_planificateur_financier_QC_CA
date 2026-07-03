@@ -43,6 +43,32 @@ function couple(p1: Partial<PersonneProjection>, p2: Partial<PersonneProjection>
 }
 
 // ---------------------------------------------------------------------------
+// Droits de cotisation CELI (par personne)
+// ---------------------------------------------------------------------------
+
+describe('droits CELI dans le couple', () => {
+  it('plafonne l’épargne CELI de chaque conjoint à SES droits, l’excédent au non-enregistré', () => {
+    const r = projeterCouple(
+      couple(
+        {
+          ageActuel: 60, ageRetraite: 65, revenuEmploi: 80_000,
+          epargneAnnuelle: { CELI: 8_000 },
+          droitsCeliDisponibles: 3_000,
+          comptes: [
+            { type: 'CELI', solde: 0, profil: 'equilibre', rendementPersonnalise: 0 },
+            { type: 'NON_ENREGISTRE', solde: 0, profil: 'equilibre', coutBase: 0, rendementPersonnalise: 0 },
+          ],
+        },
+        {},
+        { inflation: 0, fraisGestion: 0 },
+      ),
+    );
+    expect(r.annees[0].soldes1.CELI).toBeCloseTo(3_000, 2);
+    expect(r.annees[0].soldes1.NON_ENREGISTRE).toBeCloseTo(5_000, 2);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Fractionnement du revenu de pension
 // ---------------------------------------------------------------------------
 

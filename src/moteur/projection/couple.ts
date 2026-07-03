@@ -15,6 +15,8 @@ import type { EntreeFiscale } from '../types';
 import {
   clonerComptes,
   croissanceAnnuelle,
+  droitsCeliAnnuels,
+  droitsCeliParDefaut,
   estLibreImpot,
   estNonEnregistre,
   repartirCotisationCeliapp,
@@ -51,6 +53,29 @@ interface EtatPersonne {
   survivant: boolean;
   /** Cumul nominal des cotisations CELIAPP (plafond à vie de 40 000 $). */
   celiappCotiseCumul: number;
+  /** Droits de cotisation CELI disponibles (compteur vivant). */
+  droitsCeli: number;
+  /** Retraits CELI de l'année : restaurés en droits au 1er janvier suivant. */
+  droitsCeliRestaures: number;
+}
+
+/** Solde total des comptes CELI d'une personne. */
+const soldeCeli = (etat: EtatPersonne) =>
+  etat.comptes.filter((c) => c.type === 'CELI').reduce((s, c) => s + c.solde, 0);
+
+/** Verse au CELI d'une personne dans la limite de ses droits ; l'excédent déborde au non-enregistré. */
+function verserAuCeli(etat: EtatPersonne, montant: number): void {
+  const auCeli = Math.min(montant, Math.max(0, etat.droitsCeli));
+  if (auCeli > 0) {
+    trouverOuCreer(etat.comptes, 'CELI', etat.profilDefaut).solde += auCeli;
+    etat.droitsCeli -= auCeli;
+  }
+  const reste = montant - auCeli;
+  if (reste > 0) {
+    const ne = trouverOuCreer(etat.comptes, 'NON_ENREGISTRE', etat.profilDefaut);
+    ne.solde += reste;
+    ne.coutBase = (ne.coutBase ?? 0) + reste;
+  }
 }
 
 function nouvelleEntree(age: number, vitSeul: boolean): EntreeFiscale {
@@ -135,7 +160,14 @@ function appliquerCotisations(etat: EtatPersonne, facteurInflation: number, conj
     if (!montantAuj) continue;
     const montant = montantAuj * facteurInflation;
 
-    // CELIAPP : plafonner (8 000 $/an, 40 000 $ à vie) et rediriger l'excédent au CELI.
+    // CELI : plafonné par les droits de cotisation (excédent → non-enregistré).
+    if (type === 'CELI') {
+      verserAuCeli(etat, montant);
+      cotisations += montant;
+      continue;
+    }
+
+    // CELIAPP : plafonner (8 000 $/an, 40 000 $ à vie) ; l'excédent suit la chaîne CELI → non-enr.
     if (type === 'CELIAPP') {
       const { celiapp, excedent } = repartirCotisationCeliapp(montant, etat.celiappCotiseCumul);
       if (celiapp > 0) {
@@ -145,7 +177,7 @@ function appliquerCotisations(etat: EtatPersonne, facteurInflation: number, conj
         cotisations += celiapp;
       }
       if (excedent > 0) {
-        trouverOuCreer(etat.comptes, 'CELI', etat.profilDefaut).solde += excedent;
+        verserAuCeli(etat, excedent); // redirigé (non déductible), dans la limite des droits CELI
         cotisations += excedent;
       }
       continue;
@@ -303,8 +335,8 @@ function equiteTotale(etats: readonly EtatImmeuble[]): number {
 
 /** Projette un couple sur tout le cycle de vie. */
 export function projeterCouple(h: HypothesesCouple): ResultatCouple {
-  const etat1: EtatPersonne = { p: h.personne1, comptes: clonerComptes(h.personne1.comptes), profilDefaut: h.personne1.comptes[0]?.profil ?? 'equilibre', survivant: false, celiappCotiseCumul: h.personne1.celiappDejaCotise ?? 0 };
-  const etat2: EtatPersonne = { p: h.personne2, comptes: clonerComptes(h.personne2.comptes), profilDefaut: h.personne2.comptes[0]?.profil ?? 'equilibre', survivant: false, celiappCotiseCumul: h.personne2.celiappDejaCotise ?? 0 };
+  const etat1: EtatPersonne = { p: h.personne1, comptes: clonerComptes(h.personne1.comptes), profilDefaut: h.personne1.comptes[0]?.profil ?? 'equilibre', survivant: false, celiappCotiseCumul: h.personne1.celiappDejaCotise ?? 0, droitsCeli: h.personne1.droitsCeliDisponibles ?? droitsCeliParDefaut(h.personne1.comptes), droitsCeliRestaures: 0 };
+  const etat2: EtatPersonne = { p: h.personne2, comptes: clonerComptes(h.personne2.comptes), profilDefaut: h.personne2.comptes[0]?.profil ?? 'equilibre', survivant: false, celiappCotiseCumul: h.personne2.celiappDejaCotise ?? 0, droitsCeli: h.personne2.droitsCeliDisponibles ?? droitsCeliParDefaut(h.personne2.comptes), droitsCeliRestaures: 0 };
 
   const etatsImmo = clonerImmeubles(h.immeubles);
   const bienAbrite = determinerBienAbrite(h.immeubles);
@@ -327,6 +359,14 @@ export function projeterCouple(h: HypothesesCouple): ResultatCouple {
     const vivant2 = age2 <= h.personne2.ageDeces;
     if (!vivant1 && !vivant2) break;
 
+    // Droits CELI : +droits annuels + retraits de l'an dernier (restaurés au 1er janvier).
+    if (i > 0) {
+      for (const etat of [etat1, etat2]) {
+        etat.droitsCeli += droitsCeliAnnuels(annee, h.inflation) + etat.droitsCeliRestaures;
+        etat.droitsCeliRestaures = 0;
+      }
+    }
+
     let impotAnnee = 0;
     let revenuDisponible = 0;
     let fractionnement = 0;
@@ -348,7 +388,12 @@ export function projeterCouple(h: HypothesesCouple): ResultatCouple {
       if (!ctx1.travaille && !ctx2.travaille) {
         phase = 'decaissement';
         const cible = h.depensesRetraite * facteurInflation + paiementImmo;
+        const celiAvant1 = soldeCeli(etat1);
+        const celiAvant2 = soldeCeli(etat2);
         const res = financerCouple(etat1, etat2, ctx1, ctx2, cible, annee, h.ordreDecaissement);
+        // Les retraits CELI restaurent les droits équivalents l'année suivante.
+        etat1.droitsCeliRestaures += Math.max(0, celiAvant1 - soldeCeli(etat1));
+        etat2.droitsCeliRestaures += Math.max(0, celiAvant2 - soldeCeli(etat2));
         impotAnnee = res.impot;
         fractionnement = Math.abs(res.transfert);
         revenuDisponible = res.disponible;
@@ -362,8 +407,10 @@ export function projeterCouple(h: HypothesesCouple): ResultatCouple {
         }
         if (h.cibleFonteReer && h.cibleFonteReer > 0) {
           const cibleNom = h.cibleFonteReer * facteurInflation;
-          const f1 = fondreReer(etat1.comptes, res.e1, cibleNom, annee, ctx1.age, etat1.profilDefaut);
-          const f2 = fondreReer(etat2.comptes, res.e2, cibleNom, annee, ctx2.age, etat2.profilDefaut);
+          const f1 = fondreReer(etat1.comptes, res.e1, cibleNom, annee, ctx1.age, etat1.profilDefaut, etat1.droitsCeli);
+          etat1.droitsCeli -= f1.celiUtilise;
+          const f2 = fondreReer(etat2.comptes, res.e2, cibleNom, annee, ctx2.age, etat2.profilDefaut, etat2.droitsCeli);
+          etat2.droitsCeli -= f2.celiUtilise;
           const opt = impotCoupleOptimal(f1.entree, f2.entree, annee, splittable(f1.entree, ctx1.age, ctx1.renteEmp), splittable(f2.entree, ctx2.age, ctx2.renteEmp));
           impotAnnee = opt.impot;
           fractionnement = Math.abs(opt.transfert);
@@ -410,7 +457,9 @@ export function projeterCouple(h: HypothesesCouple): ResultatCouple {
         revenuDisponible = ctx.encaisse - impotAnnee - cot.cotisations - paiementImmo - retenuesPaie;
       } else {
         const cible = h.depensesRetraite * h.fractionSurvivant * facteurInflation + paiementImmo;
+        const celiAvant = soldeCeli(vivant);
         const res = financerDepenses(vivant.comptes, h.ordreDecaissement, ctx.entree, ctx.encaisse, cible, annee, ctx.age);
+        vivant.droitsCeliRestaures += Math.max(0, celiAvant - soldeCeli(vivant));
         impotAnnee = res.impot;
         revenuDisponible = res.disponible;
         if (res.disponible > cible + 1) {
@@ -422,7 +471,8 @@ export function projeterCouple(h: HypothesesCouple): ResultatCouple {
           anneeEpuisement = annee;
         }
         if (h.cibleFonteReer && h.cibleFonteReer > 0) {
-          const f = fondreReer(vivant.comptes, res.entree, h.cibleFonteReer * facteurInflation, annee, ctx.age, vivant.profilDefaut);
+          const f = fondreReer(vivant.comptes, res.entree, h.cibleFonteReer * facteurInflation, annee, ctx.age, vivant.profilDefaut, vivant.droitsCeli);
+          vivant.droitsCeli -= f.celiUtilise;
           impotAnnee = f.impot;
         }
       }

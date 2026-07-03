@@ -1,4 +1,4 @@
-import { CELIAPP_PLAFOND_VIE } from '../../moteur';
+import { CELIAPP_PLAFOND_VIE, droitsCeliParDefaut } from '../../moteur';
 import type { PersonneProjection, TypeCompte } from '../../moteur';
 import { ChampMonetaire, ChampNombre, ChampPourcent, ChampSelect, TitreSection } from '../Champ';
 import { avertissementCeliapp } from './FormulaireProjection';
@@ -71,6 +71,19 @@ export function FormulairePersonne({ p, fraisGestion, onChange }: Props) {
             />
             <p className="mt-2 text-xs text-slate-500">
               {avertissementCeliapp(p.celiappDejaCotise ?? 0, p.epargneAnnuelle.CELIAPP ?? 0)}
+            </p>
+          </div>
+        )}
+        {((p.epargneAnnuelle.CELI ?? 0) > 0 || (p.epargneAnnuelle.CELIAPP ?? 0) > 0) && (
+          <div className="mt-4 rounded-xl bg-sky-50/60 p-4 ring-1 ring-sky-500/15">
+            <ChampMonetaire
+              label="Droits CELI disponibles"
+              valeur={Math.round(p.droitsCeliDisponibles ?? droitsCeliParDefaut(p.comptes))}
+              onChange={(v) => maj('droitsCeliDisponibles', v)}
+              indice="Selon « Mon dossier » (ARC). Pré-rempli : 109 000 $ − solde CELI."
+            />
+            <p className="mt-2 text-xs text-slate-500">
+              +7 000 $/an (indexé) ; un retrait redonne les droits l'année suivante. L'excédent ira au non-enregistré.
             </p>
           </div>
         )}

@@ -25,6 +25,31 @@ export const CELIAPP_PLAFOND_ANNUEL = 8_000;
 export const CELIAPP_PLAFOND_VIE = 40_000;
 
 /**
+ * CELI : cumul maximal des droits 2009→2026 (personne de 18 ans+ en 2009 n'ayant jamais cotisé).
+ * Ce n'est PAS un plafond à vie : les droits croissent chaque année et un retrait les restaure
+ * l'année suivante. Sert seulement au défaut heuristique du champ « droits disponibles ».
+ */
+export const CELI_DROITS_MAX_2026 = 109_000;
+/** Plafond annuel CELI de l'année de base (indexé à l'inflation, arrondi au 500 $ près). */
+export const CELI_PLAFOND_ANNUEL_2026 = 7_000;
+const ANNEE_BASE_CELI = 2026;
+
+/** Nouveaux droits CELI accordés une année donnée : 7 000 $ indexé, arrondi au 500 $ le plus près. */
+export function droitsCeliAnnuels(annee: number, inflation: number): number {
+  const indexe = CELI_PLAFOND_ANNUEL_2026 * Math.pow(1 + inflation, annee - ANNEE_BASE_CELI);
+  return Math.round(indexe / 500) * 500;
+}
+
+/**
+ * Défaut heuristique des droits CELI disponibles aujourd'hui : 109 000 $ (cumul 2026) moins le
+ * solde actuel des comptes CELI. À remplacer par le chiffre exact de « Mon dossier » (ARC).
+ */
+export function droitsCeliParDefaut(comptes: readonly Compte[]): number {
+  const soldeCeli = comptes.filter((c) => c.type === 'CELI').reduce((s, c) => s + c.solde, 0);
+  return Math.max(0, CELI_DROITS_MAX_2026 - soldeCeli);
+}
+
+/**
  * Répartit une cotisation CELIAPP voulue (montant NOMINAL d'une année) entre la part admissible
  * au CELIAPP — plafonnée à 8 000 $/an ET à 40 000 $ à vie — et l'excédent (à rediriger, p. ex. au
  * CELI). `dejaCotiseCumul` = total nominal déjà cotisé au CELIAPP jusqu'ici.

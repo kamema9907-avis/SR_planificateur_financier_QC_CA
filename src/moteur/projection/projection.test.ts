@@ -222,6 +222,72 @@ describe('plafond CELIAPP', () => {
   });
 });
 
+describe('droits de cotisation CELI', () => {
+  it('plafonne l’épargne CELI aux droits, l’excédent débordant au non-enregistré', () => {
+    const r = projeter(
+      hypotheses({
+        ageActuel: 40, ageRetraite: 100, ageDeces: 41, // 2 années d'accumulation
+        epargneAnnuelle: { CELI: 8_000 },
+        droitsCeliDisponibles: 5_000,
+        comptes: [
+          { type: 'CELI', solde: 0, profil: 'equilibre', rendementPersonnalise: 0 },
+          { type: 'NON_ENREGISTRE', solde: 0, profil: 'equilibre', coutBase: 0, rendementPersonnalise: 0 },
+        ],
+      }),
+    );
+    // Année 1 : droits 5 000 → 5 000 au CELI, 3 000 au non-enregistré.
+    expect(r.annees[0].soldes.CELI).toBeCloseTo(5_000, 2);
+    expect(r.annees[0].soldes.NON_ENREGISTRE).toBeCloseTo(3_000, 2);
+    // Année 2 : +7 000 $ de nouveaux droits → tout le 8 000 ne passe pas (7 000 + 1 000 débordé).
+    expect(r.annees[1].soldes.CELI).toBeCloseTo(12_000, 2);
+    expect(r.annees[1].soldes.NON_ENREGISTRE).toBeCloseTo(4_000, 2);
+  });
+
+  it('chaîne complète : CELIAPP plein → CELI (selon droits) → non-enregistré', () => {
+    const r = projeter(
+      hypotheses({
+        ageActuel: 40, ageRetraite: 100, ageDeces: 40, // 1 année
+        epargneAnnuelle: { CELIAPP: 12_000 },
+        droitsCeliDisponibles: 1_000,
+        comptes: [
+          { type: 'CELIAPP', solde: 0, profil: 'equilibre', rendementPersonnalise: 0 },
+          { type: 'CELI', solde: 0, profil: 'equilibre', rendementPersonnalise: 0 },
+          { type: 'NON_ENREGISTRE', solde: 0, profil: 'equilibre', coutBase: 0, rendementPersonnalise: 0 },
+        ],
+      }),
+    );
+    expect(r.annees[0].soldes.CELIAPP).toBeCloseTo(8_000, 2); // plafond annuel CELIAPP
+    expect(r.annees[0].soldes.CELI).toBeCloseTo(1_000, 2); // selon les droits CELI
+    expect(r.annees[0].soldes.NON_ENREGISTRE).toBeCloseTo(3_000, 2); // le reste
+  });
+
+  it('un retrait CELI restaure les droits l’année suivante, et la fonte du REER respecte les droits', () => {
+    const r = projeter(
+      hypotheses({
+        ageActuel: 65, ageRetraite: 65, ageDeces: 67,
+        depensesRetraite: 20_000,
+        droitsCeliDisponibles: 0,
+        cibleFonteReer: 100_000,
+        ordreDecaissement: ['CELI', 'CELIAPP', 'NON_ENREGISTRE', 'CRI', 'FRV', 'REER', 'FERR'],
+        comptes: [
+          { type: 'CELI', solde: 100_000, profil: 'equilibre', rendementPersonnalise: 0 },
+          { type: 'REER', solde: 500_000, profil: 'equilibre', rendementPersonnalise: 0 },
+          { type: 'NON_ENREGISTRE', solde: 0, profil: 'equilibre', coutBase: 0, rendementPersonnalise: 0 },
+        ],
+      }),
+    );
+    // Âge 65 : retrait CELI de 20 000 pour les dépenses ; droits 0 → la fonte réinvestit
+    // entièrement au non-enregistré. CELI = 100 000 − 20 000.
+    const a65 = r.annees.find((a) => a.age === 65)!;
+    expect(a65.soldes.CELI).toBeCloseTo(80_000, 0);
+    expect(a65.soldes.NON_ENREGISTRE).toBeGreaterThan(50_000); // l'après-impôt de la fonte y déborde
+    // Âge 66 : droits = 7 000 (annuel) + 20 000 (retrait restauré) = 27 000 → la fonte remplit
+    // exactement ces droits au CELI. CELI = 80 000 − 20 000 + 27 000.
+    const a66 = r.annees.find((a) => a.age === 66)!;
+    expect(a66.soldes.CELI).toBeCloseTo(87_000, 0);
+  });
+});
+
 describe('projection complète (fumée)', () => {
   it('produit une année par âge, sans valeur invalide', () => {
     const r = projeter(

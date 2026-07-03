@@ -15,6 +15,8 @@ import type { EntreeFiscale } from '../types';
 import {
   clonerComptes,
   croissanceAnnuelle,
+  droitsCeliAnnuels,
+  droitsCeliParDefaut,
   estNonEnregistre,
   repartirCotisationCeliapp,
   soldesParType,
@@ -76,10 +78,19 @@ export function projeter(h: HypothesesProjection): ResultatProjection {
   let ageEpuisement: number | null = null;
   let impotTotalVieReel = 0;
   let celiappCotiseCumul = h.celiappDejaCotise ?? 0; // cumul nominal des cotisations CELIAPP (plafond 40 000 $)
+  // Droits CELI : compteur vivant — départ (ARC ou heuristique), +droits annuels chaque année,
+  // −cotisations, +retraits de l'année précédente (restaurés au 1er janvier suivant).
+  let droitsCeli = h.droitsCeliDisponibles ?? droitsCeliParDefaut(h.comptes);
+  let droitsCeliRestaures = 0;
+  const soldeCeliTotal = () => comptes.filter((c) => c.type === 'CELI').reduce((s, c) => s + c.solde, 0);
 
   for (let i = 0; h.ageActuel + i <= h.ageDeces; i++) {
     const age = h.ageActuel + i;
     const annee = ANNEE_BASE + i;
+    if (i > 0) {
+      droitsCeli += droitsCeliAnnuels(annee, h.inflation) + droitsCeliRestaures;
+      droitsCeliRestaures = 0;
+    }
     const facteurInflation = Math.pow(1 + h.inflation, i);
     const deflateurReel = 1 / facteurInflation;
     const phase = age < h.ageRetraite ? 'accumulation' : 'decaissement';
@@ -137,11 +148,34 @@ export function projeter(h: HypothesesProjection): ResultatProjection {
 
       // Cotisations aux comptes (indexées à l'inflation).
       let deductible = 0;
+
+      // Verse au CELI dans la limite des droits ; l'excédent déborde au non-enregistré.
+      const verserAuCeli = (montant: number) => {
+        const auCeli = Math.min(montant, Math.max(0, droitsCeli));
+        if (auCeli > 0) {
+          trouverOuCreer(comptes, 'CELI', profilDefaut).solde += auCeli;
+          droitsCeli -= auCeli;
+        }
+        const reste = montant - auCeli;
+        if (reste > 0) {
+          const ne = trouverOuCreer(comptes, 'NON_ENREGISTRE', profilDefaut);
+          ne.solde += reste;
+          ne.coutBase = (ne.coutBase ?? 0) + reste;
+        }
+      };
+
       for (const [type, montantAujourdhui] of Object.entries(h.epargneAnnuelle) as [TypeCompte, number][]) {
         if (!montantAujourdhui) continue;
         const montant = montantAujourdhui * facteurInflation;
 
-        // CELIAPP : plafonner (8 000 $/an, 40 000 $ à vie) et rediriger l'excédent au CELI.
+        // CELI : plafonné par les droits de cotisation (excédent → non-enregistré).
+        if (type === 'CELI') {
+          verserAuCeli(montant);
+          cotisations += montant;
+          continue;
+        }
+
+        // CELIAPP : plafonner (8 000 $/an, 40 000 $ à vie) ; l'excédent suit la chaîne CELI → non-enr.
         if (type === 'CELIAPP') {
           const { celiapp, excedent } = repartirCotisationCeliapp(montant, celiappCotiseCumul);
           if (celiapp > 0) {
@@ -151,7 +185,7 @@ export function projeter(h: HypothesesProjection): ResultatProjection {
             cotisations += celiapp;
           }
           if (excedent > 0) {
-            trouverOuCreer(comptes, 'CELI', profilDefaut).solde += excedent; // redirigé (non déductible)
+            verserAuCeli(excedent); // redirigé (non déductible), dans la limite des droits CELI
             cotisations += excedent;
           }
           continue;
@@ -201,7 +235,10 @@ export function projeter(h: HypothesesProjection): ResultatProjection {
         gainsCapital: immo.gainBrut,
       };
       const encaisseForcee = rrq + sv + minimumFERR + renteEmp + immo.loyerCash + immo.cashVente;
+      const celiAvantRetraits = soldeCeliTotal();
       const res = financerDepenses(comptes, h.ordreDecaissement, entreeForcee, encaisseForcee, cible, annee, age);
+      // Un retrait CELI restaure les droits équivalents l'année suivante (règle du 1er janvier).
+      droitsCeliRestaures += Math.max(0, celiAvantRetraits - soldeCeliTotal());
 
       entreeAnnee = res.entree;
       impotAnnee = res.impot;
@@ -222,12 +259,14 @@ export function projeter(h: HypothesesProjection): ResultatProjection {
       // Épuisement du capital : impossible de financer la cible.
       if (res.disponible < cible - 1 && ageEpuisement === null) ageEpuisement = age;
 
-      // Fonte anticipée du REER (optionnelle) : remplir les tranches basses, réinvestir au CELI.
+      // Fonte anticipée du REER (optionnelle) : remplir les tranches basses, réinvestir au CELI
+      // dans la limite des droits (le reste au non-enregistré).
       if (h.cibleFonteReer && h.cibleFonteReer > 0) {
-        const f = fondreReer(comptes, entreeAnnee, h.cibleFonteReer * facteurInflation, annee, age, profilDefaut);
+        const f = fondreReer(comptes, entreeAnnee, h.cibleFonteReer * facteurInflation, annee, age, profilDefaut, droitsCeli);
         retraitsEnregistres += f.retraitSupplementaire;
         impotAnnee = f.impot;
         entreeAnnee = f.entree;
+        droitsCeli -= f.celiUtilise;
       }
     }
 

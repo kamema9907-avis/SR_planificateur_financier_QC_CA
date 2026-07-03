@@ -1,4 +1,4 @@
-import { CELIAPP_PLAFOND_ANNUEL, CELIAPP_PLAFOND_VIE } from '../../moteur';
+import { CELIAPP_PLAFOND_ANNUEL, CELIAPP_PLAFOND_VIE, droitsCeliParDefaut } from '../../moteur';
 import type { HypothesesProjection, TypeCompte } from '../../moteur';
 import { ChampMonetaire, ChampNombre, ChampPourcent, Interrupteur, TitreSection } from '../Champ';
 import { formatDollars } from '../format';
@@ -76,6 +76,20 @@ export function FormulaireProjection({ h, onChange }: FormulaireProps) {
             />
             <p className="mt-2 text-xs text-slate-500">
               {avertissementCeliapp(h.celiappDejaCotise ?? 0, h.epargneAnnuelle.CELIAPP ?? 0)}
+            </p>
+          </div>
+        )}
+        {((h.epargneAnnuelle.CELI ?? 0) > 0 || (h.epargneAnnuelle.CELIAPP ?? 0) > 0) && (
+          <div className="mt-4 rounded-xl bg-sky-50/60 p-4 ring-1 ring-sky-500/15">
+            <ChampMonetaire
+              label="Droits CELI disponibles"
+              valeur={Math.round(h.droitsCeliDisponibles ?? droitsCeliParDefaut(h.comptes))}
+              onChange={(v) => maj('droitsCeliDisponibles', v)}
+              indice="Chiffre exact dans « Mon dossier » (ARC). Pré-rempli : 109 000 $ − ton solde CELI actuel."
+            />
+            <p className="mt-2 text-xs text-slate-500">
+              Les droits croissent de ~7 000 $/an (indexé) et un retrait les redonne l'année suivante.
+              L'épargne au-delà des droits ira au non-enregistré.
             </p>
           </div>
         )}

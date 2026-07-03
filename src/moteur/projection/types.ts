@@ -67,6 +67,12 @@ export interface HypothesesProjection {
    * Sert à respecter le plafond à vie de 40 000 $. Défaut : 0.
    */
   readonly celiappDejaCotise?: number;
+  /**
+   * Droits de cotisation CELI disponibles aujourd'hui (chiffre de « Mon dossier » ARC).
+   * Défaut si absent : 109 000 $ − solde CELI actuel (heuristique). Les droits croissent ensuite
+   * chaque année (+7 000 $ indexé/arrondi) et un retrait les restaure l'année suivante.
+   */
+  readonly droitsCeliDisponibles?: number;
 
   // Comptes de départ
   readonly comptes: readonly Compte[];

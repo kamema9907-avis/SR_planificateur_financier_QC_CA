@@ -68,6 +68,9 @@ Projection **année par année** de l'âge actuel jusqu'au décès, avec barème
 l'inflation** chaque année (calcul nominal, affichage en dollars d'aujourd'hui) :
 
 - **Comptes** : REER→FERR, CELI, CELIAPP, CRI→FRV, non-enregistré, REEE, groupés par traitement fiscal.
+- **Plafonds vérifiés** : **CELIAPP** (8 000 $/an, 40 000 $ à vie, champ « déjà cotisé ») et **droits CELI**
+  (compteur vivant : droits ARC saisis, +7 000 $/an indexé/arrondi au 500 $, retraits restaurés l'année
+  suivante) — l'excédent déborde en chaîne CELIAPP → CELI → non-enregistré.
 - **Profils de rendement** (prudent / équilibré / dynamique) calibrés sur les Normes IQPF 2026.
 - **Rentes publiques** RRQ et SV (saisie manuelle) avec ajustement report/anticipation et indexation.
 - **Minimums de retrait FERR/FRV** forcés dès 72 ans.
@@ -81,7 +84,9 @@ l'inflation** chaque année (calcul nominal, affichage en dollars d'aujourd'hui)
 
 Traitement **salarié** (le travailleur autonome, qui paie les deux parts du RRQ/RQAP et déduit la
 part « employeur », n'est pas modélisé) ; montant canadien pour emploi et crédits mineurs ; maximum
-de retrait FRV provincial, mécaniques fines du CELIAPP et du REEE ; plafonds de cotisation annuels.
+de retrait FRV provincial, mécaniques fines du CELIAPP (fermeture à 15 ans / 71 ans, report du droit
+annuel) et du REEE ; plafond de cotisation REER non vérifié (les plafonds CELIAPP et les droits CELI
+le sont).
 Indexation uniforme à l'inflation IQPF pour l'impôt (les plafonds RRQ/AE/RQAP suivent plutôt la
 croissance du MGA, +1 %). Les montants sont donc de bonnes **estimations de planification**, pas une
 déclaration au dollar près.
