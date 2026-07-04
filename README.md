@@ -111,16 +111,19 @@ règle d'attribution du REER de conjoint (3 ans) simplifiés.
 
 ## ✅ Phase 3.5 — Immobilier
 
-Section « Immobilier » dans la projection (solo et couple) : résidence principale, chalet, immeuble à revenu.
+Section « Immobilier » dans la projection (solo et couple) : résidence principale, chalet, immeuble à revenu, terrain.
 
 - **Hypothèque détaillée** (amortissement : le solde décroît, les paiements s'ajoutent aux dépenses).
 - **Appréciation** (norme IQPF 3,1 %) ; l'équité (valeur − hypothèque) entre dans le patrimoine (série au graphique).
 - **Immeuble à revenu** : loyers nets − intérêts hypothécaires = revenu imposable.
 - **Vente planifiée / downsizing** : à l'âge choisi, gain calculé, hypothèque remboursée, produit net réinvesti.
 - **Exemption pour résidence principale** : arbitrage automatique maison-vs-chalet (abrite le plus fort gain/an).
+- **Terrain vacant** : capital comme le chalet, mais **jamais** admissible à l'exemption (gain toujours imposable) et
+  sans revenu ; frais de possession (taxes, intérêts) non déductibles ni capitalisés (par. 18(2) LIR).
 - **Couple** : chaque bien a un propriétaire (1 / 2 / commun) ; roulement au survivant au décès.
 
-Simplifications : DPA/amortissement fiscal et récupération omis ; frais de vente non modélisés ; arbitrage d'exemption par heuristique.
+Simplifications : DPA/amortissement fiscal et récupération omis ; frais de vente non modélisés ; arbitrage d'exemption
+par heuristique ; carrying costs d'un terrain avec revenu (ajout à l'ACB) non modélisés (terrain supposé sans revenu).
 
 ## ✅ Phase 4 — Optimiseur automatique
 

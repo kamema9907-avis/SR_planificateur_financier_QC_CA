@@ -3,9 +3,9 @@
 > **Document vivant** : synthèse de tout ce que le projet fait à ce jour. À mettre à jour au fil des
 > phases. Voir le [journal des modifications](#-journal-des-modifications) à la fin pour l'historique.
 >
-> Dernière mise à jour : **2026-07-03** — plafonds CELIAPP (40 000 $ / 8 000 $ par an) et droits de
-> cotisation CELI (compteur vivant) vérifiés dans la projection ; cotisations sociales (RRQ/AE/RQAP),
-> cotisation syndicale, assurance-salaire et rente de survivant RRQ ajoutées à la Phase 1.
+> Dernière mise à jour : **2026-07-04** — ajout du type **Terrain vacant** à l'immobilier (gain toujours
+> imposable, aucune exemption). Auparavant : plafonds CELIAPP / droits CELI, cotisations sociales
+> (RRQ/AE/RQAP), cotisation syndicale, assurance-salaire et rente de survivant RRQ.
 
 ## Table des matières
 1. [Vision et objectif](#-vision-et-objectif)
@@ -72,8 +72,9 @@ Projette le patrimoine et l'impôt **année par année**, de l'âge actuel jusqu
 - **Rentes d'employeur / RREGOP** : rente de base + ponts, indexation configurable, calculateur RREGOP
   (formule 2 % + coordination à 65 ans). Imposables, admissibles au crédit pour revenu de pension.
 - **Minimums de retrait FERR/FRV** forcés dès 72 ans.
-- **Immobilier** : résidence, chalet, immeuble à revenu — hypothèque (amortissement), loyers imposables,
-  appréciation, vente/downsizing, exemption pour résidence principale (arbitrage automatique). Équité au patrimoine.
+- **Immobilier** : résidence, chalet, immeuble à revenu, **terrain vacant** — hypothèque (amortissement),
+  loyers imposables, appréciation, vente/downsizing, exemption pour résidence principale (arbitrage automatique).
+  Le terrain et l'immeuble à revenu sont **toujours imposables** (jamais abrités). Équité au patrimoine.
 - **Phase d'accumulation** (épargne + croissance) puis **décaissement** : un solveur retire dans l'ordre
   choisi pour financer une cible de dépenses **nette d'impôt**.
 - **Impôt au décès** (dispositions présumées des comptes enregistrés + gains latents).
@@ -97,7 +98,7 @@ Deux conjoints entièrement modélisés (colonnes côte à côte), un ménage à
   tableau (avec le montant fractionné).
 
 ### Qualité / validation
-- **109 cas-tests automatisés** (moteur fiscal, cotisations, plafonds CELIAPP/CELI, indexation, comptes, projection, décaissement, couple, immobilier, optimiseur).
+- **112 cas-tests automatisés** (moteur fiscal, cotisations, plafonds CELIAPP/CELI, indexation, comptes, projection, décaissement, couple, immobilier dont terrain, optimiseur).
 - Propriété clé du couple : le **fractionnement ne hausse jamais** l'impôt combiné (testé).
 - **Validation croisée** contre les taux marginaux combinés **publiés** du Québec 2026 :
   sommet **53,31 %**, 140 000 $ → **47,46 %**, 60 000 $ → **36,12 %**.
@@ -158,7 +159,7 @@ src/
 │   │   ├── decaissement.ts         # Solveur de retrait (cible nette d'impôt)
 │   │   └── projection.ts           # Boucle année par année (cycle de vie)
 │   ├── index.ts                    # API publique du moteur
-│   └── *.test.ts                   # 109 cas-tests
+│   └── *.test.ts                   # 112 cas-tests
 └── interface/                      # UI React (habillage)
     ├── Champ.tsx                   # Champs de saisie réutilisables
     ├── format.ts                   # Formatage $ / % (fr-CA)
@@ -213,7 +214,7 @@ src/
 ```bash
 npm install      # installer les dépendances
 npm run dev      # développement (http://localhost:5173)
-npm test         # les 109 cas-tests
+npm test         # les 112 cas-tests
 npm run build    # version de production (dossier dist/, à héberger)
 npm run preview  # prévisualiser la version de production
 ```
@@ -262,6 +263,15 @@ options d'employé, analyse de sensibilité / Monte Carlo, autres provinces.
 ---
 
 ## 📓 Journal des modifications
+
+### 2026-07-04 — Immobilier : type « Terrain vacant »
+- Nouveau `TypeImmeuble` **'terrain'** + helper `estExemptable(type)` (résidence/chalet uniquement),
+  utilisé par `determinerBienAbrite`, `vendre` et `gainAuDeces` — le terrain (comme l'immeuble à revenu)
+  n'est **jamais abrité** par l'exemption pour résidence principale : gain en capital **toujours imposable**.
+- Terrain = capital property sans revenu ; frais de possession (taxes, intérêts) non déductibles ni ajoutés
+  au coût de base pour un terrain sans revenu (par. 18(2) LIR) — aucun effet fiscal modélisé en détention.
+- Interface : bouton « + Terrain », valeurs par défaut, note fiscale (bandeau ambre). **112 cas-tests verts.**
+- Sources : ARC (interprétations techniques 9606735, 2008-0280971E5 ; T4037), art. 53(1)h) LIR.
 
 ### 2026-07-03 — Plafonds CELIAPP et droits de cotisation CELI
 - **CELIAPP** : plafonds 8 000 $/an et 40 000 $ à vie (`repartirCotisationCeliapp`), champ « déjà

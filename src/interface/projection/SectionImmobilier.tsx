@@ -14,6 +14,7 @@ const OPTIONS_TYPE: readonly { valeur: TypeImmeuble; label: string }[] = [
   { valeur: 'residence', label: 'Résidence' },
   { valeur: 'chalet', label: 'Chalet' },
   { valeur: 'revenu', label: 'Immeuble à revenu' },
+  { valeur: 'terrain', label: 'Terrain' },
 ];
 
 const OPTIONS_PROPRIO: readonly { valeur: string; label: string }[] = [
@@ -32,6 +33,7 @@ function neuf(type: TypeImmeuble, couple: boolean): Immeuble {
   };
   if (type === 'residence') return { nom: 'Résidence', type, valeur: 500_000, coutBase: 300_000, hypotheque: 150_000, paiementAnnuel: 18_000, revenuNetExploitation: 0, ...commun };
   if (type === 'chalet') return { nom: 'Chalet', type, valeur: 250_000, coutBase: 120_000, hypotheque: 0, paiementAnnuel: 0, revenuNetExploitation: 0, ...commun };
+  if (type === 'terrain') return { nom: 'Terrain', type, valeur: 150_000, coutBase: 100_000, hypotheque: 0, paiementAnnuel: 0, revenuNetExploitation: 0, ...commun };
   return { nom: 'Immeuble à revenu', type, valeur: 600_000, coutBase: 400_000, hypotheque: 300_000, paiementAnnuel: 22_000, revenuNetExploitation: 24_000, ...commun, proprietaire: couple ? 1 : 1 };
 }
 
@@ -44,8 +46,9 @@ export function SectionImmobilier({ immeubles, onChange, couple = false, numero 
     <section className="carte p-6">
       <TitreSection numero={numero} titre="Immobilier" />
       <p className="-mt-2 mb-4 text-xs text-slate-400">
-        Résidence, chalet, immeuble à revenu. Appréciation, hypothèque, loyers et vente intégrés au
-        patrimoine. L'exemption pour résidence principale (maison vs chalet) est optimisée automatiquement.
+        Résidence, chalet, immeuble à revenu, terrain. Appréciation, hypothèque, loyers et vente intégrés
+        au patrimoine. L'exemption pour résidence principale (maison vs chalet) est optimisée
+        automatiquement ; le terrain et l'immeuble à revenu sont toujours imposables.
       </p>
 
       <div className="mb-4 flex flex-wrap gap-2">
@@ -81,6 +84,15 @@ export function SectionImmobilier({ immeubles, onChange, couple = false, numero 
               {b.type === 'revenu' && (
                 <div className="col-span-2">
                   <ChampMonetaire label="Revenu net d'exploitation" valeur={b.revenuNetExploitation} onChange={(v) => modifier(i, { revenuNetExploitation: v })} indice="Loyers − dépenses (avant intérêts)" />
+                </div>
+              )}
+              {b.type === 'terrain' && (
+                <div className="col-span-2">
+                  <p className="rounded-lg bg-amber-50/70 px-3 py-2 text-xs text-amber-800 ring-1 ring-amber-500/20">
+                    <strong>Terrain vacant</strong> : gain en capital <strong>toujours imposable</strong> (aucune
+                    exemption pour résidence principale). Les frais de possession (taxes foncières, intérêts) ne
+                    sont ni déductibles ni ajoutés au coût de base — un coût sans avantage fiscal.
+                  </p>
                 </div>
               )}
               <ChampNombre label="Âge de vente" valeur={b.ageVente ?? 0} onChange={(v) => modifier(i, { ageVente: v === 0 ? null : v })} max={110} />

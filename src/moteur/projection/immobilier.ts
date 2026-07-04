@@ -1,9 +1,14 @@
 /**
- * Immobilier (Phase 3.5) : résidence principale, chalet, immeuble à revenu.
+ * Immobilier (Phase 3.5) : résidence principale, chalet, immeuble à revenu, terrain vacant.
  *
  * Modèle intégré à la projection : appréciation de la valeur, amortissement de l'hypothèque,
  * revenu locatif imposable (immeuble à revenu), vente planifiée avec exemption pour résidence
  * principale (arbitrage automatique), et roulement/disposition au décès.
+ *
+ * Terrain vacant : capital property comme le chalet, MAIS jamais admissible à l'exemption pour
+ * résidence principale (gain toujours imposable) et sans revenu. Par la règle du par. 18(2) LIR, les
+ * frais de possession d'un terrain sans revenu (intérêts, impôts fonciers) ne sont ni déductibles ni
+ * ajoutés au coût de base — l'outil ne modélise donc aucun effet fiscal en cours de détention.
  *
  * Réutilise les primitives du moteur fiscal : les loyers passent par « autres revenus », les gains
  * par « gains en capital » (inclusion 50 % appliquée par le moteur).
@@ -12,7 +17,16 @@
 /** Appréciation annuelle par défaut (norme IQPF « immobilier résidentiel » = inflation + 1 %). */
 export const APPRECIATION_IMMO = 0.031;
 
-export type TypeImmeuble = 'residence' | 'chalet' | 'revenu';
+export type TypeImmeuble = 'residence' | 'chalet' | 'revenu' | 'terrain';
+
+/**
+ * Un bien peut-il être « abrité » par l'exemption pour résidence principale ? Seulement une résidence
+ * ou un chalet (unités d'habitation). L'immeuble à revenu et le terrain vacant en sont exclus : leur
+ * gain en capital est toujours imposable.
+ */
+export function estExemptable(type: TypeImmeuble): boolean {
+  return type === 'residence' || type === 'chalet';
+}
 
 /** Propriétaire d'un bien (couple). En mode solo, toujours 1. */
 export type Proprietaire = 1 | 2 | 'commun';
@@ -87,7 +101,7 @@ export function determinerBienAbrite(biens: readonly Immeuble[]): Immeuble | nul
   let meilleur: Immeuble | null = null;
   let meilleurRatio = -Infinity;
   for (const b of biens) {
-    if (b.type === 'revenu') continue;
+    if (!estExemptable(b.type)) continue; // revenu et terrain : jamais abrités
     const annees = Math.max(1, b.anneesDetenues);
     const ratio = (b.valeur - b.coutBase) / annees;
     if (ratio > meilleurRatio) {
@@ -112,7 +126,7 @@ export interface Vente {
  */
 export function vendre(etat: EtatImmeuble, abrite: boolean): Vente {
   const gainBrut = Math.max(0, etat.valeur - etat.coutBase);
-  const exempte = etat.bien.type !== 'revenu' && abrite;
+  const exempte = estExemptable(etat.bien.type) && abrite;
   const gainBrutImposable = exempte ? 0 : gainBrut;
 
   const equite = Math.max(0, etat.valeur - etat.hypotheque);
@@ -213,7 +227,7 @@ export function gainAuDeces(etats: readonly EtatImmeuble[], bienAbrite: Immeuble
     if (e.vendu) continue;
     const b = e.bien;
     if (e.proprietaire !== proprietaire && e.proprietaire !== 'commun') continue;
-    if (b.type !== 'revenu' && b === bienAbrite) continue; // résidence abritée : exemptée
+    if (estExemptable(b.type) && b === bienAbrite) continue; // résidence/chalet abrité : exempté
     const part = e.proprietaire === 'commun' ? 0.5 : 1;
     gain += Math.max(0, e.valeur - e.coutBase) * part;
   }

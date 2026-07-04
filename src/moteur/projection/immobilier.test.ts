@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { amortir, determinerBienAbrite, vendre, type EtatImmeuble, type Immeuble } from './immobilier';
+import { amortir, determinerBienAbrite, estExemptable, vendre, type EtatImmeuble, type Immeuble } from './immobilier';
 
 function bien(partiel: Partial<Immeuble>): Immeuble {
   return {
@@ -40,6 +40,20 @@ describe('arbitrage d’exemption (bien abrité)', () => {
     const residence = bien({ type: 'residence', valeur: 400_000, coutBase: 300_000, anneesDetenues: 20 });
     expect(determinerBienAbrite([revenu, residence])).toBe(residence);
   });
+  it('ignore les terrains, même avec le plus gros gain par année', () => {
+    const terrain = bien({ nom: 'Terrain', type: 'terrain', valeur: 500_000, coutBase: 100_000, anneesDetenues: 5 }); // 80 000/an
+    const residence = bien({ type: 'residence', valeur: 400_000, coutBase: 300_000, anneesDetenues: 20 }); // 5 000/an
+    expect(determinerBienAbrite([terrain, residence])).toBe(residence);
+  });
+});
+
+describe('admissibilité à l’exemption (estExemptable)', () => {
+  it('résidence et chalet oui ; immeuble à revenu et terrain non', () => {
+    expect(estExemptable('residence')).toBe(true);
+    expect(estExemptable('chalet')).toBe(true);
+    expect(estExemptable('revenu')).toBe(false);
+    expect(estExemptable('terrain')).toBe(false);
+  });
 });
 
 describe('vente', () => {
@@ -58,6 +72,10 @@ describe('vente', () => {
   it('impose toujours un immeuble à revenu, même « abrité »', () => {
     const e = etat(bien({ type: 'revenu', valeur: 500_000, coutBase: 200_000 }));
     expect(vendre(e, true).gainBrutImposable).toBeCloseTo(300_000, 6);
+  });
+  it('impose toujours un terrain, même « abrité »', () => {
+    const e = etat(bien({ nom: 'Terrain', type: 'terrain', valeur: 300_000, coutBase: 100_000 }));
+    expect(vendre(e, true).gainBrutImposable).toBeCloseTo(200_000, 6);
   });
   it('downsizing : libère une fraction et conserve le reste', () => {
     const e = etat(bien({ type: 'residence', valeur: 600_000, coutBase: 400_000, hypotheque: 0, fractionLiberee: 0.5 }));
