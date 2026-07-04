@@ -288,6 +288,45 @@ describe('droits de cotisation CELI', () => {
   });
 });
 
+describe('droits de cotisation REER', () => {
+  const comptesSansCroissance = [
+    { type: 'REER', solde: 0, profil: 'equilibre', rendementPersonnalise: 0 },
+    { type: 'CELI', solde: 0, profil: 'equilibre', rendementPersonnalise: 0 },
+    { type: 'NON_ENREGISTRE', solde: 0, profil: 'equilibre', coutBase: 0, rendementPersonnalise: 0 },
+  ] as const;
+
+  it('sans régime d’employeur : droits = 18 % du salaire ; l’excédent va au CELI', () => {
+    const r = projeter(
+      hypotheses({
+        ageActuel: 40, ageRetraite: 100, ageDeces: 40, // 1 année d'accumulation
+        revenuEmploi: 50_000,
+        epargneAnnuelle: { REER: 12_000 },
+        droitsReerDisponibles: 0,
+        comptes: comptesSansCroissance.map((c) => ({ ...c })),
+      }),
+    );
+    // 18 % × 50 000 = 9 000 de droits → 9 000 au REER, 3 000 redirigés au CELI (droits par défaut).
+    expect(r.annees[0].soldes.REER).toBeCloseTo(9_000, 0);
+    expect(r.annees[0].soldes.CELI).toBeCloseTo(3_000, 0);
+  });
+
+  it('membre RREGOP : ~600 $/an de droits seulement, le reste redirigé', () => {
+    const r = projeter(
+      hypotheses({
+        ageActuel: 40, ageRetraite: 100, ageDeces: 40,
+        revenuEmploi: 70_000,
+        epargneAnnuelle: { REER: 10_000 },
+        droitsReerDisponibles: 0,
+        regimeRetraitePD: true,
+        comptes: comptesSansCroissance.map((c) => ({ ...c })),
+      }),
+    );
+    // FE ≈ 18 %×70 000 − 600 ⇒ ~600 $ de droits REER.
+    expect(r.annees[0].soldes.REER).toBeCloseTo(600, 0);
+    expect(r.annees[0].soldes.CELI + r.annees[0].soldes.NON_ENREGISTRE).toBeCloseTo(9_400, 0);
+  });
+});
+
 describe('projection complète (fumée)', () => {
   it('produit une année par âge, sans valeur invalide', () => {
     const r = projeter(

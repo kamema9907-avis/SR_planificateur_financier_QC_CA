@@ -1,6 +1,7 @@
-import { CELIAPP_PLAFOND_VIE, droitsCeliParDefaut } from '../../moteur';
+import { CELIAPP_PLAFOND_VIE, droitsCeliParDefaut, REER_PLAFOND_DOLLAR_2026 } from '../../moteur';
 import type { PersonneProjection, TypeCompte } from '../../moteur';
-import { ChampMonetaire, ChampNombre, ChampPourcent, ChampSelect, TitreSection } from '../Champ';
+import { ChampMonetaire, ChampNombre, ChampPourcent, ChampSelect, Interrupteur, TitreSection } from '../Champ';
+import { formatDollars } from '../format';
 import { avertissementCeliapp } from './FormulaireProjection';
 import { EditeurComptes } from './EditeurComptes';
 import { SectionRentesEmployeur } from './SectionRentesEmployeur';
@@ -84,6 +85,35 @@ export function FormulairePersonne({ p, fraisGestion, onChange }: Props) {
             />
             <p className="mt-2 text-xs text-slate-500">
               +7 000 $/an (indexé) ; un retrait redonne les droits l'année suivante. L'excédent ira au non-enregistré.
+            </p>
+          </div>
+        )}
+        {(p.epargneAnnuelle.REER ?? 0) > 0 && (
+          <div className="mt-4 rounded-xl bg-emerald-50/60 p-4 ring-1 ring-emerald-500/15">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <ChampMonetaire
+                label="Droits REER disponibles"
+                valeur={p.droitsReerDisponibles ?? 0}
+                onChange={(v) => maj('droitsReerDisponibles', v)}
+                indice="Avis de cotisation ARC (report inclus)."
+              />
+              <div className="pt-1">
+                <Interrupteur label="Régime à PD (RREGOP / RPA)" valeur={p.regimeRetraitePD ?? false} onChange={(v) => maj('regimeRetraitePD', v)} />
+                {p.regimeRetraitePD && (
+                  <div className="mt-3">
+                    <ChampMonetaire
+                      label="Facteur d'équivalence (si connu)"
+                      valeur={p.facteurEquivalenceReer ?? 0}
+                      onChange={(v) => maj('facteurEquivalenceReer', v)}
+                      indice="T4 case 52. 0 = estimation auto."
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+            <p className="mt-2 text-xs text-slate-500">
+              ≈ 18 % du salaire − FE (max {formatDollars(REER_PLAFOND_DOLLAR_2026)}). Un régime à PD réduit fortement
+              les droits (~600 $/an). Excédent → CELI → non-enregistré.
             </p>
           </div>
         )}

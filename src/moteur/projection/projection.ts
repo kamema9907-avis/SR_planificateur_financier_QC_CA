@@ -17,6 +17,9 @@ import {
   croissanceAnnuelle,
   droitsCeliAnnuels,
   droitsCeliParDefaut,
+  droitsReerAnnuels,
+  feRegimePD,
+  plafondReerNominal,
   estNonEnregistre,
   repartirCotisationCeliapp,
   soldesParType,
@@ -82,6 +85,7 @@ export function projeter(h: HypothesesProjection): ResultatProjection {
   // −cotisations, +retraits de l'année précédente (restaurés au 1er janvier suivant).
   let droitsCeli = h.droitsCeliDisponibles ?? droitsCeliParDefaut(h.comptes);
   let droitsCeliRestaures = 0;
+  let droitsReer = h.droitsReerDisponibles ?? 0; // droits REER (report), sans restauration au retrait
   const soldeCeliTotal = () => comptes.filter((c) => c.type === 'CELI').reduce((s, c) => s + c.solde, 0);
 
   for (let i = 0; h.ageActuel + i <= h.ageDeces; i++) {
@@ -146,6 +150,15 @@ export function projeter(h: HypothesesProjection): ResultatProjection {
     if (phase === 'accumulation') {
       revenuEmploi = h.revenuEmploi * Math.pow((1 + h.inflation) * (1 + h.croissanceSalaireReelle), i);
 
+      // Droits REER : accumulation annuelle = 18 % du salaire (plafonné) − facteur d'équivalence.
+      const feReer =
+        h.facteurEquivalenceReer && h.facteurEquivalenceReer > 0
+          ? h.facteurEquivalenceReer * facteurInflation
+          : h.regimeRetraitePD
+            ? feRegimePD(revenuEmploi)
+            : 0;
+      droitsReer += droitsReerAnnuels(revenuEmploi, plafondReerNominal(annee), feReer);
+
       // Cotisations aux comptes (indexées à l'inflation).
       let deductible = 0;
 
@@ -191,10 +204,26 @@ export function projeter(h: HypothesesProjection): ResultatProjection {
           continue;
         }
 
+        // REER : plafonné aux droits disponibles ; l'excédent suit la chaîne CELI → non-enregistré.
+        if (type === 'REER') {
+          const auReer = Math.min(montant, Math.max(0, droitsReer));
+          if (auReer > 0) {
+            trouverOuCreer(comptes, 'REER', profilDefaut).solde += auReer;
+            deductible += auReer; // seule la part réellement versée au REER est déductible
+            droitsReer -= auReer;
+            cotisations += auReer;
+          }
+          const excedent = montant - auReer;
+          if (excedent > 0) {
+            verserAuCeli(excedent);
+            cotisations += excedent;
+          }
+          continue;
+        }
+
         const compte = trouverOuCreer(comptes, type, profilDefaut);
         compte.solde += montant;
         cotisations += montant;
-        if (type === 'REER') deductible += montant; // déductible
         if (type === 'NON_ENREGISTRE') compte.coutBase = (compte.coutBase ?? 0) + montant;
         if (type === 'REEE') {
           compte.solde += TAUX_SUBVENTION_REEE * Math.min(montant, PLAFOND_SUBVENTION_REEE * facteurInflation);

@@ -73,6 +73,11 @@ export {
   droitsCeliParDefaut,
   CELI_DROITS_MAX_2026,
   CELI_PLAFOND_ANNUEL_2026,
+  droitsReerAnnuels,
+  feRegimePD,
+  plafondReerNominal,
+  REER_PLAFOND_DOLLAR_2026,
+  REER_TAUX,
 } from './projection/comptes';
 export { rendementBrut, type ProfilRendement } from './constantes/profilsRendement';
 export { facteurAjustementRRQ, facteurAjustementSV } from './projection/rentesPubliques';

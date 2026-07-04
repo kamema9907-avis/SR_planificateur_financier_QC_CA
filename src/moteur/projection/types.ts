@@ -73,6 +73,12 @@ export interface HypothesesProjection {
    * chaque année (+7 000 $ indexé/arrondi) et un retrait les restaure l'année suivante.
    */
   readonly droitsCeliDisponibles?: number;
+  /** Droits de cotisation REER disponibles aujourd'hui (avis de cotisation ARC). Défaut : 0. */
+  readonly droitsReerDisponibles?: number;
+  /** Membre d'un régime de retraite d'employeur à PD (RREGOP/RPA) → applique le FE estimé aux droits REER. */
+  readonly regimeRetraitePD?: boolean;
+  /** Facteur d'équivalence annuel exact (en $ d'aujourd'hui), si connu — remplace l'estimation du régime à PD. */
+  readonly facteurEquivalenceReer?: number;
 
   // Comptes de départ
   readonly comptes: readonly Compte[];

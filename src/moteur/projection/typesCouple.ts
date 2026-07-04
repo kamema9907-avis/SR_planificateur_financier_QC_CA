@@ -18,6 +18,12 @@ export interface PersonneProjection {
   celiappDejaCotise?: number;
   /** Droits CELI disponibles aujourd'hui (ARC). Défaut : 109 000 $ − solde CELI actuel. */
   droitsCeliDisponibles?: number;
+  /** Droits REER disponibles aujourd'hui (avis de cotisation ARC). Défaut : 0. */
+  droitsReerDisponibles?: number;
+  /** Membre d'un régime à PD (RREGOP/RPA) → applique le FE estimé aux droits REER. */
+  regimeRetraitePD?: boolean;
+  /** Facteur d'équivalence annuel exact (en $ d'aujourd'hui), si connu — remplace l'estimation. */
+  facteurEquivalenceReer?: number;
   /** Cotisation REER de conjoint : déduite par CETTE personne, versée au REER de l'autre. */
   epargneReerConjoint: number;
   comptes: readonly Compte[];

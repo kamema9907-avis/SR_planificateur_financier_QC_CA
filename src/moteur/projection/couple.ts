@@ -17,6 +17,9 @@ import {
   croissanceAnnuelle,
   droitsCeliAnnuels,
   droitsCeliParDefaut,
+  droitsReerAnnuels,
+  feRegimePD,
+  plafondReerNominal,
   estLibreImpot,
   estNonEnregistre,
   repartirCotisationCeliapp,
@@ -57,6 +60,8 @@ interface EtatPersonne {
   droitsCeli: number;
   /** Retraits CELI de l'année : restaurés en droits au 1er janvier suivant. */
   droitsCeliRestaures: number;
+  /** Droits de cotisation REER disponibles (report ; aucune restauration au retrait). */
+  droitsReer: number;
 }
 
 /** Solde total des comptes CELI d'une personne. */
@@ -76,6 +81,32 @@ function verserAuCeli(etat: EtatPersonne, montant: number): void {
     ne.solde += reste;
     ne.coutBase = (ne.coutBase ?? 0) + reste;
   }
+}
+
+/**
+ * Verse au REER (compte du `destinataire`) dans la limite des droits du `cotisant` ; l'excédent
+ * (argent du cotisant) suit SA chaîne CELI → non-enregistré. Retourne la part déductible.
+ */
+function verserAuReer(cotisant: EtatPersonne, destinataire: EtatPersonne, montant: number): number {
+  const auReer = Math.min(montant, Math.max(0, cotisant.droitsReer));
+  if (auReer > 0) {
+    trouverOuCreer(destinataire.comptes, 'REER', destinataire.profilDefaut).solde += auReer;
+    cotisant.droitsReer -= auReer;
+  }
+  const excedent = montant - auReer;
+  if (excedent > 0) verserAuCeli(cotisant, excedent);
+  return auReer; // déductible
+}
+
+/** Accumulation annuelle des droits REER d'une personne : 18 % du salaire (plafonné) − facteur d'équivalence. */
+function accrualReer(etat: EtatPersonne, salaireNominal: number, annee: number, facteurInflation: number): void {
+  const fe =
+    etat.p.facteurEquivalenceReer && etat.p.facteurEquivalenceReer > 0
+      ? etat.p.facteurEquivalenceReer * facteurInflation
+      : etat.p.regimeRetraitePD
+        ? feRegimePD(salaireNominal)
+        : 0;
+  etat.droitsReer += droitsReerAnnuels(salaireNominal, plafondReerNominal(annee), fe);
 }
 
 function nouvelleEntree(age: number, vitSeul: boolean): EntreeFiscale {
@@ -183,18 +214,23 @@ function appliquerCotisations(etat: EtatPersonne, facteurInflation: number, conj
       continue;
     }
 
+    // REER : plafonné aux droits du cotisant ; l'excédent suit la chaîne CELI → non-enregistré.
+    if (type === 'REER') {
+      deductible += verserAuReer(etat, etat, montant);
+      cotisations += montant;
+      continue;
+    }
+
     const c = trouverOuCreer(etat.comptes, type, etat.profilDefaut);
     c.solde += montant;
     cotisations += montant;
-    if (type === 'REER') deductible += montant;
     if (type === 'NON_ENREGISTRE') c.coutBase = (c.coutBase ?? 0) + montant;
     if (type === 'REEE') c.solde += TAUX_SUBVENTION_REEE * Math.min(montant, PLAFOND_SUBVENTION_REEE * facteurInflation);
   }
-  // REER de conjoint : déduit ici, versé au REER de l'autre.
+  // REER de conjoint : consomme les droits du COTISANT (etat), versé au REER de l'autre.
   if (etat.p.epargneReerConjoint > 0) {
     const montant = etat.p.epargneReerConjoint * facteurInflation;
-    trouverOuCreer(conjoint.comptes, 'REER', conjoint.profilDefaut).solde += montant;
-    deductible += montant;
+    deductible += verserAuReer(etat, conjoint, montant);
     cotisations += montant;
   }
   return { deductible, cotisations };
@@ -335,8 +371,8 @@ function equiteTotale(etats: readonly EtatImmeuble[]): number {
 
 /** Projette un couple sur tout le cycle de vie. */
 export function projeterCouple(h: HypothesesCouple): ResultatCouple {
-  const etat1: EtatPersonne = { p: h.personne1, comptes: clonerComptes(h.personne1.comptes), profilDefaut: h.personne1.comptes[0]?.profil ?? 'equilibre', survivant: false, celiappCotiseCumul: h.personne1.celiappDejaCotise ?? 0, droitsCeli: h.personne1.droitsCeliDisponibles ?? droitsCeliParDefaut(h.personne1.comptes), droitsCeliRestaures: 0 };
-  const etat2: EtatPersonne = { p: h.personne2, comptes: clonerComptes(h.personne2.comptes), profilDefaut: h.personne2.comptes[0]?.profil ?? 'equilibre', survivant: false, celiappCotiseCumul: h.personne2.celiappDejaCotise ?? 0, droitsCeli: h.personne2.droitsCeliDisponibles ?? droitsCeliParDefaut(h.personne2.comptes), droitsCeliRestaures: 0 };
+  const etat1: EtatPersonne = { p: h.personne1, comptes: clonerComptes(h.personne1.comptes), profilDefaut: h.personne1.comptes[0]?.profil ?? 'equilibre', survivant: false, celiappCotiseCumul: h.personne1.celiappDejaCotise ?? 0, droitsCeli: h.personne1.droitsCeliDisponibles ?? droitsCeliParDefaut(h.personne1.comptes), droitsCeliRestaures: 0, droitsReer: h.personne1.droitsReerDisponibles ?? 0 };
+  const etat2: EtatPersonne = { p: h.personne2, comptes: clonerComptes(h.personne2.comptes), profilDefaut: h.personne2.comptes[0]?.profil ?? 'equilibre', survivant: false, celiappCotiseCumul: h.personne2.celiappDejaCotise ?? 0, droitsCeli: h.personne2.droitsCeliDisponibles ?? droitsCeliParDefaut(h.personne2.comptes), droitsCeliRestaures: 0, droitsReer: h.personne2.droitsReerDisponibles ?? 0 };
 
   const etatsImmo = clonerImmeubles(h.immeubles);
   const bienAbrite = determinerBienAbrite(h.immeubles);
@@ -417,6 +453,8 @@ export function projeterCouple(h: HypothesesCouple): ResultatCouple {
         }
       } else {
         phase = 'accumulation';
+        accrualReer(etat1, ctx1.salaire, annee, facteurInflation);
+        accrualReer(etat2, ctx2.salaire, annee, facteurInflation);
         const cot1 = appliquerCotisations(etat1, facteurInflation, etat2);
         const cot2 = appliquerCotisations(etat2, facteurInflation, etat1);
         const e1 = { ...ctx1.entree, deductionReer: cot1.deductible };
@@ -450,6 +488,7 @@ export function projeterCouple(h: HypothesesCouple): ResultatCouple {
       foldImmo(ctx, aggImmo[idVivant], vivant);
 
       if (ctx.travaille) {
+        accrualReer(vivant, ctx.salaire, annee, facteurInflation);
         const cot = appliquerCotisations(vivant, facteurInflation, vivant);
         const e = { ...ctx.entree, deductionReer: cot.deductible };
         impotAnnee = impotTotalPour(e, annee);

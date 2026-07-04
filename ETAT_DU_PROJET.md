@@ -3,9 +3,9 @@
 > **Document vivant** : synthèse de tout ce que le projet fait à ce jour. À mettre à jour au fil des
 > phases. Voir le [journal des modifications](#-journal-des-modifications) à la fin pour l'historique.
 >
-> Dernière mise à jour : **2026-07-04** — ajout du type **Terrain vacant** à l'immobilier (gain toujours
-> imposable, aucune exemption). Auparavant : plafonds CELIAPP / droits CELI, cotisations sociales
-> (RRQ/AE/RQAP), cotisation syndicale, assurance-salaire et rente de survivant RRQ.
+> Dernière mise à jour : **2026-07-04** — **droits de cotisation REER** vérifiés (18 % du salaire −
+> facteur d'équivalence RREGOP/RPA, report, max 33 810 $). Auparavant : terrain vacant, plafonds
+> CELIAPP / droits CELI, cotisations sociales (RRQ/AE/RQAP), syndicat, assurance-salaire, survivant RRQ.
 
 ## Table des matières
 1. [Vision et objectif](#-vision-et-objectif)
@@ -64,9 +64,10 @@ Calcule l'impôt **fédéral + Québec 2026** pour une personne, une année (fid
 Projette le patrimoine et l'impôt **année par année**, de l'âge actuel jusqu'au décès, avec barèmes
 **indexés à l'inflation** (calcul nominal, affichage en dollars d'aujourd'hui) :
 - **Tous les comptes** : REER→FERR, CELI, CELIAPP, CRI→FRV, non-enregistré, REEE.
-- **Plafonds vérifiés** : CELIAPP (8 000 $/an, 40 000 $ à vie, champ « déjà cotisé ») et **droits CELI**
-  (droits ARC saisis, +7 000 $/an indexé arrondi au 500 $, retraits restaurés l'année suivante ; la
-  fonte du REER respecte les droits). Excédent en chaîne : CELIAPP → CELI → non-enregistré.
+- **Plafonds vérifiés** : CELIAPP (8 000 $/an, 40 000 $ à vie) ; **droits CELI** (droits ARC, +7 000 $/an
+  indexé arrondi au 500 $, retraits restaurés l'année suivante) ; **droits REER** (droits ARC, +18 % du
+  salaire − **facteur d'équivalence** RREGOP/RPA, max 33 810 $, aucune restauration au retrait ; la fonte
+  du REER respecte les droits CELI). Excédent en chaîne : CELIAPP → CELI → non-enregistré.
 - **Profils de rendement** (prudent / équilibré / dynamique) calibrés sur les Normes IQPF 2026.
 - **Rentes publiques** RRQ et SV (saisie manuelle) avec ajustement report/anticipation et indexation.
 - **Rentes d'employeur / RREGOP** : rente de base + ponts, indexation configurable, calculateur RREGOP
@@ -98,7 +99,7 @@ Deux conjoints entièrement modélisés (colonnes côte à côte), un ménage à
   tableau (avec le montant fractionné).
 
 ### Qualité / validation
-- **112 cas-tests automatisés** (moteur fiscal, cotisations, plafonds CELIAPP/CELI, indexation, comptes, projection, décaissement, couple, immobilier dont terrain, optimiseur).
+- **119 cas-tests automatisés** (moteur fiscal, cotisations, plafonds CELIAPP/CELI/REER, indexation, comptes, projection, décaissement, couple, immobilier dont terrain, optimiseur).
 - Propriété clé du couple : le **fractionnement ne hausse jamais** l'impôt combiné (testé).
 - **Validation croisée** contre les taux marginaux combinés **publiés** du Québec 2026 :
   sommet **53,31 %**, 140 000 $ → **47,46 %**, 60 000 $ → **36,12 %**.
@@ -159,7 +160,7 @@ src/
 │   │   ├── decaissement.ts         # Solveur de retrait (cible nette d'impôt)
 │   │   └── projection.ts           # Boucle année par année (cycle de vie)
 │   ├── index.ts                    # API publique du moteur
-│   └── *.test.ts                   # 112 cas-tests
+│   └── *.test.ts                   # 119 cas-tests
 └── interface/                      # UI React (habillage)
     ├── Champ.tsx                   # Champs de saisie réutilisables
     ├── format.ts                   # Formatage $ / % (fr-CA)
@@ -214,7 +215,7 @@ src/
 ```bash
 npm install      # installer les dépendances
 npm run dev      # développement (http://localhost:5173)
-npm test         # les 112 cas-tests
+npm test         # les 119 cas-tests
 npm run build    # version de production (dossier dist/, à héberger)
 npm run preview  # prévisualiser la version de production
 ```
@@ -263,6 +264,17 @@ options d'employé, analyse de sensibilité / Monte Carlo, autres provinces.
 ---
 
 ## 📓 Journal des modifications
+
+### 2026-07-04 — Droits de cotisation REER (avec facteur d'équivalence)
+- Nouveaux helpers (`comptes.ts`) : `REER_PLAFOND_DOLLAR_2026` (33 810 $), `plafondReerNominal` (indexé
+  salaires), `feRegimePD` (FE ≈ 18 %×salaire − 600 pour un RPA à PD), `droitsReerAnnuels`.
+- Compteur `droitsReer` par personne (solo + couple) : départ = droits ARC saisis ; +18 % du salaire −
+  FE chaque année active ; cotisations REER (**dont le REER de conjoint**) plafonnées, excédent en chaîne
+  CELI → non-enregistré ; **aucune restauration au retrait** (≠ CELI). Seule la part versée est déductible.
+- Facteur d'équivalence : case **« Régime à PD (RREGOP/RPA) »** (estimation auto ~600 $/an de droits) +
+  champ FE exact optionnel (T4 case 52). Champs `droitsReerDisponibles`, `regimeRetraitePD`, `facteurEquivalenceReer`.
+- Interface : bloc REER (solo + couple). **119 cas-tests verts.**
+- Sources : ARC (plafonds MP/PD/REER ; Guide T4084 du facteur d'équivalence), TD/Globe & Mail (limite 2026).
 
 ### 2026-07-04 — Immobilier : type « Terrain vacant »
 - Nouveau `TypeImmeuble` **'terrain'** + helper `estExemptable(type)` (résidence/chalet uniquement),

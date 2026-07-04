@@ -3,6 +3,8 @@
  */
 import { composantesRendementBrut, rendementBrut } from '../constantes/profilsRendement';
 import type { ProfilRendement } from '../constantes/profilsRendement';
+import { IQPF_2026 } from '../constantes/iqpf2026';
+import { ANNEE_BASE } from '../constantes/indexation';
 import type { Compte, TypeCompte } from './types';
 
 /** Comptes dont le retrait est pleinement imposable comme revenu ordinaire. */
@@ -47,6 +49,34 @@ export function droitsCeliAnnuels(annee: number, inflation: number): number {
 export function droitsCeliParDefaut(comptes: readonly Compte[]): number {
   const soldeCeli = comptes.filter((c) => c.type === 'CELI').reduce((s, c) => s + c.solde, 0);
   return Math.max(0, CELI_DROITS_MAX_2026 - soldeCeli);
+}
+
+/** REER : plafond en dollars 2026, taux de 18 % du revenu gagné, et décalage fixe du FE d'un RPA à PD. */
+export const REER_PLAFOND_DOLLAR_2026 = 33_810;
+export const REER_TAUX = 0.18;
+/** Décalage fixe (non indexé) du facteur d'équivalence d'un régime à PD (formule FE = 9 × crédit − 600). */
+export const REER_FE_OFFSET = 600;
+
+/** Plafond REER en dollars pour une année, indexé au rythme des salaires (comme le MGA). */
+export function plafondReerNominal(annee: number): number {
+  return REER_PLAFOND_DOLLAR_2026 * Math.pow(1 + IQPF_2026.croissanceMGA, annee - ANNEE_BASE);
+}
+
+/**
+ * Facteur d'équivalence estimé pour un régime à PD type RREGOP (2 % d'accumulation) :
+ * FE ≈ 18 % × salaire − 600 $. Résultat : il ne reste souvent que ~600 $/an de droits REER.
+ */
+export function feRegimePD(salaireNominal: number): number {
+  return Math.max(0, REER_TAUX * Math.max(0, salaireNominal) - REER_FE_OFFSET);
+}
+
+/**
+ * Nouveaux droits REER accordés une année : 18 % du revenu gagné (plafonné au maximum en dollars),
+ * MOINS le facteur d'équivalence. `fe` en dollars nominaux (0 si aucun régime d'employeur).
+ */
+export function droitsReerAnnuels(salaireNominal: number, plafondNominal: number, fe: number): number {
+  const accrual = Math.min(REER_TAUX * Math.max(0, salaireNominal), plafondNominal);
+  return Math.max(0, accrual - Math.max(0, fe));
 }
 
 /**

@@ -11,6 +11,10 @@ import {
   droitsCeliAnnuels,
   droitsCeliParDefaut,
   CELI_DROITS_MAX_2026,
+  droitsReerAnnuels,
+  feRegimePD,
+  plafondReerNominal,
+  REER_PLAFOND_DOLLAR_2026,
 } from './comptes';
 
 describe('profils de rendement calibrés IQPF', () => {
@@ -99,5 +103,26 @@ describe('droits de cotisation CELI', () => {
     expect(droitsCeliParDefaut([{ type: 'CELI', solde: 60_000, profil: 'equilibre' }])).toBe(49_000);
     expect(droitsCeliParDefaut([])).toBe(CELI_DROITS_MAX_2026);
     expect(droitsCeliParDefaut([{ type: 'CELI', solde: 200_000, profil: 'equilibre' }])).toBe(0);
+  });
+});
+
+describe('droits de cotisation REER', () => {
+  it('plafond 2026 = 33 810 $, indexé au rythme des salaires', () => {
+    expect(plafondReerNominal(2026)).toBe(REER_PLAFOND_DOLLAR_2026);
+    expect(plafondReerNominal(2028)).toBeCloseTo(33_810 * 1.031 ** 2, 2);
+  });
+
+  it('FE d’un régime à PD (RREGOP) ≈ 18 % × salaire − 600', () => {
+    expect(feRegimePD(70_000)).toBeCloseTo(12_000, 2); // 12 600 − 600
+  });
+
+  it('sans régime : droits = 18 % du salaire (plafonné au maximum en dollars)', () => {
+    expect(droitsReerAnnuels(50_000, plafondReerNominal(2026), 0)).toBeCloseTo(9_000, 2);
+    expect(droitsReerAnnuels(500_000, plafondReerNominal(2026), 0)).toBeCloseTo(REER_PLAFOND_DOLLAR_2026, 2);
+  });
+
+  it('membre RREGOP : il ne reste que ~600 $/an de droits', () => {
+    const fe = feRegimePD(70_000);
+    expect(droitsReerAnnuels(70_000, plafondReerNominal(2026), fe)).toBeCloseTo(600, 2);
   });
 });

@@ -1,4 +1,4 @@
-import { CELIAPP_PLAFOND_ANNUEL, CELIAPP_PLAFOND_VIE, droitsCeliParDefaut } from '../../moteur';
+import { CELIAPP_PLAFOND_ANNUEL, CELIAPP_PLAFOND_VIE, droitsCeliParDefaut, REER_PLAFOND_DOLLAR_2026 } from '../../moteur';
 import type { HypothesesProjection, TypeCompte } from '../../moteur';
 import { ChampMonetaire, ChampNombre, ChampPourcent, Interrupteur, TitreSection } from '../Champ';
 import { formatDollars } from '../format';
@@ -90,6 +90,35 @@ export function FormulaireProjection({ h, onChange }: FormulaireProps) {
             <p className="mt-2 text-xs text-slate-500">
               Les droits croissent de ~7 000 $/an (indexé) et un retrait les redonne l'année suivante.
               L'épargne au-delà des droits ira au non-enregistré.
+            </p>
+          </div>
+        )}
+        {(h.epargneAnnuelle.REER ?? 0) > 0 && (
+          <div className="mt-4 rounded-xl bg-emerald-50/60 p-4 ring-1 ring-emerald-500/15">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <ChampMonetaire
+                label="Droits REER disponibles"
+                valeur={h.droitsReerDisponibles ?? 0}
+                onChange={(v) => maj('droitsReerDisponibles', v)}
+                indice="Chiffre de ton avis de cotisation ARC (inclut le report inutilisé)."
+              />
+              <div className="pt-1">
+                <Interrupteur label="Régime à PD (RREGOP / RPA)" valeur={h.regimeRetraitePD ?? false} onChange={(v) => maj('regimeRetraitePD', v)} />
+                {h.regimeRetraitePD && (
+                  <div className="mt-3">
+                    <ChampMonetaire
+                      label="Facteur d'équivalence (si connu)"
+                      valeur={h.facteurEquivalenceReer ?? 0}
+                      onChange={(v) => maj('facteurEquivalenceReer', v)}
+                      indice="T4 case 52. Laisse 0 pour l'estimation automatique."
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+            <p className="mt-2 text-xs text-slate-500">
+              Nouveaux droits ≈ 18 % du salaire − facteur d'équivalence (max {formatDollars(REER_PLAFOND_DOLLAR_2026)}).
+              Un régime à PD (RREGOP) réduit fortement les droits (~600 $/an). L'excédent ira au CELI, puis au non-enregistré.
             </p>
           </div>
         )}

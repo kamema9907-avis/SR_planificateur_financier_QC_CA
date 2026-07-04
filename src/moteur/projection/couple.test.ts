@@ -43,6 +43,31 @@ function couple(p1: Partial<PersonneProjection>, p2: Partial<PersonneProjection>
 }
 
 // ---------------------------------------------------------------------------
+// Droits de cotisation REER (par personne, dont le REER de conjoint)
+// ---------------------------------------------------------------------------
+
+describe('droits REER dans le couple', () => {
+  it('le REER de conjoint consomme les droits du COTISANT ; l’excédent va à SON non-enregistré', () => {
+    const r = projeterCouple(
+      couple(
+        {
+          ageActuel: 60, ageRetraite: 65, revenuEmploi: 0, // travaille (60 < 65) mais sans salaire → aucun nouveau droit
+          epargneReerConjoint: 20_000,
+          droitsReerDisponibles: 5_000,
+          droitsCeliDisponibles: 0, // force l'excédent vers le non-enregistré
+          comptes: [{ type: 'NON_ENREGISTRE', solde: 0, profil: 'equilibre', coutBase: 0, rendementPersonnalise: 0 }],
+        },
+        { ageRetraite: 65, comptes: [{ type: 'REER', solde: 0, profil: 'equilibre', rendementPersonnalise: 0 }] },
+        { inflation: 0, fraisGestion: 0 },
+      ),
+    );
+    // p1 a 5 000 $ de droits → 5 000 au REER de p2 (conjoint), 15 000 d'excédent au non-enregistré de p1.
+    expect(r.annees[0].soldes2.REER).toBeCloseTo(5_000, 0);
+    expect(r.annees[0].soldes1.NON_ENREGISTRE).toBeCloseTo(15_000, 0);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Droits de cotisation CELI (par personne)
 // ---------------------------------------------------------------------------
 
