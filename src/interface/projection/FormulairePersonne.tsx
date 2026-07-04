@@ -61,7 +61,23 @@ export function FormulairePersonne({ p, fraisGestion, onChange }: Props) {
             <ChampMonetaire key={type} label={label} valeur={p.epargneAnnuelle[type] ?? 0} onChange={(v) => majEpargne(type, v)} indice={indice} />
           ))}
           <ChampMonetaire label="REER de conjoint" valeur={p.epargneReerConjoint} onChange={(v) => maj('epargneReerConjoint', v)} indice="Vous déduisez, versé au REER de l'autre" />
-          <ChampMonetaire label="Fonds de travailleurs (FTQ/Fondaction)" valeur={p.fondsTravailleursAnnuel ?? 0} onChange={(v) => maj('fondsTravailleursAnnuel', v)} indice="REER additionnel + crédit 30 % (1er 5 000 $)" />
+        </div>
+        <div className="mt-4 rounded-xl bg-marque-50/60 p-4 ring-1 ring-marque-500/15">
+          <Interrupteur
+            label="Fonds de travailleurs (FTQ / Fondaction)"
+            valeur={(p.fondsTravailleursAnnuel ?? 0) > 0}
+            onChange={(v) => maj('fondsTravailleursAnnuel', v ? 5_000 : 0)}
+          />
+          {(p.fondsTravailleursAnnuel ?? 0) > 0 && (
+            <div className="mt-3">
+              <ChampMonetaire
+                label="Cotisation annuelle"
+                valeur={p.fondsTravailleursAnnuel ?? 0}
+                onChange={(v) => maj('fondsTravailleursAnnuel', v)}
+                indice="REER additionnel + crédit de 30 % (1er 5 000 $)"
+              />
+            </div>
+          )}
         </div>
         {(p.epargneAnnuelle.CELIAPP ?? 0) > 0 && (
           <div className="mt-4 rounded-xl bg-marque-50/60 p-4 ring-1 ring-marque-500/15">
