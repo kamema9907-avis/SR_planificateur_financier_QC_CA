@@ -11,8 +11,9 @@ sur toute la vie (vie active + retraite), pour une personne seule ou en couple.
 
 ## 🌐 Essayer en ligne
 
-Une fois déployé sur GitHub Pages : **https://TON-PSEUDO.github.io/NOM-DU-REPO/** *(remplace par ton lien)*.
-Rien à installer — tout tourne dans le navigateur, et **tes données restent sur ton appareil**.
+En ligne : **https://kamema9907-avis.github.io/SR_planificateur_financier_QC_CA/**.
+Rien à installer — tout tourne dans le navigateur, et **tes données restent sur ton appareil**. L'app
+s'ouvre vierge ; un bouton **« Réinitialiser »** remet les champs à zéro à tout moment.
 
 > Hypothèses : résident du **Québec**, **salarié**, paramètres fiscaux **2026**. Hors de ce cadre
 > (autre province, travailleur autonome), les chiffres sont des estimations moins précises.
@@ -44,7 +45,7 @@ src/
 │   ├── moteurFiscal.ts      # Orchestrateur : assemble tout, calcule les taux
 │   ├── projection/          # Phase 2 : comptes, rentes publiques, décaissement, boucle cycle de vie
 │   ├── index.ts             # API publique du moteur
-│   └── *.test.ts            # 49 cas-tests (dont validation croisée des taux publiés)
+│   └── *.test.ts            # 119 cas-tests (dont validation croisée des taux publiés)
 └── interface/               # Interface React (habillage) — vues « Impôt » et « Projection »
 ```
 

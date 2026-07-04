@@ -234,8 +234,9 @@ sur GitHub Pages (~1-2 min). Si un test échoue, le déploiement est bloqué (ga
   (dons, frais médicaux) non inclus.
 - Seuil exact d'indexation du montant fédéral en raison de l'âge à confirmer.
 - **Maximum de retrait FRV** provincial ; mécaniques fines du **CELIAPP** (achat 1re propriété,
-  fermeture à 15 ans / 71 ans, report du droit annuel) et du **REEE** (règles de retrait) simplifiées ;
-  plafond de cotisation **REER** non vérifié (les plafonds CELIAPP et les droits CELI le sont).
+  fermeture à 15 ans / 71 ans, report du droit annuel) et du **REEE** (règles de retrait) simplifiées.
+  Droits **REER** vérifiés, mais : facteur d'équivalence d'un régime à PD **estimé** (18 % × salaire − 600 $)
+  sauf si le FE exact est saisi ; base 18 % sur le salaire courant ; arrêt des cotisations à 71 ans non forcé.
 - Couple : rente de survivant RRQ avant 65 ans **approximée** ; max RRQ (plafond survivant) et règle
   d'attribution du REER de conjoint (3 ans) simplifiés.
 - Indexation uniforme à l'inflation IQPF (certains seuils réels s'indexent différemment).
