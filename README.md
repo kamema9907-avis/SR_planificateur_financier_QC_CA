@@ -45,7 +45,7 @@ src/
 │   ├── moteurFiscal.ts      # Orchestrateur : assemble tout, calcule les taux
 │   ├── projection/          # Phase 2 : comptes, rentes publiques, décaissement, boucle cycle de vie
 │   ├── index.ts             # API publique du moteur
-│   └── *.test.ts            # 119 cas-tests (dont validation croisée des taux publiés)
+│   └── *.test.ts            # 122 cas-tests (dont validation croisée des taux publiés)
 └── interface/               # Interface React (habillage) — vues « Impôt » et « Projection »
 ```
 
@@ -73,6 +73,9 @@ l'inflation** chaque année (calcul nominal, affichage en dollars d'aujourd'hui)
   (compteur vivant : droits ARC saisis, +7 000 $/an indexé/arrondi au 500 $, retraits restaurés l'année
   suivante) ; **droits REER** (droits ARC saisis, +18 % du salaire − **facteur d'équivalence** RREGOP/RPA,
   max 33 810 $, aucune restauration au retrait). L'excédent déborde en chaîne : CELIAPP → CELI → non-enregistré.
+- **Crédit fonds de travailleurs** (FTQ/Fondaction) appliqué **chaque année active** : cotisation REER
+  additionnelle + **crédit de 30 %** sur le 1er 5 000 $ (jusqu'à 1 500 $/an), obtenu même sans droits REER
+  (membre RREGOP). Sur 30 ans, des dizaines de milliers de dollars auparavant ignorés par la projection.
 - **Profils de rendement** (prudent / équilibré / dynamique) calibrés sur les Normes IQPF 2026.
 - **Rentes publiques** RRQ et SV (saisie manuelle) avec ajustement report/anticipation et indexation.
 - **Minimums de retrait FERR/FRV** forcés dès 72 ans.

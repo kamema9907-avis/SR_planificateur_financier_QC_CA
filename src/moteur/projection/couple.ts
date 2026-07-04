@@ -187,6 +187,15 @@ function preparerPersonne(
 function appliquerCotisations(etat: EtatPersonne, facteurInflation: number, conjoint: EtatPersonne) {
   let deductible = 0;
   let cotisations = 0;
+
+  // Fonds de travailleurs (FTQ/Fondaction) : cotisation REER additionnelle donnant le crédit de 30 %.
+  let fondsTravailleurs = 0;
+  if (etat.p.fondsTravailleursAnnuel && etat.p.fondsTravailleursAnnuel > 0) {
+    fondsTravailleurs = etat.p.fondsTravailleursAnnuel * facteurInflation;
+    deductible += verserAuReer(etat, etat, fondsTravailleurs);
+    cotisations += fondsTravailleurs;
+  }
+
   for (const [type, montantAuj] of Object.entries(etat.p.epargneAnnuelle) as [TypeCompte, number][]) {
     if (!montantAuj) continue;
     const montant = montantAuj * facteurInflation;
@@ -233,7 +242,7 @@ function appliquerCotisations(etat: EtatPersonne, facteurInflation: number, conj
     deductible += verserAuReer(etat, conjoint, montant);
     cotisations += montant;
   }
-  return { deductible, cotisations };
+  return { deductible, cotisations, fondsTravailleurs };
 }
 
 function appliquerCroissance(etat: EtatPersonne, croissances: Map<Compte, CroissanceCompte>) {
@@ -457,8 +466,8 @@ export function projeterCouple(h: HypothesesCouple): ResultatCouple {
         accrualReer(etat2, ctx2.salaire, annee, facteurInflation);
         const cot1 = appliquerCotisations(etat1, facteurInflation, etat2);
         const cot2 = appliquerCotisations(etat2, facteurInflation, etat1);
-        const e1 = { ...ctx1.entree, deductionReer: cot1.deductible };
-        const e2 = { ...ctx2.entree, deductionReer: cot2.deductible };
+        const e1 = { ...ctx1.entree, deductionReer: cot1.deductible, cotisationFondsTravailleurs: cot1.fondsTravailleurs };
+        const e2 = { ...ctx2.entree, deductionReer: cot2.deductible, cotisationFondsTravailleurs: cot2.fondsTravailleurs };
         const opt = impotCoupleOptimal(e1, e2, annee, splittable(e1, ctx1.age, ctx1.renteEmp), splittable(e2, ctx2.age, ctx2.renteEmp));
         impotAnnee = opt.impot;
         fractionnement = Math.abs(opt.transfert);
@@ -490,7 +499,7 @@ export function projeterCouple(h: HypothesesCouple): ResultatCouple {
       if (ctx.travaille) {
         accrualReer(vivant, ctx.salaire, annee, facteurInflation);
         const cot = appliquerCotisations(vivant, facteurInflation, vivant);
-        const e = { ...ctx.entree, deductionReer: cot.deductible };
+        const e = { ...ctx.entree, deductionReer: cot.deductible, cotisationFondsTravailleurs: cot.fondsTravailleurs };
         impotAnnee = impotTotalPour(e, annee);
         const retenuesPaie = calculerCotisations(ctx.salaire, parametresCotisations(annee)).total;
         revenuDisponible = ctx.encaisse - impotAnnee - cot.cotisations - paiementImmo - retenuesPaie;

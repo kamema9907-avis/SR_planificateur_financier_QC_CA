@@ -327,6 +327,30 @@ describe('droits de cotisation REER', () => {
   });
 });
 
+describe('crédit pour fonds de travailleurs (FTQ/Fondaction) en accumulation', () => {
+  const comptes = [
+    { type: 'REER', solde: 0, profil: 'equilibre', rendementPersonnalise: 0 },
+    { type: 'CELI', solde: 0, profil: 'equilibre', rendementPersonnalise: 0 },
+    { type: 'NON_ENREGISTRE', solde: 0, profil: 'equilibre', coutBase: 0, rendementPersonnalise: 0 },
+  ] as const;
+
+  it('donne 30 % de crédit (1 500 $ sur 5 000 $) par rapport au même montant en REER ordinaire', () => {
+    const base = { ageActuel: 40, ageRetraite: 100, ageDeces: 40, revenuEmploi: 80_000, droitsReerDisponibles: 50_000 };
+    const sans = projeter(hypotheses({ ...base, epargneAnnuelle: { REER: 5_000 }, comptes: comptes.map((c) => ({ ...c })) }));
+    const avec = projeter(hypotheses({ ...base, fondsTravailleursAnnuel: 5_000, comptes: comptes.map((c) => ({ ...c })) }));
+    // Même cotisation REER de 5 000 $ (déductible) ; seule différence = le crédit de 30 %.
+    expect(sans.annees[0].impotTotal - avec.annees[0].impotTotal).toBeCloseTo(1_500, 0);
+  });
+
+  it('un membre RREGOP obtient le crédit même si le fonds dépasse ses droits REER', () => {
+    const base = { ageActuel: 40, ageRetraite: 100, ageDeces: 40, revenuEmploi: 70_000, droitsReerDisponibles: 0, regimeRetraitePD: true };
+    const sans = projeter(hypotheses({ ...base, epargneAnnuelle: { REER: 5_000 }, comptes: comptes.map((c) => ({ ...c })) }));
+    const avec = projeter(hypotheses({ ...base, fondsTravailleursAnnuel: 5_000, comptes: comptes.map((c) => ({ ...c })) }));
+    // Les deux versent 5 000 $ au même parcours REER (~600 $ déductible + reste au CELI) ; diff = crédit 1 500 $.
+    expect(sans.annees[0].impotTotal - avec.annees[0].impotTotal).toBeCloseTo(1_500, 0);
+  });
+});
+
 describe('projection complète (fumée)', () => {
   it('produit une année par âge, sans valeur invalide', () => {
     const r = projeter(

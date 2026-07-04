@@ -66,6 +66,14 @@ export function FormulaireProjection({ h, onChange }: FormulaireProps) {
             <ChampMonetaire key={type} label={label} valeur={h.epargneAnnuelle[type] ?? 0} onChange={(v) => majEpargne(type, v)} indice={indice} />
           ))}
         </div>
+        <div className="mt-4">
+          <ChampMonetaire
+            label="Fonds de travailleurs (FTQ / Fondaction)"
+            valeur={h.fondsTravailleursAnnuel ?? 0}
+            onChange={(v) => maj('fondsTravailleursAnnuel', v)}
+            indice="Cotisation REER additionnelle avec crédit de 30 % sur le 1er 5 000 $/an (jusqu'à 1 500 $/an)."
+          />
+        </div>
         {(h.epargneAnnuelle.CELIAPP ?? 0) > 0 && (
           <div className="mt-4 rounded-xl bg-marque-50/60 p-4 ring-1 ring-marque-500/15">
             <ChampMonetaire

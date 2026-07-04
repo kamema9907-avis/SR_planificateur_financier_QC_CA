@@ -177,6 +177,27 @@ export function projeter(h: HypothesesProjection): ResultatProjection {
         }
       };
 
+      // Verse au REER dans la limite des droits ; l'excédent déborde en chaîne CELI → non-enregistré.
+      const verserAuReer = (montant: number) => {
+        const auReer = Math.min(montant, Math.max(0, droitsReer));
+        if (auReer > 0) {
+          trouverOuCreer(comptes, 'REER', profilDefaut).solde += auReer;
+          deductible += auReer;
+          droitsReer -= auReer;
+          cotisations += auReer;
+        }
+        const excedent = montant - auReer;
+        if (excedent > 0) {
+          verserAuCeli(excedent);
+          cotisations += excedent;
+        }
+      };
+
+      // Fonds de travailleurs (FTQ/Fondaction) : cotisation REER additionnelle donnant droit au crédit de
+      // 30 % (sur le 1er 5 000 $). Détenu dans le REER → déductible et consomme les droits REER.
+      const fondsTravailleursNominal = (h.fondsTravailleursAnnuel ?? 0) * facteurInflation;
+      if (fondsTravailleursNominal > 0) verserAuReer(fondsTravailleursNominal);
+
       for (const [type, montantAujourdhui] of Object.entries(h.epargneAnnuelle) as [TypeCompte, number][]) {
         if (!montantAujourdhui) continue;
         const montant = montantAujourdhui * facteurInflation;
@@ -206,18 +227,7 @@ export function projeter(h: HypothesesProjection): ResultatProjection {
 
         // REER : plafonné aux droits disponibles ; l'excédent suit la chaîne CELI → non-enregistré.
         if (type === 'REER') {
-          const auReer = Math.min(montant, Math.max(0, droitsReer));
-          if (auReer > 0) {
-            trouverOuCreer(comptes, 'REER', profilDefaut).solde += auReer;
-            deductible += auReer; // seule la part réellement versée au REER est déductible
-            droitsReer -= auReer;
-            cotisations += auReer;
-          }
-          const excedent = montant - auReer;
-          if (excedent > 0) {
-            verserAuCeli(excedent);
-            cotisations += excedent;
-          }
+          verserAuReer(montant);
           continue;
         }
 
@@ -240,6 +250,7 @@ export function projeter(h: HypothesesProjection): ResultatProjection {
         dividendesDetermines: dividendesNonEnr,
         gainsCapital: immo.gainBrut,
         deductionReer: deductible,
+        cotisationFondsTravailleurs: fondsTravailleursNominal, // crédit de 30 % (moteur plafonne à 5 000 $)
       };
       impotAnnee = impotTotalPour(entreeAnnee, annee);
       // Retenues sur la paie (RRQ + AE + RQAP) : sortie de trésorerie en plus de l'impôt.

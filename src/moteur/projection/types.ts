@@ -79,6 +79,11 @@ export interface HypothesesProjection {
   readonly regimeRetraitePD?: boolean;
   /** Facteur d'équivalence annuel exact (en $ d'aujourd'hui), si connu — remplace l'estimation du régime à PD. */
   readonly facteurEquivalenceReer?: number;
+  /**
+   * Cotisation annuelle à un fonds de travailleurs (FTQ / Fondaction), en $ d'aujourd'hui. Détenue
+   * dans le REER : déductible + consomme les droits REER, ET donne le crédit de 30 % (1er 5 000 $).
+   */
+  readonly fondsTravailleursAnnuel?: number;
 
   // Comptes de départ
   readonly comptes: readonly Compte[];

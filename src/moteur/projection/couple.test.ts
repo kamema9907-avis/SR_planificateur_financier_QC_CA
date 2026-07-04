@@ -46,6 +46,18 @@ function couple(p1: Partial<PersonneProjection>, p2: Partial<PersonneProjection>
 // Droits de cotisation REER (par personne, dont le REER de conjoint)
 // ---------------------------------------------------------------------------
 
+describe('crédit fonds de travailleurs dans le couple', () => {
+  it('applique le crédit de 30 % au conjoint qui cotise (vs le même montant en REER)', () => {
+    const p1 = (partiel: Partial<PersonneProjection>): Partial<PersonneProjection> => ({
+      ageActuel: 55, ageRetraite: 65, revenuEmploi: 80_000, droitsReerDisponibles: 50_000,
+      comptes: [{ type: 'REER', solde: 0, profil: 'equilibre', rendementPersonnalise: 0 }], ...partiel,
+    });
+    const sans = projeterCouple(couple(p1({ epargneAnnuelle: { REER: 5_000 } }), { ageRetraite: 65 }, { inflation: 0, fraisGestion: 0 }));
+    const avec = projeterCouple(couple(p1({ fondsTravailleursAnnuel: 5_000 }), { ageRetraite: 65 }, { inflation: 0, fraisGestion: 0 }));
+    expect(sans.annees[0].impotTotal - avec.annees[0].impotTotal).toBeCloseTo(1_500, 0);
+  });
+});
+
 describe('droits REER dans le couple', () => {
   it('le REER de conjoint consomme les droits du COTISANT ; l’excédent va à SON non-enregistré', () => {
     const r = projeterCouple(

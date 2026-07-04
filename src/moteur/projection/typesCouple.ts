@@ -24,6 +24,8 @@ export interface PersonneProjection {
   regimeRetraitePD?: boolean;
   /** Facteur d'équivalence annuel exact (en $ d'aujourd'hui), si connu — remplace l'estimation. */
   facteurEquivalenceReer?: number;
+  /** Cotisation annuelle à un fonds de travailleurs (FTQ/Fondaction), $ d'aujourd'hui — REER + crédit 30 %. */
+  fondsTravailleursAnnuel?: number;
   /** Cotisation REER de conjoint : déduite par CETTE personne, versée au REER de l'autre. */
   epargneReerConjoint: number;
   comptes: readonly Compte[];
