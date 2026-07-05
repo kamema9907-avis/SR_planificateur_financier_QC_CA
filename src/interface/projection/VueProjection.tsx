@@ -11,8 +11,7 @@ import { formatDollars } from '../format';
 import { BoutonReinitialiser, Interrupteur } from '../Champ';
 import { FormulaireProjection } from './FormulaireProjection';
 import { GraphiqueProjection } from './GraphiqueProjection';
-import { TableauProjection } from './TableauProjection';
-import { TableauComptes } from './TableauComptes';
+import { DetailAnnees } from './DetailAnnees';
 import { PanneauOptimisation } from './PanneauOptimisation';
 import { VueCouple } from './VueCouple';
 
@@ -116,7 +115,7 @@ export function VueProjection() {
     }
   }, [h]);
 
-  const resultat = useMemo(() => projeter(h), [h]);
+  const resultat = useMemo(() => projeter(h, { trace: true }), [h]);
 
   return (
     <div className="space-y-6">
@@ -216,20 +215,13 @@ export function VueProjection() {
           />
         </div>
 
-        {/* Tableau — revenus et impôt */}
+        {/* Tableaux détaillés — traçabilité avec drill-down */}
         <div className="carte p-5">
-          <h3 className="mb-1 font-semibold text-slate-800">Détail année par année — revenus et impôt</h3>
-          <p className="mb-3 text-xs text-slate-400">Ce que vous encaissez et payez chaque année.</p>
-          <TableauProjection annees={resultat.annees} reel={reel} />
-        </div>
-
-        {/* Tableau — soldes des comptes */}
-        <div className="carte p-5">
-          <h3 className="mb-1 font-semibold text-slate-800">Détail année par année — soldes des comptes</h3>
+          <h3 className="mb-1 font-semibold text-slate-800">Détail année par année</h3>
           <p className="mb-3 text-xs text-slate-400">
-            Où est l'argent : solde de chaque compte, épargne versée (+) et retraits (−).
+            Toute la traçabilité : revenus, impôt, comptes et patrimoine. Cliquez un montant souligné pour ouvrir son calcul.
           </p>
-          <TableauComptes annees={resultat.annees} reel={reel} />
+          <DetailAnnees annees={resultat.annees} reel={reel} ageEpuisement={resultat.ageEpuisement} />
         </div>
       </div>
       </div>

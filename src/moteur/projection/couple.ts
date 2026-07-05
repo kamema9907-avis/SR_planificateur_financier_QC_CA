@@ -215,13 +215,12 @@ function appliquerCotisations(etat: EtatPersonne, facteurInflation: number, conj
   let deductible = 0;
   let cotisations = 0;
 
-  // Fonds de travailleurs (FTQ/Fondaction) : cotisation REER additionnelle donnant le crédit de 30 %.
-  let fondsTravailleurs = 0;
-  if (etat.p.fondsTravailleursAnnuel && etat.p.fondsTravailleursAnnuel > 0) {
-    fondsTravailleurs = etat.p.fondsTravailleursAnnuel * facteurInflation;
-    deductible += verserAuReer(etat, etat, fondsTravailleurs);
-    cotisations += fondsTravailleurs;
-  }
+  // Fonds de travailleurs (FTQ/Fondaction) : donne SEULEMENT le crédit de 30 % (1er 5 000 $). La
+  // cotisation est déjà comptée dans l'épargne REER (champ REER) — on n'ajoute rien au REER ici.
+  const fondsTravailleurs =
+    etat.p.fondsTravailleursAnnuel && etat.p.fondsTravailleursAnnuel > 0
+      ? etat.p.fondsTravailleursAnnuel * facteurInflation
+      : 0;
 
   for (const [type, montantAuj] of Object.entries(etat.p.epargneAnnuelle) as [TypeCompte, number][]) {
     if (!montantAuj) continue;

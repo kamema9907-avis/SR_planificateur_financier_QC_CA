@@ -334,20 +334,28 @@ describe('crédit pour fonds de travailleurs (FTQ/Fondaction) en accumulation', 
     { type: 'NON_ENREGISTRE', solde: 0, profil: 'equilibre', coutBase: 0, rendementPersonnalise: 0 },
   ] as const;
 
-  it('donne 30 % de crédit (1 500 $ sur 5 000 $) par rapport au même montant en REER ordinaire', () => {
-    const base = { ageActuel: 40, ageRetraite: 100, ageDeces: 40, revenuEmploi: 80_000, droitsReerDisponibles: 50_000 };
-    const sans = projeter(hypotheses({ ...base, epargneAnnuelle: { REER: 5_000 }, comptes: comptes.map((c) => ({ ...c })) }));
+  it('n’ajoute que le crédit de 30 % (la cotisation REER est saisie à part)', () => {
+    const base = { ageActuel: 40, ageRetraite: 100, ageDeces: 40, revenuEmploi: 80_000, droitsReerDisponibles: 50_000, epargneAnnuelle: { REER: 5_000 } };
+    const sans = projeter(hypotheses({ ...base, comptes: comptes.map((c) => ({ ...c })) }));
     const avec = projeter(hypotheses({ ...base, fondsTravailleursAnnuel: 5_000, comptes: comptes.map((c) => ({ ...c })) }));
-    // Même cotisation REER de 5 000 $ (déductible) ; seule différence = le crédit de 30 %.
+    // Même cotisation REER de 5 000 $ dans les deux cas ; le fonds n'ajoute QUE le crédit de 30 %.
     expect(sans.annees[0].impotTotal - avec.annees[0].impotTotal).toBeCloseTo(1_500, 0);
   });
 
-  it('un membre RREGOP obtient le crédit même si le fonds dépasse ses droits REER', () => {
-    const base = { ageActuel: 40, ageRetraite: 100, ageDeces: 40, revenuEmploi: 70_000, droitsReerDisponibles: 0, regimeRetraitePD: true };
-    const sans = projeter(hypotheses({ ...base, epargneAnnuelle: { REER: 5_000 }, comptes: comptes.map((c) => ({ ...c })) }));
-    const avec = projeter(hypotheses({ ...base, fondsTravailleursAnnuel: 5_000, comptes: comptes.map((c) => ({ ...c })) }));
-    // Les deux versent 5 000 $ au même parcours REER (~600 $ déductible + reste au CELI) ; diff = crédit 1 500 $.
-    expect(sans.annees[0].impotTotal - avec.annees[0].impotTotal).toBeCloseTo(1_500, 0);
+  it('n’ajoute rien au REER (pas de double comptage de la cotisation)', () => {
+    const base = { ageActuel: 40, ageRetraite: 100, ageDeces: 45, revenuEmploi: 80_000, droitsReerDisponibles: 50_000, fraisGestion: 0, inflation: 0 };
+    const sansFonds = projeter(hypotheses({ ...base, epargneAnnuelle: { REER: 5_000 }, comptes: comptes.map((c) => ({ ...c })) }));
+    const avecFonds = projeter(hypotheses({ ...base, epargneAnnuelle: { REER: 5_000 }, fondsTravailleursAnnuel: 5_000, comptes: comptes.map((c) => ({ ...c })) }));
+    // Le solde REER accumulé doit être IDENTIQUE (le fonds ne verse plus de REER supplémentaire).
+    expect(avecFonds.annees[0].soldes.REER).toBeCloseTo(sansFonds.annees[0].soldes.REER, 0);
+  });
+
+  it('n’accorde aucun crédit si aucune épargne REER n’est saisie', () => {
+    const base = { ageActuel: 40, ageRetraite: 100, ageDeces: 40, revenuEmploi: 80_000 };
+    const rien = projeter(hypotheses({ ...base, comptes: comptes.map((c) => ({ ...c })) }));
+    const fondsSeul = projeter(hypotheses({ ...base, fondsTravailleursAnnuel: 5_000, comptes: comptes.map((c) => ({ ...c })) }));
+    // Fonds coché mais aucune cotisation REER → impôt inchangé (pas de crédit indu).
+    expect(fondsSeul.annees[0].impotTotal).toBeCloseTo(rien.annees[0].impotTotal, 0);
   });
 });
 

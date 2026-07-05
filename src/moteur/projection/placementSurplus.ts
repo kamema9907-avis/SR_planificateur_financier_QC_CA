@@ -47,10 +47,11 @@ export function placerSurplusRetraite(
   entree: EntreeFiscale,
   impotCourant: number,
   recalculerImpotAvecDeduction: (montantReer: number) => { impot: number; entree: EntreeFiscale },
-): { impot: number; entree: EntreeFiscale } {
+): { impot: number; entree: EntreeFiscale; ventilation: { celi: number; reer: number; nonEnr: number } } {
   let reste = surplusNet;
   let impot = impotCourant;
   let entreeMaj = entree;
+  let auReer = 0;
 
   // 1. CELI (aucune limite d'âge) — dans la limite des droits ; l'excédent poursuit la chaîne.
   const auCeli = Math.min(reste, Math.max(0, droits.droitsCeli));
@@ -62,7 +63,7 @@ export function placerSurplusRetraite(
 
   // 2. REER (déductible) — permis jusqu'à 71 ans, dans la limite des droits.
   if (reste > 0 && age <= AGE_CONVERSION_FERR && droits.droitsReer > 0) {
-    const auReer = Math.min(reste, droits.droitsReer);
+    auReer = Math.min(reste, droits.droitsReer);
     trouverOuCreer(comptes, 'REER', profilDefaut).solde += auReer;
     droits.droitsReer -= auReer;
     reste -= auReer;
@@ -74,11 +75,12 @@ export function placerSurplusRetraite(
   }
 
   // 3. Non-enregistré — le reste (surplus au-delà des abris + remboursement d'impôt du REER).
+  const auNonEnr = Math.max(0, reste);
   if (reste > 0) {
     const ne = trouverOuCreer(comptes, 'NON_ENREGISTRE', profilDefaut);
     ne.solde += reste;
     ne.coutBase = (ne.coutBase ?? 0) + reste;
   }
 
-  return { impot, entree: entreeMaj };
+  return { impot, entree: entreeMaj, ventilation: { celi: auCeli, reer: auReer, nonEnr: auNonEnr } };
 }

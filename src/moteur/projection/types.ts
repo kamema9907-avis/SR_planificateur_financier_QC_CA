@@ -3,6 +3,7 @@
  */
 import type { ProfilRendement } from '../constantes/profilsRendement';
 import type { Immeuble } from './immobilier';
+import type { DetailAnnee } from './trace';
 
 export type TypeCompte =
   | 'REER'
@@ -162,6 +163,13 @@ export interface AnneeProjection {
 
   /** Facteur pour convertir un montant nominal de cette année en dollars d'aujourd'hui. */
   readonly deflateurReel: number;
+
+  /**
+   * Traçabilité « drill-down » : décomposition des agrégats (disponible, impôt, valeur nette) en
+   * postes. Présente uniquement si la projection est lancée avec `{ trace: true }` (l'optimiseur, qui
+   * appelle `projeter` des centaines de fois, la laisse absente pour rester rapide).
+   */
+  readonly detail?: DetailAnnee;
 }
 
 /** Résultat global d'une projection. */

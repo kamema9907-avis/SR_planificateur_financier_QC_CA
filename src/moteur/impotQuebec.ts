@@ -72,8 +72,10 @@ export function calculerImpotQuebec(
     base.dividendesMajoresDetermines * params.dividendes.determines.creditSurMajore +
     base.dividendesMajoresOrdinaires * params.dividendes.ordinaires.creditSurMajore;
 
-  // Crédit pour fonds de travailleurs (FTQ / Fondaction CSN).
-  const creditFondsTravailleurs = FT.tauxQuebec * Math.min(entree.cotisationFondsTravailleurs, FT.plafondAchat);
+  // Crédit pour fonds de travailleurs (FTQ / Fondaction CSN). Le fonds EST un REER : le crédit exige
+  // une cotisation REER en contrepartie, donc on le plafonne à la déduction REER effective.
+  const fondsAdmissible = Math.min(entree.cotisationFondsTravailleurs, entree.deductionReer, FT.plafondAchat);
+  const creditFondsTravailleurs = FT.tauxQuebec * fondsAdmissible;
 
   const impotNet = Math.max(
     0,

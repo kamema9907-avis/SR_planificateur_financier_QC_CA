@@ -140,10 +140,23 @@ describe('Scénario D — crédit pour fonds de travailleurs (FTQ / Fondaction C
 
   it('plafonne le crédit au premier 5 000 $ investi', () => {
     const plafonne = calculerImpot(
-      entree({ age: 45, revenuEmploi: 80_000, cotisationFondsTravailleurs: 8_000 }),
+      entree({ age: 45, revenuEmploi: 80_000, deductionReer: 8_000, cotisationFondsTravailleurs: 8_000 }),
     );
     expect(plafonne.federal.creditFondsTravailleurs).toBeCloseTo(750, 2);
     expect(plafonne.quebec.creditFondsTravailleurs).toBeCloseTo(750, 2);
+  });
+
+  it('n’accorde aucun crédit sans cotisation REER en contrepartie (le fonds est un REER)', () => {
+    const sansReer = calculerImpot(entree({ age: 45, revenuEmploi: 80_000, cotisationFondsTravailleurs: 5_000 }));
+    expect(sansReer.federal.creditFondsTravailleurs).toBe(0);
+    expect(sansReer.quebec.creditFondsTravailleurs).toBe(0);
+  });
+
+  it('limite le crédit à la cotisation REER quand celle-ci est plus faible', () => {
+    // 2 000 $ de REER, mais 5 000 $ déclarés au fonds → crédit sur 2 000 $ seulement (30 % = 600 $).
+    const partiel = calculerImpot(entree({ age: 45, revenuEmploi: 80_000, deductionReer: 2_000, cotisationFondsTravailleurs: 5_000 }));
+    expect(partiel.federal.creditFondsTravailleurs).toBeCloseTo(300, 2);
+    expect(partiel.quebec.creditFondsTravailleurs).toBeCloseTo(300, 2);
   });
 });
 

@@ -49,6 +49,15 @@ export type {
 export { projeter } from './projection/projection';
 export { renteEmployeurNominale, totalRentesEmployeur, calculerRREGOP, MGA_2026 } from './projection/rentesEmployeur';
 export { revenuTravailNominal, totalRevenuTravail } from './projection/periodesTravail';
+export type {
+  Poste,
+  LienDetail,
+  DetailDisponible,
+  DetailImpotAnnee,
+  DetailValeurNette,
+  DetailAnnee,
+} from './projection/trace';
+export { sommePostes } from './projection/trace';
 export type { TypeImmeuble, Proprietaire, Immeuble } from './projection/immobilier';
 export { APPRECIATION_IMMO, determinerBienAbrite, estExemptable } from './projection/immobilier';
 export { renteSurvivantRRQ, MAX_RRQ_RETRAITE_65 } from './projection/rentesPubliques';

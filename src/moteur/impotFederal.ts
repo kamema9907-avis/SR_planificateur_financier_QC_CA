@@ -71,7 +71,10 @@ export function calculerImpotFederal(
   const abattementQuebec = impotDeBase * params.abattementQuebec;
 
   // Crédit pour fonds de travailleurs (appliqué après l'abattement, comme sur la déclaration T1).
-  const creditFondsTravailleurs = FT.tauxFederal * Math.min(entree.cotisationFondsTravailleurs, FT.plafondAchat);
+  // Le fonds EST un REER : le crédit exige une cotisation REER en contrepartie, donc on le plafonne à
+  // la déduction REER effective (sans cotisation REER, pas de crédit).
+  const fondsAdmissible = Math.min(entree.cotisationFondsTravailleurs, entree.deductionReer, FT.plafondAchat);
+  const creditFondsTravailleurs = FT.tauxFederal * fondsAdmissible;
 
   // Récupération de la PSV : ne bénéficie pas de l'abattement ni des crédits.
   const recuperationPSV = Math.min(

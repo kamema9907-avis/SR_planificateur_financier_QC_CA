@@ -30,8 +30,17 @@ import { rrqNominale, svNominale } from './rentesPubliques';
 import { totalRentesEmployeur } from './rentesEmployeur';
 import { totalRevenuTravail } from './periodesTravail';
 import { placerSurplusRetraite } from './placementSurplus';
-import { clonerImmeubles, determinerBienAbrite, gainAuDeces, traiterImmeublesAnnee, type AgregatImmo } from './immobilier';
+import { clonerImmeubles, determinerBienAbrite, gainAuDeces, traiterImmeublesAnnee, type AgregatImmo, type EtatImmeuble } from './immobilier';
 import { fondreReer } from './fonteReer';
+import {
+  construireDetailFiscal,
+  postesSignificatifs,
+  sommePostes,
+  type DetailAnnee,
+  type DetailDisponible,
+  type DetailValeurNette,
+  type Poste,
+} from './trace';
 import type { AnneeProjection, Compte, HypothesesProjection, ResultatProjection, TypeCompte } from './types';
 
 const TYPES_ENREGISTRES: readonly TypeCompte[] = ['REER', 'FERR', 'CRI', 'FRV'];
@@ -72,8 +81,111 @@ function trouverOuCreer(comptes: Compte[], type: TypeCompte, profil: ProfilRende
   return compte;
 }
 
+/** Composantes brutes d'une année, capturées dans la boucle pour bâtir la traçabilité. */
+interface ComposantesTrace {
+  revenuEmploi: number;
+  rrq: number;
+  sv: number;
+  renteEmp: number;
+  minimumFERR: number;
+  retraitEnr: number;
+  retraitNonEnr: number;
+  retraitLibre: number;
+  loyers: number;
+  ventes: number;
+  paiementImmo: number;
+  retenues: number;
+  cotisations: number;
+  cible: number;
+  ventilSurplus: { celi: number; reer: number; nonEnr: number };
+}
+
+const LIBELLE_COMPTE: Record<TypeCompte, string> = {
+  REER: 'REER', FERR: 'FERR', CELI: 'CELI', CELIAPP: 'CELIAPP', CRI: 'CRI', FRV: 'FRV',
+  NON_ENREGISTRE: 'Non-enregistré', REEE: 'REEE',
+};
+
+/** Assemble la traçabilité (drill-down) complète d'une année : disponible, impôt, valeur nette. */
+function construireDetailAnnee(
+  phase: 'accumulation' | 'decaissement',
+  c: ComposantesTrace,
+  entreeAnnee: EntreeFiscale,
+  annee: number,
+  impotDeces: number,
+  detailDeces: readonly Poste[],
+  comptes: readonly Compte[],
+  etatsImmo: readonly EtatImmeuble[],
+): DetailAnnee {
+  const fiscal = construireDetailFiscal(entreeAnnee, annee, impotDeces, detailDeces);
+  const impotCourant = fiscal.impotCourant;
+
+  const entreesBrut: Poste[] =
+    phase === 'accumulation'
+      ? [
+          { libelle: 'Revenu d’emploi', montant: c.revenuEmploi },
+          { libelle: 'RRQ', montant: c.rrq },
+          { libelle: 'Sécurité de la vieillesse', montant: c.sv },
+          { libelle: 'Rentes d’employeur', montant: c.renteEmp },
+          { libelle: 'Retrait minimum FERR', montant: c.minimumFERR },
+          { libelle: 'Loyers encaissés', montant: c.loyers },
+        ]
+      : [
+          { libelle: 'Revenu de travail', montant: c.revenuEmploi },
+          { libelle: 'RRQ', montant: c.rrq },
+          { libelle: 'Sécurité de la vieillesse', montant: c.sv },
+          { libelle: 'Rentes d’employeur', montant: c.renteEmp },
+          { libelle: 'Retrait minimum FERR', montant: c.minimumFERR },
+          { libelle: 'Retraits REER/FERR (volontaires)', montant: c.retraitEnr },
+          { libelle: 'Retraits non-enregistré', montant: c.retraitNonEnr },
+          { libelle: 'Retraits CELI/CELIAPP', montant: c.retraitLibre },
+          { libelle: 'Loyers encaissés', montant: c.loyers },
+          { libelle: 'Produit de vente / downsizing', montant: c.ventes },
+        ];
+
+  const sortiesBrut: Poste[] =
+    phase === 'accumulation'
+      ? [
+          { libelle: 'Impôt', montant: -impotCourant, lien: 'impot' },
+          { libelle: 'Cotisations (épargne)', montant: -c.cotisations },
+          { libelle: 'Retenues sur la paie (RRQ/AE/RQAP)', montant: -c.retenues },
+          { libelle: 'Paiement hypothécaire', montant: -c.paiementImmo },
+        ]
+      : [
+          { libelle: 'Impôt', montant: -impotCourant, lien: 'impot' },
+          { libelle: 'Retenues sur la paie (RRQ/AE/RQAP)', montant: -c.retenues },
+        ];
+
+  const entrees = postesSignificatifs(entreesBrut);
+  const sorties = postesSignificatifs(sortiesBrut);
+  const revenusNets = sommePostes(entrees) + sommePostes(sorties); // les sorties sont déjà négatives
+  // Le surplus (revenus au-delà de la cible, réinvesti) n'a de sens qu'en décaissement.
+  const surplus = phase === 'decaissement' ? Math.max(0, revenusNets - c.cible) : 0;
+
+  const disponible: DetailDisponible = {
+    entrees,
+    sorties,
+    revenusNets,
+    depenses: c.cible,
+    surplus,
+    destinationSurplus: postesSignificatifs([
+      { libelle: 'CELI', montant: c.ventilSurplus.celi },
+      { libelle: 'REER', montant: c.ventilSurplus.reer },
+      { libelle: 'Non-enregistré', montant: c.ventilSurplus.nonEnr },
+    ]),
+  };
+
+  const valeurNette: DetailValeurNette = {
+    comptes: postesSignificatifs(comptes.map((cpt) => ({ libelle: LIBELLE_COMPTE[cpt.type], montant: cpt.solde }))),
+    immobilier: postesSignificatifs(
+      etatsImmo.map((e) => ({ libelle: e.bien.nom, montant: e.vendu ? 0 : Math.max(0, e.valeur - e.hypotheque) })),
+    ),
+  };
+
+  return { disponible, impot: fiscal, valeurNette };
+}
+
 /** Projette une situation financière sur tout le cycle de vie. */
-export function projeter(h: HypothesesProjection): ResultatProjection {
+export function projeter(h: HypothesesProjection, options: { trace?: boolean } = {}): ResultatProjection {
   const comptes = clonerComptes(h.comptes);
   const profilDefaut: ProfilRendement = comptes[0]?.profil ?? 'equilibre';
   const etatsImmo = clonerImmeubles(h.immeubles);
@@ -149,6 +261,14 @@ export function projeter(h: HypothesesProjection): ResultatProjection {
     let retraitsLibresImpot = 0;
     let entreeAnnee: EntreeFiscale;
 
+    // Captures pour la traçabilité (remplies au fil des branches ; utilisées si options.trace).
+    let traceRetenues = 0;
+    let traceCible = 0;
+    let traceRetraitEnr = 0;
+    let traceVentil = { celi: 0, reer: 0, nonEnr: 0 };
+    let traceImpotDeces = 0;
+    let traceDetailDeces: Poste[] = [];
+
     if (phase === 'accumulation') {
       revenuEmploi = h.revenuEmploi * Math.pow((1 + h.inflation) * (1 + h.croissanceSalaireReelle), i);
 
@@ -195,10 +315,10 @@ export function projeter(h: HypothesesProjection): ResultatProjection {
         }
       };
 
-      // Fonds de travailleurs (FTQ/Fondaction) : cotisation REER additionnelle donnant droit au crédit de
-      // 30 % (sur le 1er 5 000 $). Détenu dans le REER → déductible et consomme les droits REER.
+      // Fonds de travailleurs (FTQ/Fondaction) : donne SEULEMENT le crédit de 30 % (1er 5 000 $). La
+      // cotisation elle-même est déjà saisie dans l'épargne REER (champ REER) — on n'ajoute donc rien au
+      // REER ici (sinon double comptage). Le crédit est appliqué via cotisationFondsTravailleurs.
       const fondsTravailleursNominal = (h.fondsTravailleursAnnuel ?? 0) * facteurInflation;
-      if (fondsTravailleursNominal > 0) verserAuReer(fondsTravailleursNominal);
 
       for (const [type, montantAujourdhui] of Object.entries(h.epargneAnnuelle) as [TypeCompte, number][]) {
         if (!montantAujourdhui) continue;
@@ -257,6 +377,7 @@ export function projeter(h: HypothesesProjection): ResultatProjection {
       impotAnnee = impotTotalPour(entreeAnnee, annee);
       // Retenues sur la paie (RRQ + AE + RQAP) : sortie de trésorerie en plus de l'impôt.
       const retenuesPaie = calculerCotisations(revenuEmploi, parametresCotisations(annee)).total;
+      traceRetenues = retenuesPaie;
       revenuDisponible =
         revenuEmploi + rrq + sv + minimumFERR + renteEmp + immo.loyerCash -
         immo.paiement - impotAnnee - cotisations - retenuesPaie;
@@ -300,6 +421,9 @@ export function projeter(h: HypothesesProjection): ResultatProjection {
       retraitsEnregistres += res.retraitEnregistre;
       retraitsNonEnregistres = res.retraitNonEnregistre;
       retraitsLibresImpot = res.retraitLibreImpot;
+      traceRetenues = retenuesTravail;
+      traceCible = cible;
+      traceRetraitEnr = res.retraitEnregistre;
 
       // Réinvestir un éventuel surplus (revenu de travail ou revenus fixes dépassant la cible) :
       // CELI → REER (≤ 71 ans, déductible) → non-enregistré.
@@ -317,6 +441,7 @@ export function projeter(h: HypothesesProjection): ResultatProjection {
         droitsReer = droits.droitsReer;
         impotAnnee = pose.impot;
         entreeAnnee = pose.entree;
+        traceVentil = pose.ventilation;
         revenuDisponible = cible;
       }
 
@@ -361,6 +486,12 @@ export function projeter(h: HypothesesProjection): ResultatProjection {
       const impotDeces = impotTotalPour(entreeDeces, annee) - impotTotalPour(entreeAnnee, annee);
       impotAnnee += impotDeces;
       impotTotalVieReel += impotDeces * deflateurReel;
+      traceImpotDeces = impotDeces;
+      traceDetailDeces = [
+        { libelle: 'REER / FERR / CRI / FRV liquidés', montant: soldesEnr },
+        { libelle: 'Gains en capital latents (non-enregistré)', montant: gainsLatents },
+        { libelle: 'Gains immobiliers (dispositions présumées)', montant: gainsImmo },
+      ];
     }
 
     annees.push({
@@ -382,6 +513,34 @@ export function projeter(h: HypothesesProjection): ResultatProjection {
       equiteImmobiliere: immo.equite,
       valeurNette: valeurNette(comptes) + immo.equite,
       deflateurReel,
+      detail: options.trace
+        ? construireDetailAnnee(
+            phase,
+            {
+              revenuEmploi,
+              rrq,
+              sv,
+              renteEmp,
+              minimumFERR,
+              retraitEnr: traceRetraitEnr,
+              retraitNonEnr: retraitsNonEnregistres,
+              retraitLibre: retraitsLibresImpot,
+              loyers: immo.loyerCash,
+              ventes: immo.cashVente,
+              paiementImmo: immo.paiement,
+              retenues: traceRetenues,
+              cotisations,
+              cible: traceCible,
+              ventilSurplus: traceVentil,
+            },
+            entreeAnnee,
+            annee,
+            traceImpotDeces,
+            traceDetailDeces,
+            comptes,
+            etatsImmo,
+          )
+        : undefined,
     });
   }
 

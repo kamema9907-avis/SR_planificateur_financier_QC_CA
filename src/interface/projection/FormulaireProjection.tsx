@@ -79,7 +79,7 @@ export function FormulaireProjection({ h, onChange }: FormulaireProps) {
                 label="Cotisation annuelle"
                 valeur={h.fondsTravailleursAnnuel ?? 0}
                 onChange={(v) => maj('fondsTravailleursAnnuel', v)}
-                indice="Cotisation REER additionnelle avec crédit de 30 % sur le 1er 5 000 $/an (jusqu'à 1 500 $/an)."
+                indice="Part de votre REER (ci-dessus) placée en fonds de travailleurs → crédit de 30 % sur le 1er 5 000 $. À inclure dans le champ REER (non ajouté en plus)."
               />
             </div>
           )}

@@ -75,7 +75,7 @@ export function FormulairePersonne({ p, fraisGestion, onChange }: Props) {
                 label="Cotisation annuelle"
                 valeur={p.fondsTravailleursAnnuel ?? 0}
                 onChange={(v) => maj('fondsTravailleursAnnuel', v)}
-                indice="REER additionnel + crédit de 30 % (1er 5 000 $)"
+                indice="Part de votre REER en fonds de travailleurs → crédit de 30 % (1er 5 000 $). À inclure dans le champ REER."
               />
             </div>
           )}
