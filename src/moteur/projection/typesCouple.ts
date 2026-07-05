@@ -3,6 +3,7 @@
  */
 import type { Compte, PeriodeTravail, RenteEmployeur, TypeCompte } from './types';
 import type { Immeuble } from './immobilier';
+import type { DetailCouple } from './trace';
 
 /** Une personne du couple, entièrement modélisée (comptes, rentes, RRQ/SV propres). */
 export interface PersonneProjection {
@@ -71,6 +72,8 @@ export interface AnneeCouple {
   soldes1: Record<TypeCompte, number>;
   soldes2: Record<TypeCompte, number>;
   deflateurReel: number;
+  /** Traçabilité « drill-down » — présente seulement si `projeterCouple` est lancé avec `{ trace: true }`. */
+  detail?: DetailCouple;
 }
 
 export interface ResultatCouple {

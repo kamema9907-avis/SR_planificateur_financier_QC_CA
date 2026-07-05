@@ -14,6 +14,7 @@ import { FormulairePersonne } from './FormulairePersonne';
 import { SectionImmobilier } from './SectionImmobilier';
 import { GraphiqueProjection } from './GraphiqueProjection';
 import { PanneauOptimisation } from './PanneauOptimisation';
+import { DetailAnneesCouple } from './DetailAnneesCouple';
 
 /** Décrit les leviers d'une stratégie de couple optimisée. */
 function detailsCouple(s: HypothesesCouple): { label: string; valeur: string }[] {
@@ -107,7 +108,7 @@ export function VueCouple() {
     }
   }, [h]);
 
-  const resultat = useMemo(() => projeterCouple(h), [h]);
+  const resultat = useMemo(() => projeterCouple(h, { trace: true }), [h]);
 
   const elderStart = Math.max(h.personne1.ageActuel, h.personne2.ageActuel);
   const points = resultat.annees.map((a) => ({
@@ -118,8 +119,6 @@ export function VueCouple() {
   }));
   const ageRetraiteMarker = elderStart + Math.max(h.personne1.ageRetraite - h.personne1.ageActuel, h.personne2.ageRetraite - h.personne2.ageActuel);
   const ageEpuisementMarker = resultat.anneeEpuisement != null ? elderStart + (resultat.anneeEpuisement - 2026) : null;
-
-  const f = (a: { deflateurReel: number }, valeur: number) => (reel ? valeur * a.deflateurReel : valeur);
 
   return (
     <div className="space-y-8">
@@ -211,37 +210,10 @@ export function VueCouple() {
 
         <div className="carte p-5">
           <h3 className="mb-1 font-semibold text-slate-800">Détail année par année — ménage</h3>
-          <p className="mb-3 text-xs text-slate-400">Le fractionnement du revenu de pension est optimisé automatiquement chaque année.</p>
-          <div className="max-h-[28rem] overflow-auto rounded-xl ring-1 ring-slate-200">
-            <table className="w-full text-sm">
-              <thead className="text-xs text-slate-500 [&_th]:sticky [&_th]:top-0 [&_th]:z-10 [&_th]:bg-slate-50">
-                <tr>
-                  <th className="px-3 py-2 text-left font-medium">Âges</th>
-                  <th className="px-3 py-2 text-left font-medium">Phase</th>
-                  <th className="px-3 py-2 text-right font-medium">Disponible</th>
-                  <th className="px-3 py-2 text-right font-medium">Impôt</th>
-                  <th className="px-3 py-2 text-right font-medium">Fractionné</th>
-                  <th className="px-3 py-2 text-right font-medium">Valeur nette</th>
-                </tr>
-              </thead>
-              <tbody className="chiffres divide-y divide-slate-100">
-                {resultat.annees.map((a) => (
-                  <tr key={a.annee} className={a.phase !== 'accumulation' ? 'bg-marque-50/30' : ''}>
-                    <td className="px-3 py-1.5 text-left text-slate-700">{`${a.age1 ?? '—'} / ${a.age2 ?? '—'}`}</td>
-                    <td className="px-3 py-1.5 text-left">
-                      <span className={`inline-block rounded-full px-2 py-0.5 text-xs ${a.phase === 'accumulation' ? 'bg-sky-100 text-sky-700' : a.phase === 'survie' ? 'bg-amber-100 text-amber-700' : 'bg-marque-100 text-marque-700'}`}>
-                        {a.phase === 'accumulation' ? 'Épargne' : a.phase === 'survie' ? 'Survie' : 'Retraite'}
-                      </span>
-                    </td>
-                    <td className="px-3 py-1.5 text-right text-slate-700">{formatDollars(f(a, a.revenuDisponible))}</td>
-                    <td className="px-3 py-1.5 text-right text-slate-500">{formatDollars(f(a, a.impotTotal))}</td>
-                    <td className="px-3 py-1.5 text-right text-slate-500">{a.fractionnement > 1 ? formatDollars(f(a, a.fractionnement)) : '—'}</td>
-                    <td className="px-3 py-1.5 text-right font-medium text-slate-900">{formatDollars(f(a, a.valeurNette))}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <p className="mb-3 text-xs text-slate-400">
+            Le fractionnement du revenu de pension est optimisé automatiquement chaque année. Cliquez un montant souligné pour voir son calcul.
+          </p>
+          <DetailAnneesCouple annees={resultat.annees} reel={reel} anneeEpuisement={resultat.anneeEpuisement} />
         </div>
       </div>
     </div>

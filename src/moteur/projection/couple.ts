@@ -35,6 +35,16 @@ import { placerSurplusRetraite } from './placementSurplus';
 import { impotCoupleOptimal } from './fractionnement';
 import { fondreReer } from './fonteReer';
 import {
+  construireDetailFiscal,
+  postesSignificatifs,
+  sommePostes,
+  type DetailCouple,
+  type DetailDisponible,
+  type DetailFractionnement,
+  type DetailValeurNette,
+  type Poste,
+} from './trace';
+import {
   clonerImmeubles,
   determinerBienAbrite,
   gainAuDeces,
@@ -404,8 +414,112 @@ function equiteTotale(etats: readonly EtatImmeuble[]): number {
   return etats.reduce((s, e) => (e.vendu ? s : s + Math.max(0, e.valeur - e.hypotheque)), 0);
 }
 
+const LIBELLE_COMPTE: Record<TypeCompte, string> = {
+  REER: 'REER', FERR: 'FERR', CELI: 'CELI', CELIAPP: 'CELIAPP', CRI: 'CRI', FRV: 'FRV',
+  NON_ENREGISTRE: 'Non-enregistré', REEE: 'REEE',
+};
+
+/** Composantes agrégées du ménage pour bâtir la traçabilité d'une année de couple. */
+interface CompMenage {
+  travail: number;
+  rentesPubliques: number;
+  rentesPrivees: number;
+  retraits: number;
+  loyers: number;
+  retenues: number;
+  cotisations: number;
+  paiementImmo: number;
+  cible: number;
+  ventilSurplus: { celi: number; reer: number; nonEnr: number };
+}
+
+/**
+ * Assemble la traçabilité d'une année de couple : disponible du ménage, impôt de chaque conjoint
+ * (post-fractionnement) + économie du fractionnement, valeur nette du ménage. `e1`/`e2` sont les
+ * entrées fiscales FINALES de chaque conjoint (null si décédé) ; `transfert` est le fractionnement
+ * optimal appliqué (> 0 : conjoint 1 → conjoint 2).
+ */
+function construireDetailCouple(
+  phase: AnneeCouple['phase'],
+  comp: CompMenage,
+  annee: number,
+  e1: EntreeFiscale | null,
+  e2: EntreeFiscale | null,
+  transfert: number,
+  impotMenage: number,
+  nom1: string,
+  nom2: string,
+  comptes1: readonly Compte[],
+  comptes2: readonly Compte[],
+  etatsImmo: readonly EtatImmeuble[],
+): DetailCouple {
+  const entreesBrut: Poste[] = [
+    { libelle: 'Revenus de travail', montant: comp.travail },
+    { libelle: 'Rentes publiques (RRQ + SV)', montant: comp.rentesPubliques },
+    { libelle: 'Rentes privées / FERR minimum', montant: comp.rentesPrivees },
+    { libelle: 'Retraits de comptes', montant: comp.retraits },
+    { libelle: 'Loyers encaissés', montant: comp.loyers },
+  ];
+  const sortiesBrut: Poste[] =
+    phase === 'accumulation'
+      ? [
+          { libelle: 'Impôt du ménage', montant: -impotMenage, lien: 'impot' },
+          { libelle: 'Cotisations (épargne)', montant: -comp.cotisations },
+          { libelle: 'Retenues sur la paie', montant: -comp.retenues },
+          { libelle: 'Paiement hypothécaire', montant: -comp.paiementImmo },
+        ]
+      : [
+          { libelle: 'Impôt du ménage', montant: -impotMenage, lien: 'impot' },
+          { libelle: 'Retenues sur la paie', montant: -comp.retenues },
+        ];
+  const entrees = postesSignificatifs(entreesBrut);
+  const sorties = postesSignificatifs(sortiesBrut);
+  const revenusNets = sommePostes(entrees) + sommePostes(sorties);
+  const surplus = phase === 'decaissement' ? Math.max(0, revenusNets - comp.cible) : 0;
+
+  const disponible: DetailDisponible = {
+    entrees,
+    sorties,
+    revenusNets,
+    depenses: comp.cible,
+    surplus,
+    destinationSurplus: postesSignificatifs([
+      { libelle: 'CELI', montant: comp.ventilSurplus.celi },
+      { libelle: 'REER', montant: comp.ventilSurplus.reer },
+      { libelle: 'Non-enregistré', montant: comp.ventilSurplus.nonEnr },
+    ]),
+  };
+
+  // Détail fiscal de chaque conjoint sur son entrée POST-fractionnement.
+  const a1 = e1 ? { ...e1, revenuPensionPrivee: e1.revenuPensionPrivee - transfert } : null;
+  const a2 = e2 ? { ...e2, revenuPensionPrivee: e2.revenuPensionPrivee + transfert } : null;
+  const impot1 = a1 ? construireDetailFiscal(a1, annee, 0, []) : null;
+  const impot2 = a2 ? construireDetailFiscal(a2, annee, 0, []) : null;
+  const impotSans = (e1 ? impotTotalPour(e1, annee) : 0) + (e2 ? impotTotalPour(e2, annee) : 0);
+  const fractionnement: DetailFractionnement = {
+    nom1,
+    nom2,
+    transfert,
+    impotSans,
+    impotAvec: impotMenage,
+    economie: Math.max(0, impotSans - impotMenage),
+  };
+
+  const valeurNette: DetailValeurNette = {
+    comptes: postesSignificatifs([
+      ...comptes1.map((c) => ({ libelle: `${LIBELLE_COMPTE[c.type]} — ${nom1}`, montant: c.solde })),
+      ...comptes2.map((c) => ({ libelle: `${LIBELLE_COMPTE[c.type]} — ${nom2}`, montant: c.solde })),
+    ]),
+    immobilier: postesSignificatifs(
+      etatsImmo.map((e) => ({ libelle: e.bien.nom, montant: e.vendu ? 0 : Math.max(0, e.valeur - e.hypotheque) })),
+    ),
+  };
+
+  return { disponible, nom1, nom2, impot1, impot2, impotMenage, fractionnement, valeurNette };
+}
+
 /** Projette un couple sur tout le cycle de vie. */
-export function projeterCouple(h: HypothesesCouple): ResultatCouple {
+export function projeterCouple(h: HypothesesCouple, options: { trace?: boolean } = {}): ResultatCouple {
   const etat1: EtatPersonne = { p: h.personne1, comptes: clonerComptes(h.personne1.comptes), profilDefaut: h.personne1.comptes[0]?.profil ?? 'equilibre', survivant: false, celiappCotiseCumul: h.personne1.celiappDejaCotise ?? 0, droitsCeli: h.personne1.droitsCeliDisponibles ?? droitsCeliParDefaut(h.personne1.comptes), droitsCeliRestaures: 0, droitsReer: h.personne1.droitsReerDisponibles ?? 0 };
   const etat2: EtatPersonne = { p: h.personne2, comptes: clonerComptes(h.personne2.comptes), profilDefaut: h.personne2.comptes[0]?.profil ?? 'equilibre', survivant: false, celiappCotiseCumul: h.personne2.celiappDejaCotise ?? 0, droitsCeli: h.personne2.droitsCeliDisponibles ?? droitsCeliParDefaut(h.personne2.comptes), droitsCeliRestaures: 0, droitsReer: h.personne2.droitsReerDisponibles ?? 0 };
 
@@ -442,6 +556,10 @@ export function projeterCouple(h: HypothesesCouple): ResultatCouple {
     let revenuDisponible = 0;
     let fractionnement = 0;
     let phase: AnneeCouple['phase'];
+
+    // Capture pour la traçabilité (remplie dans chaque branche ; assemblée au push, après la croissance).
+    let traceData: { phase: AnneeCouple['phase']; comp: CompMenage; e1: EntreeFiscale | null; e2: EntreeFiscale | null; transfert: number } | null = null;
+    let traceVentil = { celi: 0, reer: 0, nonEnr: 0 };
 
     // Immobilier : amortissement, loyers, ventes, appréciation (par propriétaire).
     const ageProprio = (p: 1 | 2 | 'commun'): number | null =>
@@ -493,6 +611,7 @@ export function projeterCouple(h: HypothesesCouple): ResultatCouple {
           etatCible.droitsCeli = droits.droitsCeli;
           etatCible.droitsReer = droits.droitsReer;
           impotAnnee = pose.impot;
+          traceVentil = pose.ventilation;
           if (cibleId === 1) e1Courant = pose.entree;
           else e2Courant = pose.entree;
           revenuDisponible = cible;
@@ -508,6 +627,30 @@ export function projeterCouple(h: HypothesesCouple): ResultatCouple {
           const opt = impotCoupleOptimal(f1.entree, f2.entree, annee, splittable(f1.entree, ctx1.age, ctx1.renteEmp), splittable(f2.entree, ctx2.age, ctx2.renteEmp));
           impotAnnee = opt.impot;
           fractionnement = Math.abs(opt.transfert);
+          e1Courant = f1.entree;
+          e2Courant = f2.entree;
+        }
+        if (options.trace) {
+          const t = impotCoupleOptimal(e1Courant, e2Courant, annee, splittable(e1Courant, ctx1.age, ctx1.renteEmp), splittable(e2Courant, ctx2.age, ctx2.renteEmp)).transfert;
+          const rentesPub = (c: Contexte) => c.entree.revenuRRQ + c.entree.renteSurvivantRRQ + c.entree.revenuPensionSV;
+          traceData = {
+            phase: 'decaissement',
+            comp: {
+              travail: ctx1.salaire + ctx2.salaire,
+              rentesPubliques: rentesPub(ctx1) + rentesPub(ctx2),
+              rentesPrivees: ctx1.entree.revenuPensionPrivee + ctx2.entree.revenuPensionPrivee,
+              retraits: res.retraits.enr1 + res.retraits.nonenr1 + res.retraits.libre1 + res.retraits.enr2 + res.retraits.nonenr2 + res.retraits.libre2,
+              loyers: aggImmo[1].loyerCash + aggImmo[2].loyerCash,
+              retenues: ctx1.retenuesPaie + ctx2.retenuesPaie,
+              cotisations: 0,
+              paiementImmo,
+              cible,
+              ventilSurplus: traceVentil,
+            },
+            e1: e1Courant,
+            e2: e2Courant,
+            transfert: t,
+          };
         }
       } else {
         phase = 'accumulation';
@@ -525,6 +668,27 @@ export function projeterCouple(h: HypothesesCouple): ResultatCouple {
         // Les retenues sur la paie sont déjà déduites de l'encaisse (voir preparerPersonne).
         revenuDisponible =
           ctx1.encaisse + ctx2.encaisse - impotAnnee - cot1.cotisations - cot2.cotisations - paiementImmo;
+        if (options.trace) {
+          const rentesPub = (c: Contexte) => c.entree.revenuRRQ + c.entree.renteSurvivantRRQ + c.entree.revenuPensionSV;
+          traceData = {
+            phase: 'accumulation',
+            comp: {
+              travail: ctx1.salaire + ctx2.salaire,
+              rentesPubliques: rentesPub(ctx1) + rentesPub(ctx2),
+              rentesPrivees: ctx1.entree.revenuPensionPrivee + ctx2.entree.revenuPensionPrivee,
+              retraits: 0,
+              loyers: aggImmo[1].loyerCash + aggImmo[2].loyerCash,
+              retenues: ctx1.retenuesPaie + ctx2.retenuesPaie,
+              cotisations: cot1.cotisations + cot2.cotisations,
+              paiementImmo,
+              cible: 0,
+              ventilSurplus: { celi: 0, reer: 0, nonEnr: 0 },
+            },
+            e1,
+            e2,
+            transfert: opt.transfert,
+          };
+        }
       }
 
       appliquerCroissance(etat1, ctx1.croissances);
@@ -551,6 +715,26 @@ export function projeterCouple(h: HypothesesCouple): ResultatCouple {
         impotAnnee = impotTotalPour(e, annee);
         // Les retenues sur la paie sont déjà déduites de l'encaisse (voir preparerPersonne).
         revenuDisponible = ctx.encaisse - impotAnnee - cot.cotisations - paiementImmo;
+        if (options.trace) {
+          traceData = {
+            phase: 'survie',
+            comp: {
+              travail: ctx.salaire,
+              rentesPubliques: ctx.entree.revenuRRQ + ctx.entree.renteSurvivantRRQ + ctx.entree.revenuPensionSV,
+              rentesPrivees: ctx.entree.revenuPensionPrivee,
+              retraits: 0,
+              loyers: aggImmo[idVivant].loyerCash,
+              retenues: ctx.retenuesPaie,
+              cotisations: cot.cotisations,
+              paiementImmo,
+              cible: 0,
+              ventilSurplus: { celi: 0, reer: 0, nonEnr: 0 },
+            },
+            e1: idVivant === 1 ? e : null,
+            e2: idVivant === 2 ? e : null,
+            transfert: 0,
+          };
+        }
       } else {
         const cible = h.depensesRetraite * h.fractionSurvivant * facteurInflation + paiementImmo;
         const celiAvant = soldeCeli(vivant);
@@ -573,6 +757,7 @@ export function projeterCouple(h: HypothesesCouple): ResultatCouple {
           vivant.droitsCeli = droits.droitsCeli;
           vivant.droitsReer = droits.droitsReer;
           impotAnnee = pose.impot;
+          traceVentil = pose.ventilation;
           entreeCourante = pose.entree;
           revenuDisponible = cible;
         } else if (res.disponible < cible - 1 && anneeEpuisement === null) {
@@ -582,6 +767,27 @@ export function projeterCouple(h: HypothesesCouple): ResultatCouple {
           const f = fondreReer(vivant.comptes, entreeCourante, h.cibleFonteReer * facteurInflation, annee, ctx.age, vivant.profilDefaut, vivant.droitsCeli);
           vivant.droitsCeli -= f.celiUtilise;
           impotAnnee = f.impot;
+          entreeCourante = f.entree;
+        }
+        if (options.trace) {
+          traceData = {
+            phase: 'survie',
+            comp: {
+              travail: ctx.salaire,
+              rentesPubliques: ctx.entree.revenuRRQ + ctx.entree.renteSurvivantRRQ + ctx.entree.revenuPensionSV,
+              rentesPrivees: ctx.entree.revenuPensionPrivee,
+              retraits: res.retraitEnregistre + res.retraitNonEnregistre + res.retraitLibreImpot,
+              loyers: aggImmo[idVivant].loyerCash,
+              retenues: ctx.retenuesPaie,
+              cotisations: 0,
+              paiementImmo,
+              cible,
+              ventilSurplus: traceVentil,
+            },
+            e1: idVivant === 1 ? entreeCourante : null,
+            e2: idVivant === 2 ? entreeCourante : null,
+            transfert: 0,
+          };
         }
       }
       appliquerCroissance(vivant, ctx.croissances);
@@ -601,6 +807,13 @@ export function projeterCouple(h: HypothesesCouple): ResultatCouple {
       soldes1: soldesParType(etat1.comptes),
       soldes2: soldesParType(etat2.comptes),
       deflateurReel: deflateur,
+      detail:
+        options.trace && traceData
+          ? construireDetailCouple(
+              traceData.phase, traceData.comp, annee, traceData.e1, traceData.e2, traceData.transfert,
+              impotAnnee, etat1.p.nom, etat2.p.nom, etat1.comptes, etat2.comptes, etatsImmo,
+            )
+          : undefined,
     });
 
     // Traitement des décès en fin d'année. La fonction RETOURNE le nouveau défunt (le cas échéant) ;

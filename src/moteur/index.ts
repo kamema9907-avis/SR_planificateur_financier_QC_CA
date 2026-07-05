@@ -56,6 +56,8 @@ export type {
   DetailImpotAnnee,
   DetailValeurNette,
   DetailAnnee,
+  DetailFractionnement,
+  DetailCouple,
 } from './projection/trace';
 export { sommePostes } from './projection/trace';
 export type { TypeImmeuble, Proprietaire, Immeuble } from './projection/immobilier';

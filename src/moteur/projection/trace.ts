@@ -71,6 +71,36 @@ export interface DetailAnnee {
   readonly valeurNette: DetailValeurNette;
 }
 
+/** Décomposition du fractionnement du revenu de pension (couple). */
+export interface DetailFractionnement {
+  readonly nom1: string;
+  readonly nom2: string;
+  /** Montant de revenu de pension transféré (> 0 : conjoint 1 → conjoint 2 ; < 0 : l'inverse). */
+  readonly transfert: number;
+  /** Impôt du ménage SANS fractionnement. */
+  readonly impotSans: number;
+  /** Impôt du ménage AVEC le fractionnement optimal. */
+  readonly impotAvec: number;
+  /** Économie d'impôt réalisée = impôt sans − impôt avec (≥ 0). */
+  readonly economie: number;
+}
+
+/** Traçabilité complète d'une année de couple. */
+export interface DetailCouple {
+  /** Revenu disponible du MÉNAGE (entrées et sorties des deux conjoints agrégées). */
+  readonly disponible: DetailDisponible;
+  readonly nom1: string;
+  readonly nom2: string;
+  /** Détail fiscal de chaque conjoint (post-fractionnement) ; null si le conjoint est décédé. */
+  readonly impot1: DetailImpotAnnee | null;
+  readonly impot2: DetailImpotAnnee | null;
+  /** Impôt total du ménage. */
+  readonly impotMenage: number;
+  readonly fractionnement: DetailFractionnement;
+  /** Valeur nette du ménage (comptes des deux conjoints + immobilier). */
+  readonly valeurNette: DetailValeurNette;
+}
+
 /** Ne garde que les postes non négligeables (|montant| > 0,5 $). */
 export function postesSignificatifs(postes: readonly Poste[]): Poste[] {
   return postes.filter((p) => Math.abs(p.montant) > 0.5);
