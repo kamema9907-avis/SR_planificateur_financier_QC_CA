@@ -229,3 +229,31 @@ describe('projection de couple', () => {
     expect(r.annees[0].fractionnement).toBeGreaterThan(0);
   });
 });
+
+describe('retraité-actif dans le couple', () => {
+  const conjointReer = (partiel: Partial<PersonneProjection>): Partial<PersonneProjection> => ({
+    ageActuel: 65, ageRetraite: 65, ageDeces: 85,
+    comptes: [{ type: 'REER', solde: 500_000, profil: 'equilibre', rendementPersonnalise: 0.04 }],
+    ...partiel,
+  });
+  const opts = { depensesRetraite: 50_000, inflation: 0, fraisGestion: 0 };
+
+  it('un conjoint qui travaille à la retraite préserve le REER et enrichit le ménage', () => {
+    const sans = projeterCouple(couple(conjointReer({}), conjointReer({}), opts));
+    const avec = projeterCouple(
+      couple(
+        conjointReer({ periodesTravail: [{ nom: 'Temps partiel', montant: 25_000, ageDebut: 65, ageFin: 72 }] }),
+        conjointReer({}),
+        opts,
+      ),
+    );
+    // Après la 1re année, le REER du ménage est mieux préservé (moins de décaissement).
+    expect(avec.annees[0].soldes1.REER + avec.annees[0].soldes2.REER).toBeGreaterThan(
+      sans.annees[0].soldes1.REER + sans.annees[0].soldes2.REER,
+    );
+    // À 80 ans (les deux conjoints vivants), le patrimoine du ménage est plus élevé.
+    const a80Avec = avec.annees.find((a) => a.age1 === 80)!;
+    const a80Sans = sans.annees.find((a) => a.age1 === 80)!;
+    expect(a80Avec.valeurNette).toBeGreaterThan(a80Sans.valeurNette);
+  });
+});

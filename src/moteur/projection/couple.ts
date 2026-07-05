@@ -30,6 +30,8 @@ import {
 import { financerDepenses } from './decaissement';
 import { rrqNominale, svNominale, renteSurvivantRRQ } from './rentesPubliques';
 import { totalRentesEmployeur } from './rentesEmployeur';
+import { totalRevenuTravail } from './periodesTravail';
+import { placerSurplusRetraite } from './placementSurplus';
 import { impotCoupleOptimal } from './fractionnement';
 import { fondreReer } from './fonteReer';
 import {
@@ -136,10 +138,14 @@ interface Contexte {
   age: number;
   croissances: Map<Compte, CroissanceCompte>;
   entree: EntreeFiscale;
+  /** Encaisse de l'année, DÉJÀ nette des retenues sur la paie (RRQ/AE/RQAP). */
   encaisse: number;
   renteEmp: number;
   travaille: boolean;
+  /** Revenu d'emploi brut (vie active OU travail à la retraite). */
   salaire: number;
+  /** Retenues sur la paie (RRQ/AE/RQAP) déjà retranchées de `encaisse`. */
+  retenuesPaie: number;
 }
 
 function preparerPersonne(
@@ -169,7 +175,19 @@ function preparerPersonne(
   }
 
   const travaille = age < p.ageRetraite;
-  const salaire = travaille ? p.revenuEmploi * Math.pow((1 + inflation) * (1 + p.croissanceSalaireReelle), i) : 0;
+  const salaireVieActive = travaille
+    ? p.revenuEmploi * Math.pow((1 + inflation) * (1 + p.croissanceSalaireReelle), i)
+    : 0;
+  // Travail poursuivi À LA RETRAITE (« retraité-actif ») : ne s'applique qu'une fois la retraite
+  // atteinte ; rouvre des droits REER (jusqu'à 71 ans).
+  const revenuTravailRetraite = travaille
+    ? 0
+    : totalRevenuTravail(p.periodesTravail, age, p.ageActuel, inflation);
+  if (revenuTravailRetraite > 0 && age <= AGE_CONVERSION_FERR) {
+    etat.droitsReer += droitsReerAnnuels(revenuTravailRetraite, plafondReerNominal(annee), 0);
+  }
+  const salaire = salaireVieActive + revenuTravailRetraite;
+  const retenuesPaie = salaire > 0 ? calculerCotisations(salaire, parametresCotisations(annee)).total : 0;
 
   const entree: EntreeFiscale = {
     ...nouvelleEntree(age, etat.survivant),
@@ -180,7 +198,16 @@ function preparerPersonne(
     autresRevenus: interetNonEnr,
     dividendesDetermines: dividendesNonEnr,
   };
-  return { age, croissances, entree, encaisse: salaire + rrq + sv + renteEmp + minimumFERR, renteEmp, travaille, salaire };
+  return {
+    age,
+    croissances,
+    entree,
+    encaisse: salaire - retenuesPaie + rrq + sv + renteEmp + minimumFERR,
+    renteEmp,
+    travaille,
+    salaire,
+    retenuesPaie,
+  };
 }
 
 /** Applique les cotisations d'une personne (dont le REER de conjoint versé à l'autre). */
@@ -442,19 +469,42 @@ export function projeterCouple(h: HypothesesCouple): ResultatCouple {
         impotAnnee = res.impot;
         fractionnement = Math.abs(res.transfert);
         revenuDisponible = res.disponible;
+        let e1Courant = res.e1;
+        let e2Courant = res.e2;
+        // Surplus (revenu de travail à la retraite ou revenus fixes dépassant la cible) :
+        // CELI → REER (≤ 71) → non-enr, placé chez le conjoint le plus imposé (déduction REER la plus utile).
         if (res.disponible > cible + 1) {
-          const nonEnr = trouverOuCreer(etat1.comptes, 'NON_ENREGISTRE', etat1.profilDefaut);
-          nonEnr.solde += res.disponible - cible;
-          nonEnr.coutBase = (nonEnr.coutBase ?? 0) + (res.disponible - cible);
+          const surplus = res.disponible - cible;
+          const cibleId: 1 | 2 = niveauImposable(e1Courant) >= niveauImposable(e2Courant) ? 1 : 2;
+          const etatCible = cibleId === 1 ? etat1 : etat2;
+          const ctxCible = cibleId === 1 ? ctx1 : ctx2;
+          const entreeCible = cibleId === 1 ? e1Courant : e2Courant;
+          const droits = { droitsCeli: etatCible.droitsCeli, droitsReer: etatCible.droitsReer };
+          const pose = placerSurplusRetraite(
+            etatCible.comptes, etatCible.profilDefaut, droits, surplus, ctxCible.age, entreeCible, impotAnnee,
+            (montantReer) => {
+              const eCible: EntreeFiscale = { ...entreeCible, deductionReer: entreeCible.deductionReer + montantReer };
+              const e1n = cibleId === 1 ? eCible : e1Courant;
+              const e2n = cibleId === 2 ? eCible : e2Courant;
+              const opt = impotCoupleOptimal(e1n, e2n, annee, splittable(e1n, ctx1.age, ctx1.renteEmp), splittable(e2n, ctx2.age, ctx2.renteEmp));
+              fractionnement = Math.abs(opt.transfert);
+              return { impot: opt.impot, entree: eCible };
+            },
+          );
+          etatCible.droitsCeli = droits.droitsCeli;
+          etatCible.droitsReer = droits.droitsReer;
+          impotAnnee = pose.impot;
+          if (cibleId === 1) e1Courant = pose.entree;
+          else e2Courant = pose.entree;
           revenuDisponible = cible;
         } else if (res.disponible < cible - 1 && anneeEpuisement === null) {
           anneeEpuisement = annee;
         }
         if (h.cibleFonteReer && h.cibleFonteReer > 0) {
           const cibleNom = h.cibleFonteReer * facteurInflation;
-          const f1 = fondreReer(etat1.comptes, res.e1, cibleNom, annee, ctx1.age, etat1.profilDefaut, etat1.droitsCeli);
+          const f1 = fondreReer(etat1.comptes, e1Courant, cibleNom, annee, ctx1.age, etat1.profilDefaut, etat1.droitsCeli);
           etat1.droitsCeli -= f1.celiUtilise;
-          const f2 = fondreReer(etat2.comptes, res.e2, cibleNom, annee, ctx2.age, etat2.profilDefaut, etat2.droitsCeli);
+          const f2 = fondreReer(etat2.comptes, e2Courant, cibleNom, annee, ctx2.age, etat2.profilDefaut, etat2.droitsCeli);
           etat2.droitsCeli -= f2.celiUtilise;
           const opt = impotCoupleOptimal(f1.entree, f2.entree, annee, splittable(f1.entree, ctx1.age, ctx1.renteEmp), splittable(f2.entree, ctx2.age, ctx2.renteEmp));
           impotAnnee = opt.impot;
@@ -462,8 +512,10 @@ export function projeterCouple(h: HypothesesCouple): ResultatCouple {
         }
       } else {
         phase = 'accumulation';
-        accrualReer(etat1, ctx1.salaire, annee, facteurInflation);
-        accrualReer(etat2, ctx2.salaire, annee, facteurInflation);
+        // Accumulation des droits REER de vie active seulement ; le travail à la retraite est déjà
+        // traité dans preparerPersonne (évite le double comptage).
+        if (ctx1.travaille) accrualReer(etat1, ctx1.salaire, annee, facteurInflation);
+        if (ctx2.travaille) accrualReer(etat2, ctx2.salaire, annee, facteurInflation);
         const cot1 = appliquerCotisations(etat1, facteurInflation, etat2);
         const cot2 = appliquerCotisations(etat2, facteurInflation, etat1);
         const e1 = { ...ctx1.entree, deductionReer: cot1.deductible, cotisationFondsTravailleurs: cot1.fondsTravailleurs };
@@ -471,12 +523,9 @@ export function projeterCouple(h: HypothesesCouple): ResultatCouple {
         const opt = impotCoupleOptimal(e1, e2, annee, splittable(e1, ctx1.age, ctx1.renteEmp), splittable(e2, ctx2.age, ctx2.renteEmp));
         impotAnnee = opt.impot;
         fractionnement = Math.abs(opt.transfert);
-        // Retenues sur la paie (RRQ + AE + RQAP) de chaque conjoint qui travaille.
-        const retenuesPaie =
-          calculerCotisations(ctx1.salaire, parametresCotisations(annee)).total +
-          calculerCotisations(ctx2.salaire, parametresCotisations(annee)).total;
+        // Les retenues sur la paie sont déjà déduites de l'encaisse (voir preparerPersonne).
         revenuDisponible =
-          ctx1.encaisse + ctx2.encaisse - impotAnnee - cot1.cotisations - cot2.cotisations - paiementImmo - retenuesPaie;
+          ctx1.encaisse + ctx2.encaisse - impotAnnee - cot1.cotisations - cot2.cotisations - paiementImmo;
       }
 
       appliquerCroissance(etat1, ctx1.croissances);
@@ -501,8 +550,8 @@ export function projeterCouple(h: HypothesesCouple): ResultatCouple {
         const cot = appliquerCotisations(vivant, facteurInflation, vivant);
         const e = { ...ctx.entree, deductionReer: cot.deductible, cotisationFondsTravailleurs: cot.fondsTravailleurs };
         impotAnnee = impotTotalPour(e, annee);
-        const retenuesPaie = calculerCotisations(ctx.salaire, parametresCotisations(annee)).total;
-        revenuDisponible = ctx.encaisse - impotAnnee - cot.cotisations - paiementImmo - retenuesPaie;
+        // Les retenues sur la paie sont déjà déduites de l'encaisse (voir preparerPersonne).
+        revenuDisponible = ctx.encaisse - impotAnnee - cot.cotisations - paiementImmo;
       } else {
         const cible = h.depensesRetraite * h.fractionSurvivant * facteurInflation + paiementImmo;
         const celiAvant = soldeCeli(vivant);
@@ -510,16 +559,28 @@ export function projeterCouple(h: HypothesesCouple): ResultatCouple {
         vivant.droitsCeliRestaures += Math.max(0, celiAvant - soldeCeli(vivant));
         impotAnnee = res.impot;
         revenuDisponible = res.disponible;
+        let entreeCourante = res.entree;
+        // Surplus (revenu de travail à la retraite ou revenus fixes) : CELI → REER (≤ 71) → non-enr.
         if (res.disponible > cible + 1) {
-          const nonEnr = trouverOuCreer(vivant.comptes, 'NON_ENREGISTRE', vivant.profilDefaut);
-          nonEnr.solde += res.disponible - cible;
-          nonEnr.coutBase = (nonEnr.coutBase ?? 0) + (res.disponible - cible);
+          const surplus = res.disponible - cible;
+          const droits = { droitsCeli: vivant.droitsCeli, droitsReer: vivant.droitsReer };
+          const pose = placerSurplusRetraite(
+            vivant.comptes, vivant.profilDefaut, droits, surplus, ctx.age, res.entree, impotAnnee,
+            (montantReer) => {
+              const e: EntreeFiscale = { ...res.entree, deductionReer: res.entree.deductionReer + montantReer };
+              return { impot: impotTotalPour(e, annee), entree: e };
+            },
+          );
+          vivant.droitsCeli = droits.droitsCeli;
+          vivant.droitsReer = droits.droitsReer;
+          impotAnnee = pose.impot;
+          entreeCourante = pose.entree;
           revenuDisponible = cible;
         } else if (res.disponible < cible - 1 && anneeEpuisement === null) {
           anneeEpuisement = annee;
         }
         if (h.cibleFonteReer && h.cibleFonteReer > 0) {
-          const f = fondreReer(vivant.comptes, res.entree, h.cibleFonteReer * facteurInflation, annee, ctx.age, vivant.profilDefaut, vivant.droitsCeli);
+          const f = fondreReer(vivant.comptes, entreeCourante, h.cibleFonteReer * facteurInflation, annee, ctx.age, vivant.profilDefaut, vivant.droitsCeli);
           vivant.droitsCeli -= f.celiUtilise;
           impotAnnee = f.impot;
         }

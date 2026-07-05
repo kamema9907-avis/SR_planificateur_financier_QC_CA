@@ -5,6 +5,7 @@ import { formatDollars } from '../format';
 import { avertissementCeliapp } from './FormulaireProjection';
 import { EditeurComptes } from './EditeurComptes';
 import { SectionRentesEmployeur } from './SectionRentesEmployeur';
+import { SectionTravailRetraite } from './SectionTravailRetraite';
 
 interface Props {
   p: PersonneProjection;
@@ -136,13 +137,20 @@ export function FormulairePersonne({ p, fraisGestion, onChange }: Props) {
         )}
       </section>
 
+      <SectionTravailRetraite
+        periodes={p.periodesTravail ?? []}
+        ageRetraite={p.ageRetraite}
+        onChange={(periodesTravail) => onChange({ ...p, periodesTravail })}
+        numero={3}
+      />
+
       <section className="carte p-6">
-        <TitreSection numero={3} titre="Comptes actuels" />
+        <TitreSection numero={4} titre="Comptes actuels" />
         <EditeurComptes comptes={p.comptes} fraisGestion={fraisGestion} onChange={(comptes) => onChange({ ...p, comptes })} />
       </section>
 
       <section className="carte p-6">
-        <TitreSection numero={4} titre="Rentes publiques" />
+        <TitreSection numero={5} titre="Rentes publiques" />
         <div className="grid gap-4 sm:grid-cols-2">
           <ChampMonetaire label="RRQ à 65 ans" valeur={p.rrqA65} onChange={(v) => maj('rrqA65', v)} indice="Annuel (relevé)" />
           <ChampMonetaire label="SV à 65 ans" valeur={p.svA65} onChange={(v) => maj('svA65', v)} indice="Annuel" />
@@ -155,6 +163,7 @@ export function FormulairePersonne({ p, fraisGestion, onChange }: Props) {
         rentes={p.rentesEmployeur}
         ageRetraite={p.ageRetraite}
         onChange={(rentes) => onChange({ ...p, rentesEmployeur: rentes })}
+        numero={6}
       />
     </div>
   );

@@ -41,12 +41,14 @@ export type {
   Compte,
   SourceRente,
   RenteEmployeur,
+  PeriodeTravail,
   HypothesesProjection,
   AnneeProjection,
   ResultatProjection,
 } from './projection/types';
 export { projeter } from './projection/projection';
 export { renteEmployeurNominale, totalRentesEmployeur, calculerRREGOP, MGA_2026 } from './projection/rentesEmployeur';
+export { revenuTravailNominal, totalRevenuTravail } from './projection/periodesTravail';
 export type { TypeImmeuble, Proprietaire, Immeuble } from './projection/immobilier';
 export { APPRECIATION_IMMO, determinerBienAbrite, estExemptable } from './projection/immobilier';
 export { renteSurvivantRRQ, MAX_RRQ_RETRAITE_65 } from './projection/rentesPubliques';

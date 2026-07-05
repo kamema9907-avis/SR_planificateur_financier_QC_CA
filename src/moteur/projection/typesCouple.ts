@@ -1,7 +1,7 @@
 /**
  * Types du domaine « couple » (Phase 3).
  */
-import type { Compte, RenteEmployeur, TypeCompte } from './types';
+import type { Compte, PeriodeTravail, RenteEmployeur, TypeCompte } from './types';
 import type { Immeuble } from './immobilier';
 
 /** Une personne du couple, entièrement modélisée (comptes, rentes, RRQ/SV propres). */
@@ -13,6 +13,8 @@ export interface PersonneProjection {
   ageDeces: number;
   revenuEmploi: number;
   croissanceSalaireReelle: number;
+  /** Travail rémunéré poursuivi à la retraite (« retraité-actif ») : périodes actives dès l'âge de retraite. Défaut : []. */
+  periodesTravail?: readonly PeriodeTravail[];
   epargneAnnuelle: Partial<Record<TypeCompte, number>>;
   /** Montant total déjà cotisé au CELIAPP par cette personne (nominal), pour le plafond de 40 000 $. Défaut : 0. */
   celiappDejaCotise?: number;

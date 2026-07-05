@@ -380,3 +380,72 @@ describe('projection complète (fumée)', () => {
     }
   });
 });
+
+describe('retraité-actif (travail poursuivi à la retraite)', () => {
+  const reer = (): HypothesesProjection['comptes'] => [{ type: 'REER', solde: 2_000_000, profil: 'equilibre' }];
+
+  it('réduit le retrait imposable grâce au revenu de travail', () => {
+    const commun = { ageActuel: 65, ageRetraite: 65, ageDeces: 85, depensesRetraite: 50_000 } as const;
+    const sans = projeter(hypotheses({ ...commun, comptes: reer() }));
+    const avec = projeter(
+      hypotheses({
+        ...commun,
+        comptes: reer(),
+        periodesTravail: [{ nom: 'Temps partiel', montant: 30_000, ageDebut: 65, ageFin: 70 }],
+      }),
+    );
+    expect(avec.annees[0].revenuDisponible).toBeCloseTo(50_000, 0); // la cible nette est toujours atteinte
+    expect(avec.annees[0].revenuEmploi).toBeCloseTo(30_000, 0); // le revenu de travail est enregistré
+    // …mais on puise beaucoup moins dans le REER imposable.
+    expect(avec.annees[0].retraitsEnregistres).toBeLessThan(sans.annees[0].retraitsEnregistres);
+  });
+
+  it('impose le revenu de travail et le fait cesser à l’âge de fin', () => {
+    const r = projeter(
+      hypotheses({
+        ageActuel: 65, ageRetraite: 65, ageDeces: 72, depensesRetraite: 0,
+        periodesTravail: [{ nom: 'Pige', montant: 40_000, ageDebut: 65, ageFin: 68 }],
+      }),
+    );
+    expect(r.annees[0].revenuEmploi).toBeCloseTo(40_000, 0);
+    expect(r.annees[0].impotTotal).toBeGreaterThan(0); // imposé même sans retrait de compte
+    expect(r.annees.find((a) => a.age === 68)!.revenuEmploi).toBe(0); // âge de fin exclu
+  });
+
+  it('place le surplus au CELI en priorité (pas au non-enregistré)', () => {
+    const r = projeter(
+      hypotheses({
+        ageActuel: 65, ageRetraite: 65, ageDeces: 70, depensesRetraite: 10_000,
+        droitsCeliDisponibles: 100_000,
+        periodesTravail: [{ nom: 'Consultation', montant: 50_000, ageDebut: 65, ageFin: 68 }],
+      }),
+    );
+    expect(r.annees[0].soldes.CELI).toBeGreaterThan(0);
+    expect(r.annees[0].soldes.NON_ENREGISTRE).toBeCloseTo(0, 0);
+  });
+
+  it('n’applique le travail à la retraite qu’à partir de l’âge de retraite', () => {
+    const r = projeter(
+      hypotheses({
+        ageActuel: 60, ageRetraite: 65, ageDeces: 75, depensesRetraite: 20_000,
+        periodesTravail: [{ nom: 'X', montant: 30_000, ageDebut: 60, ageFin: 70 }],
+        comptes: [{ type: 'CELI', solde: 500_000, profil: 'equilibre' }],
+      }),
+    );
+    expect(r.annees.find((a) => a.age === 60)!.revenuEmploi).toBe(0); // encore en accumulation
+    expect(r.annees.find((a) => a.age === 65)!.revenuEmploi).toBeCloseTo(30_000, 0); // décaissement
+  });
+
+  it('améliore le patrimoine au décès à dépenses égales', () => {
+    const commun = { ageActuel: 65, ageRetraite: 65, ageDeces: 80, depensesRetraite: 40_000 } as const;
+    const sans = projeter(hypotheses({ ...commun, comptes: [{ type: 'REER', solde: 800_000, profil: 'equilibre' }] }));
+    const avec = projeter(
+      hypotheses({
+        ...commun,
+        comptes: [{ type: 'REER', solde: 800_000, profil: 'equilibre' }],
+        periodesTravail: [{ nom: 'Temps partiel', montant: 25_000, ageDebut: 65, ageFin: 72 }],
+      }),
+    );
+    expect(avec.valeurNetteAuDecesReelle).toBeGreaterThan(sans.valeurNetteAuDecesReelle);
+  });
+});

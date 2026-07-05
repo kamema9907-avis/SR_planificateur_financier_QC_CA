@@ -48,6 +48,24 @@ export interface RenteEmployeur {
   indexation: number;
 }
 
+/**
+ * Une période de travail rémunéré poursuivie à la retraite (« retraité-actif ») : emploi à temps
+ * partiel, pige, consultation. Modèle « à plat », calqué sur RenteEmployeur : chaque période est
+ * une ligne distincte. Le revenu est imposé comme revenu d'emploi, subit les retenues (RRQ/AE/RQAP)
+ * et rouvre des droits REER (jusqu'à 71 ans). Il réduit le décaissement des comptes ; tout surplus
+ * est réinvesti (CELI → REER → non-enregistré).
+ */
+export interface PeriodeTravail {
+  nom: string;
+  /** Revenu d'emploi annuel, en dollars d'aujourd'hui (pouvoir d'achat au début de la période). */
+  montant: number;
+  ageDebut: number;
+  /** Âge auquel le revenu cesse (exclu). */
+  ageFin: number;
+  /** Croissance RÉELLE annuelle au-delà de l'inflation (souvent 0, ou négative si décroissant). Défaut 0. */
+  croissanceReelle?: number;
+}
+
 /** Hypothèses complètes d'une projection cycle de vie. */
 export interface HypothesesProjection {
   // Personne
@@ -60,6 +78,11 @@ export interface HypothesesProjection {
   readonly revenuEmploi: number;
   /** Croissance RÉELLE du salaire (au-delà de l'inflation) ; défaut 0. */
   readonly croissanceSalaireReelle: number;
+  /**
+   * Travail rémunéré poursuivi À LA RETRAITE (« retraité-actif ») : une ou plusieurs périodes
+   * (temps partiel, pige…) actives à partir de l'âge de retraite. Réduit le décaissement. Défaut : [].
+   */
+  readonly periodesTravail?: readonly PeriodeTravail[];
   /** Épargne annuelle versée pendant l'accumulation, par type de compte (en $ d'aujourd'hui). */
   readonly epargneAnnuelle: Partial<Record<TypeCompte, number>>;
   /**

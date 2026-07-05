@@ -28,6 +28,8 @@ import {
 import { financerDepenses } from './decaissement';
 import { rrqNominale, svNominale } from './rentesPubliques';
 import { totalRentesEmployeur } from './rentesEmployeur';
+import { totalRevenuTravail } from './periodesTravail';
+import { placerSurplusRetraite } from './placementSurplus';
 import { clonerImmeubles, determinerBienAbrite, gainAuDeces, traiterImmeublesAnnee, type AgregatImmo } from './immobilier';
 import { fondreReer } from './fonteReer';
 import type { AnneeProjection, Compte, HypothesesProjection, ResultatProjection, TypeCompte } from './types';
@@ -264,9 +266,20 @@ export function projeter(h: HypothesesProjection): ResultatProjection {
         nonEnr.coutBase = (nonEnr.coutBase ?? 0) + immo.cashVente;
       }
     } else {
+      // Revenu de travail poursuivi À LA RETRAITE (« retraité-actif ») : imposé comme emploi, net
+      // des retenues (RRQ/AE/RQAP) dans l'encaisse, et rouvrant des droits REER (jusqu'à 71 ans).
+      const revenuTravail = totalRevenuTravail(h.periodesTravail, age, h.ageActuel, h.inflation);
+      const retenuesTravail =
+        revenuTravail > 0 ? calculerCotisations(revenuTravail, parametresCotisations(annee)).total : 0;
+      revenuEmploi = revenuTravail;
+      if (revenuTravail > 0 && age <= AGE_CONVERSION_FERR) {
+        droitsReer += droitsReerAnnuels(revenuTravail, plafondReerNominal(annee), 0);
+      }
+
       const cible = h.depensesRetraite * facteurInflation + immo.paiement;
       const entreeForcee: EntreeFiscale = {
         ...nouvelleEntree(age, h.vitSeul),
+        revenuEmploi: revenuTravail,
         revenuRRQ: rrq,
         revenuPensionSV: sv,
         revenuPensionPrivee: minimumFERR + renteEmp,
@@ -274,7 +287,8 @@ export function projeter(h: HypothesesProjection): ResultatProjection {
         dividendesDetermines: dividendesNonEnr,
         gainsCapital: immo.gainBrut,
       };
-      const encaisseForcee = rrq + sv + minimumFERR + renteEmp + immo.loyerCash + immo.cashVente;
+      const encaisseForcee =
+        revenuTravail - retenuesTravail + rrq + sv + minimumFERR + renteEmp + immo.loyerCash + immo.cashVente;
       const celiAvantRetraits = soldeCeliTotal();
       const res = financerDepenses(comptes, h.ordreDecaissement, entreeForcee, encaisseForcee, cible, annee, age);
       // Un retrait CELI restaure les droits équivalents l'année suivante (règle du 1er janvier).
@@ -287,12 +301,22 @@ export function projeter(h: HypothesesProjection): ResultatProjection {
       retraitsNonEnregistres = res.retraitNonEnregistre;
       retraitsLibresImpot = res.retraitLibreImpot;
 
-      // Réinvestir un éventuel surplus (revenus fixes dépassant la cible) au non-enregistré.
+      // Réinvestir un éventuel surplus (revenu de travail ou revenus fixes dépassant la cible) :
+      // CELI → REER (≤ 71 ans, déductible) → non-enregistré.
       if (res.disponible > cible + 1) {
         const surplus = res.disponible - cible;
-        const nonEnr = trouverOuCreer(comptes, 'NON_ENREGISTRE', profilDefaut);
-        nonEnr.solde += surplus;
-        nonEnr.coutBase = (nonEnr.coutBase ?? 0) + surplus;
+        const droits = { droitsCeli, droitsReer };
+        const pose = placerSurplusRetraite(
+          comptes, profilDefaut, droits, surplus, age, entreeAnnee, impotAnnee,
+          (montantReer) => {
+            const e: EntreeFiscale = { ...entreeAnnee, deductionReer: entreeAnnee.deductionReer + montantReer };
+            return { impot: impotTotalPour(e, annee), entree: e };
+          },
+        );
+        droitsCeli = droits.droitsCeli;
+        droitsReer = droits.droitsReer;
+        impotAnnee = pose.impot;
+        entreeAnnee = pose.entree;
         revenuDisponible = cible;
       }
 

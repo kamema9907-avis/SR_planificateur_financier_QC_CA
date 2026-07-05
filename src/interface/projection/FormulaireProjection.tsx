@@ -4,6 +4,7 @@ import { ChampMonetaire, ChampNombre, ChampPourcent, Interrupteur, TitreSection 
 import { formatDollars } from '../format';
 import { EditeurComptes } from './EditeurComptes';
 import { SectionRentesEmployeur } from './SectionRentesEmployeur';
+import { SectionTravailRetraite } from './SectionTravailRetraite';
 import { SectionImmobilier } from './SectionImmobilier';
 
 /** Message d'aide sur les plafonds CELIAPP (droits restants, plafond annuel, redirection au CELI). */
@@ -141,8 +142,15 @@ export function FormulaireProjection({ h, onChange }: FormulaireProps) {
         )}
       </section>
 
+      <SectionTravailRetraite
+        periodes={h.periodesTravail ?? []}
+        ageRetraite={h.ageRetraite}
+        onChange={(periodesTravail) => onChange({ ...h, periodesTravail })}
+        numero={3}
+      />
+
       <section className="carte p-6">
-        <TitreSection numero={3} titre="Comptes actuels" />
+        <TitreSection numero={4} titre="Comptes actuels" />
         <p className="-mt-2 mb-4 text-xs text-slate-400">
           Le rendement affiché est net de frais, calibré sur les Normes IQPF. Choisissez « Autre » pour
           fixer votre propre taux.
@@ -151,7 +159,7 @@ export function FormulaireProjection({ h, onChange }: FormulaireProps) {
       </section>
 
       <section className="carte p-6">
-        <TitreSection numero={4} titre="Rentes publiques" />
+        <TitreSection numero={5} titre="Rentes publiques" />
         <div className="grid gap-4 sm:grid-cols-2">
           <ChampMonetaire label="RRQ estimée à 65 ans" valeur={h.rrqA65} onChange={(v) => maj('rrqA65', v)} indice="Montant annuel (relevé Retraite Québec)" />
           <ChampMonetaire label="SV estimée à 65 ans" valeur={h.svA65} onChange={(v) => maj('svA65', v)} indice="Montant annuel" />
@@ -164,12 +172,13 @@ export function FormulaireProjection({ h, onChange }: FormulaireProps) {
         rentes={h.rentesEmployeur}
         ageRetraite={h.ageRetraite}
         onChange={(rentes) => onChange({ ...h, rentesEmployeur: rentes })}
+        numero={6}
       />
 
-      <SectionImmobilier immeubles={h.immeubles} onChange={(immeubles) => onChange({ ...h, immeubles })} numero={6} />
+      <SectionImmobilier immeubles={h.immeubles} onChange={(immeubles) => onChange({ ...h, immeubles })} numero={7} />
 
       <section className="carte p-6">
-        <TitreSection numero={7} titre="Décaissement & hypothèses" />
+        <TitreSection numero={8} titre="Décaissement & hypothèses" />
         <div className="grid gap-4 sm:grid-cols-2">
           <ChampMonetaire label="Dépenses de retraite (net d'impôt)" valeur={h.depensesRetraite} onChange={(v) => maj('depensesRetraite', v)} indice="Cible annuelle, en $ d'aujourd'hui" />
           <div />
