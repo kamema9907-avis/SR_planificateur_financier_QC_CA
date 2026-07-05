@@ -51,6 +51,12 @@ export interface Immeuble {
   revenuNetExploitation: number;
   /** Âge du propriétaire à la vente (null = conservé jusqu'au décès). */
   ageVente: number | null;
+  /**
+   * Âge minimum avant lequel l'OPTIMISEUR n'a pas le droit de vendre ce bien (confort : garder la
+   * maison plus longtemps). N'affecte pas une vente saisie manuellement via `ageVente` ; borne
+   * seulement l'espace de recherche de l'optimiseur. undefined = aucune contrainte.
+   */
+  ageVenteMin?: number;
   /** Fraction de l'équité libérée à la vente (1 = vente complète ; < 1 = downsizing de la résidence). */
   fractionLiberee: number;
   proprietaire: Proprietaire;

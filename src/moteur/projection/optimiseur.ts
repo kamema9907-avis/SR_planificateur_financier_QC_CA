@@ -28,6 +28,18 @@ const AGES_VENTE: readonly (number | null)[] = [null, 60, 65, 70, 75, 80];
 
 const AMELIORATION_MIN = 1; // $ — seuil pour retenir une amélioration
 
+/**
+ * Âges de vente que l'optimiseur a le droit d'essayer pour un bien, en respectant un éventuel âge
+ * minimum de vente (`ageVenteMin`). On conserve toujours `null` (ne jamais vendre) ; on retire les
+ * âges antérieurs au minimum ; et on ajoute l'âge minimum exact comme option (vendre pile à ce moment).
+ */
+function agesVenteCandidats(ageVenteMin?: number): (number | null)[] {
+  if (ageVenteMin == null) return [...AGES_VENTE];
+  const candidats = AGES_VENTE.filter((a) => a === null || a >= ageVenteMin);
+  if (!candidats.includes(ageVenteMin)) candidats.push(ageVenteMin);
+  return candidats;
+}
+
 /** Score d'une projection : patrimoine net au décès si le capital dure, sinon pénalisé (longévité). */
 function scoreSolo(r: ResultatProjection): number {
   return r.suffisant ? r.valeurNetteAuDecesReelle : -1e15 + (r.ageEpuisement ?? 0);
@@ -83,8 +95,11 @@ export function optimiserProjection(h: HypothesesProjection): ResultatOptimisati
     (b) => (b.rrqA65 > 0 ? AGES_RRQ.map((ageDebutRRQ) => ({ ...b, ageDebutRRQ })) : []),
     (b) => (b.svA65 > 0 ? AGES_SV.map((ageDebutSV) => ({ ...b, ageDebutSV })) : []),
     (b) =>
-      b.immeubles.flatMap((_, p) =>
-        AGES_VENTE.map((ageVente) => ({ ...b, immeubles: b.immeubles.map((im, i) => (i === p ? { ...im, ageVente } : im)) })),
+      b.immeubles.flatMap((bien, p) =>
+        agesVenteCandidats(bien.ageVenteMin).map((ageVente) => ({
+          ...b,
+          immeubles: b.immeubles.map((im, i) => (i === p ? { ...im, ageVente } : im)),
+        })),
       ),
   ];
 
@@ -110,8 +125,11 @@ export function optimiserCouple(h: HypothesesCouple): ResultatOptimisation<Hypot
     (b) => (b.personne1.svA65 > 0 ? AGES_SV.map((a) => ({ ...b, personne1: { ...b.personne1, ageDebutSV: a } })) : []),
     (b) => (b.personne2.svA65 > 0 ? AGES_SV.map((a) => ({ ...b, personne2: { ...b.personne2, ageDebutSV: a } })) : []),
     (b) =>
-      b.immeubles.flatMap((_, p) =>
-        AGES_VENTE.map((ageVente) => ({ ...b, immeubles: b.immeubles.map((im, i) => (i === p ? { ...im, ageVente } : im)) })),
+      b.immeubles.flatMap((bien, p) =>
+        agesVenteCandidats(bien.ageVenteMin).map((ageVente) => ({
+          ...b,
+          immeubles: b.immeubles.map((im, i) => (i === p ? { ...im, ageVente } : im)),
+        })),
       ),
   ];
 

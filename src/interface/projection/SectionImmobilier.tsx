@@ -48,7 +48,9 @@ export function SectionImmobilier({ immeubles, onChange, couple = false, numero 
       <p className="-mt-2 mb-4 text-xs text-slate-400">
         Résidence, chalet, immeuble à revenu, terrain. Appréciation, hypothèque, loyers et vente intégrés
         au patrimoine. L'exemption pour résidence principale (maison vs chalet) est optimisée
-        automatiquement ; le terrain et l'immeuble à revenu sont toujours imposables.
+        automatiquement ; le terrain et l'immeuble à revenu sont toujours imposables. L'« âge min. de
+        vente » empêche l'optimiseur de vendre un bien avant cet âge — utile pour garder la maison par
+        confort (0 = aucune limite).
       </p>
 
       <div className="mb-4 flex flex-wrap gap-2">
@@ -96,6 +98,7 @@ export function SectionImmobilier({ immeubles, onChange, couple = false, numero 
                 </div>
               )}
               <ChampNombre label="Âge de vente" valeur={b.ageVente ?? 0} onChange={(v) => modifier(i, { ageVente: v === 0 ? null : v })} max={110} />
+              <ChampNombre label="Âge min. de vente (optim.)" valeur={b.ageVenteMin ?? 0} onChange={(v) => modifier(i, { ageVenteMin: v === 0 ? undefined : v })} max={110} />
               {b.type === 'residence' && (
                 <ChampPourcent label="Fraction libérée" valeur={b.fractionLiberee} onChange={(v) => modifier(i, { fractionLiberee: v })} indice="100 % = vente ; moins = downsizing" pas={5} />
               )}

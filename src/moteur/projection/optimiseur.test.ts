@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { optimiserProjection, optimiserCouple } from './optimiseur';
 import type { HypothesesProjection, TypeCompte } from './types';
 import type { HypothesesCouple, PersonneProjection } from './typesCouple';
+import type { Immeuble } from './immobilier';
 
 const ORDRE_PAUVRE: TypeCompte[] = ['CELI', 'CELIAPP', 'NON_ENREGISTRE', 'CRI', 'FRV', 'REER', 'FERR'];
 
@@ -42,6 +43,29 @@ describe('optimiseur solo', () => {
     // Un meilleur ordre / une fonte doit augmenter le patrimoine au décès.
     expect(opt.gainPatrimoineReel).toBeGreaterThan(0);
     expect(opt.resultat.suffisant).toBe(true);
+  });
+
+  it('ne vend jamais un bien avant son âge minimum de vente (confort)', () => {
+    const maison = (ageVenteMin?: number): Immeuble => ({
+      nom: 'Maison', type: 'residence', valeur: 800_000, coutBase: 800_000, anneesDetenues: 20,
+      appreciation: 0.01, hypotheque: 0, tauxHypotheque: 0.05, paiementAnnuel: 0,
+      revenuNetExploitation: 0, ageVente: null, fractionLiberee: 1, proprietaire: 1, ageVenteMin,
+    });
+    const scenario = (im: Immeuble) =>
+      hSolo({
+        ageActuel: 65, ageRetraite: 65, ageDeces: 95,
+        comptes: [{ type: 'REER', solde: 500_000, profil: 'equilibre' }],
+        immeubles: [im], depensesRetraite: 45_000,
+      });
+    const sans = optimiserProjection(scenario(maison()));
+    const avec = optimiserProjection(scenario(maison(85)));
+
+    // Invariant : sous contrainte, jamais de vente avant 85 (soit null, soit >= 85).
+    const avVente = avec.strategie.immeubles[0].ageVente;
+    expect(avVente === null || avVente >= 85).toBe(true);
+    // Sans contrainte, l'optimiseur choisit de vendre plus tôt (l'équité rapporte plus une fois placée).
+    const sansVente = sans.strategie.immeubles[0].ageVente;
+    expect(sansVente !== null && sansVente < 85).toBe(true);
   });
 });
 
