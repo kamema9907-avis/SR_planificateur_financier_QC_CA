@@ -1,7 +1,7 @@
 /**
  * Types du domaine « couple » (Phase 3).
  */
-import type { Compte, PeriodeTravail, RenteEmployeur, TypeCompte } from './types';
+import type { Compte, Heritage, PeriodeTravail, RenteEmployeur, TypeCompte } from './types';
 import type { Immeuble } from './immobilier';
 import type { DetailCouple } from './trace';
 
@@ -16,6 +16,11 @@ export interface PersonneProjection {
   croissanceSalaireReelle: number;
   /** Travail rémunéré poursuivi à la retraite (« retraité-actif ») : périodes actives dès l'âge de retraite. Défaut : []. */
   periodesTravail?: readonly PeriodeTravail[];
+  /**
+   * Héritages reçus par CETTE personne (non imposables), placés dans SES comptes en consommant SES
+   * droits. Un héritage n'est jamais commun : une succession désigne un héritier. Défaut : [].
+   */
+  heritages?: readonly Heritage[];
   epargneAnnuelle: Partial<Record<TypeCompte, number>>;
   /** Montant total déjà cotisé au CELIAPP par cette personne (nominal), pour le plafond de 40 000 $. Défaut : 0. */
   celiappDejaCotise?: number;

@@ -67,6 +67,22 @@ export interface PeriodeTravail {
   croissanceReelle?: number;
 }
 
+/**
+ * Un héritage : somme reçue d'une succession, à un âge donné. Modèle « à plat » comme les rentes —
+ * on peut hériter de plusieurs personnes à des âges différents.
+ *
+ * **Non imposable** pour le bénéficiaire (la succession a déjà réglé l'impôt au décès). Le montant
+ * est placé dans les comptes en respectant les droits de cotisation ; seuls ses rendements futurs
+ * seront imposés. Voir `heritage.ts`.
+ */
+export interface Heritage {
+  nom: string;
+  /** Montant net reçu, en dollars d'aujourd'hui (indexé jusqu'à l'âge de réception). */
+  montant: number;
+  /** Âge du bénéficiaire à la réception. */
+  age: number;
+}
+
 /** Hypothèses complètes d'une projection cycle de vie. */
 export interface HypothesesProjection {
   // Personne
@@ -84,6 +100,11 @@ export interface HypothesesProjection {
    * (temps partiel, pige…) actives à partir de l'âge de retraite. Réduit le décaissement. Défaut : [].
    */
   readonly periodesTravail?: readonly PeriodeTravail[];
+  /**
+   * Héritages reçus (successions). Non imposables ; placés en CELI → REER → non-enregistré selon
+   * les droits disponibles. Défaut : [].
+   */
+  readonly heritages?: readonly Heritage[];
   /** Épargne annuelle versée pendant l'accumulation, par type de compte (en $ d'aujourd'hui). */
   readonly epargneAnnuelle: Partial<Record<TypeCompte, number>>;
   /**

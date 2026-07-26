@@ -29,6 +29,7 @@ import { financerDepenses } from './decaissement';
 import { rrqNominale, svNominale } from './rentesPubliques';
 import { totalRentesEmployeur } from './rentesEmployeur';
 import { totalRevenuTravail } from './periodesTravail';
+import { placerHeritage, totalHeritage } from './heritage';
 import { placerSurplusRetraite } from './placementSurplus';
 import { clonerImmeubles, determinerBienAbrite, gainAuDeces, traiterImmeublesAnnee, type AgregatImmo, type EtatImmeuble } from './immobilier';
 import { fondreReer } from './fonteReer';
@@ -93,6 +94,8 @@ interface ComposantesTrace {
   retraitLibre: number;
   loyers: number;
   ventes: number;
+  /** Héritage encaissé cette année (non imposable). */
+  heritage: number;
   paiementImmo: number;
   retenues: number;
   cotisations: number;
@@ -128,6 +131,7 @@ function construireDetailAnnee(
           { libelle: 'Rentes d’employeur', montant: c.renteEmp },
           { libelle: 'Retrait minimum FERR', montant: c.minimumFERR },
           { libelle: 'Loyers encaissés', montant: c.loyers },
+          { libelle: 'Héritage reçu (non imposable)', montant: c.heritage },
         ]
       : [
           { libelle: 'Revenu de travail', montant: c.revenuEmploi },
@@ -140,6 +144,7 @@ function construireDetailAnnee(
           { libelle: 'Retraits CELI/CELIAPP', montant: c.retraitLibre },
           { libelle: 'Loyers encaissés', montant: c.loyers },
           { libelle: 'Produit de vente / downsizing', montant: c.ventes },
+          { libelle: 'Héritage reçu (non imposable)', montant: c.heritage },
         ];
 
   const sortiesBrut: Poste[] =
@@ -224,6 +229,9 @@ export function projeter(h: HypothesesProjection, options: { trace?: boolean } =
       .filter((c) => estNonEnregistre(c.type))
       .reduce((s, c) => s + croissances.get(c)!.interet, 0);
     const dividendesNonEnr = revenuPlacementNonEnr - interetNonEnr;
+
+    // Héritage reçu cette année (non imposable ; commun aux deux phases).
+    const heritageRecu = totalHeritage(h.heritages, age, h.ageActuel, h.inflation);
 
     // Rentes publiques (communes aux deux phases).
     const rrq = rrqNominale(h.rrqA65, h.ageDebutRRQ, age, annee, h.inflation);
@@ -362,6 +370,18 @@ export function projeter(h: HypothesesProjection, options: { trace?: boolean } =
         }
       }
 
+      // Héritage : capital non imposable, placé CELI → REER → non-enregistré dans la limite des
+      // droits RESTANTS. L'épargne planifiée ci-dessus a servi la première : elle est choisie, alors
+      // que l'héritage est un imprévu. La part versée au REER est déductible du revenu de l'année.
+      if (heritageRecu > 0) {
+        const droits = { droitsCeli, droitsReer };
+        const pose = placerHeritage(comptes, profilDefaut, droits, heritageRecu, age);
+        droitsCeli = droits.droitsCeli;
+        droitsReer = droits.droitsReer;
+        deductible += pose.deductible;
+        traceVentil = { celi: pose.celi, reer: pose.reer, nonEnr: pose.nonEnr };
+      }
+
       entreeAnnee = {
         ...nouvelleEntree(age, h.vitSeul),
         revenuEmploi,
@@ -409,7 +429,8 @@ export function projeter(h: HypothesesProjection, options: { trace?: boolean } =
         gainsCapital: immo.gainBrut,
       };
       const encaisseForcee =
-        revenuTravail - retenuesTravail + rrq + sv + minimumFERR + renteEmp + immo.loyerCash + immo.cashVente;
+        revenuTravail - retenuesTravail + rrq + sv + minimumFERR + renteEmp + immo.loyerCash +
+        immo.cashVente + heritageRecu;
       const celiAvantRetraits = soldeCeliTotal();
       const res = financerDepenses(comptes, h.ordreDecaissement, entreeForcee, encaisseForcee, cible, annee, age);
       // Un retrait CELI restaure les droits équivalents l'année suivante (règle du 1er janvier).
@@ -527,6 +548,7 @@ export function projeter(h: HypothesesProjection, options: { trace?: boolean } =
               retraitLibre: retraitsLibresImpot,
               loyers: immo.loyerCash,
               ventes: immo.cashVente,
+              heritage: heritageRecu,
               paiementImmo: immo.paiement,
               retenues: traceRetenues,
               cotisations,

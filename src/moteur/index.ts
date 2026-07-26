@@ -42,6 +42,7 @@ export type {
   SourceRente,
   RenteEmployeur,
   PeriodeTravail,
+  Heritage,
   HypothesesProjection,
   AnneeProjection,
   ResultatProjection,
@@ -49,6 +50,7 @@ export type {
 export { projeter } from './projection/projection';
 export { renteEmployeurNominale, totalRentesEmployeur, calculerRREGOP, MGA_2026 } from './projection/rentesEmployeur';
 export { revenuTravailNominal, totalRevenuTravail } from './projection/periodesTravail';
+export { heritageNominal, totalHeritage, placerHeritage } from './projection/heritage';
 export type {
   Poste,
   LienDetail,

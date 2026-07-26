@@ -32,6 +32,7 @@ import { rrqNominale, svNominale, renteSurvivantRRQ } from './rentesPubliques';
 import { totalRentesEmployeur } from './rentesEmployeur';
 import { totalRevenuTravail } from './periodesTravail';
 import { placerSurplusRetraite } from './placementSurplus';
+import { placerHeritage, totalHeritage } from './heritage';
 import { impotCoupleOptimal } from './fractionnement';
 import { fondreReer } from './fonteReer';
 import {
@@ -156,6 +157,8 @@ interface Contexte {
   salaire: number;
   /** Retenues sur la paie (RRQ/AE/RQAP) déjà retranchées de `encaisse`. */
   retenuesPaie: number;
+  /** Héritage reçu cette année (non imposable), déjà inclus dans `encaisse`. */
+  heritageRecu: number;
 }
 
 function preparerPersonne(
@@ -199,6 +202,10 @@ function preparerPersonne(
   const salaire = salaireVieActive + revenuTravailRetraite;
   const retenuesPaie = salaire > 0 ? calculerCotisations(salaire, parametresCotisations(annee)).total : 0;
 
+  // Héritage reçu par CETTE personne cette année (non imposable). Un héritage n'est jamais commun :
+  // une succession désigne un héritier, et au Québec il reste un bien propre.
+  const heritageRecu = totalHeritage(p.heritages, age, p.ageActuel, inflation);
+
   const entree: EntreeFiscale = {
     ...nouvelleEntree(age, etat.survivant),
     revenuEmploi: salaire,
@@ -212,12 +219,29 @@ function preparerPersonne(
     age,
     croissances,
     entree,
-    encaisse: salaire - retenuesPaie + rrq + sv + renteEmp + minimumFERR,
+    encaisse: salaire - retenuesPaie + rrq + sv + renteEmp + minimumFERR + heritageRecu,
     renteEmp,
     travaille,
     salaire,
     retenuesPaie,
+    heritageRecu,
   };
+}
+
+/**
+ * Place l'héritage reçu par une personne dans SES comptes, en consommant SES droits.
+ *
+ * N'a de sens qu'en phase d'accumulation : en décaissement, l'héritage est déjà entré dans
+ * `encaisse` et c'est le solveur qui décide ce qui est dépensé, le surplus étant replacé par
+ * `placerSurplusRetraite`.
+ */
+function poserHeritage(etat: EtatPersonne, ctx: Contexte) {
+  if (ctx.heritageRecu <= 0) return { celi: 0, reer: 0, nonEnr: 0, deductible: 0 };
+  const droits = { droitsCeli: etat.droitsCeli, droitsReer: etat.droitsReer };
+  const pose = placerHeritage(etat.comptes, etat.profilDefaut, droits, ctx.heritageRecu, ctx.age);
+  etat.droitsCeli = droits.droitsCeli;
+  etat.droitsReer = droits.droitsReer;
+  return pose;
 }
 
 /** Applique les cotisations d'une personne (dont le REER de conjoint versé à l'autre). */
@@ -660,14 +684,20 @@ export function projeterCouple(h: HypothesesCouple, options: { trace?: boolean }
         if (ctx2.travaille) accrualReer(etat2, ctx2.salaire, annee, facteurInflation);
         const cot1 = appliquerCotisations(etat1, facteurInflation, etat2);
         const cot2 = appliquerCotisations(etat2, facteurInflation, etat1);
-        const e1 = { ...ctx1.entree, deductionReer: cot1.deductible, cotisationFondsTravailleurs: cot1.fondsTravailleurs };
-        const e2 = { ...ctx2.entree, deductionReer: cot2.deductible, cotisationFondsTravailleurs: cot2.fondsTravailleurs };
+        // Héritage : placé après l'épargne planifiée (qui a la priorité sur les droits), et avant le
+        // calcul de l'impôt — la déduction REER qu'il ouvre doit entrer dans le fractionnement optimal.
+        const her1 = poserHeritage(etat1, ctx1);
+        const her2 = poserHeritage(etat2, ctx2);
+        const e1 = { ...ctx1.entree, deductionReer: cot1.deductible + her1.deductible, cotisationFondsTravailleurs: cot1.fondsTravailleurs };
+        const e2 = { ...ctx2.entree, deductionReer: cot2.deductible + her2.deductible, cotisationFondsTravailleurs: cot2.fondsTravailleurs };
         const opt = impotCoupleOptimal(e1, e2, annee, splittable(e1, ctx1.age, ctx1.renteEmp), splittable(e2, ctx2.age, ctx2.renteEmp));
         impotAnnee = opt.impot;
         fractionnement = Math.abs(opt.transfert);
         // Les retenues sur la paie sont déjà déduites de l'encaisse (voir preparerPersonne).
+        // L'héritage a été placé dans les comptes : il n'est pas disponible pour vivre.
         revenuDisponible =
-          ctx1.encaisse + ctx2.encaisse - impotAnnee - cot1.cotisations - cot2.cotisations - paiementImmo;
+          ctx1.encaisse + ctx2.encaisse - ctx1.heritageRecu - ctx2.heritageRecu -
+          impotAnnee - cot1.cotisations - cot2.cotisations - paiementImmo;
         if (options.trace) {
           const rentesPub = (c: Contexte) => c.entree.revenuRRQ + c.entree.renteSurvivantRRQ + c.entree.revenuPensionSV;
           traceData = {
@@ -682,7 +712,11 @@ export function projeterCouple(h: HypothesesCouple, options: { trace?: boolean }
               cotisations: cot1.cotisations + cot2.cotisations,
               paiementImmo,
               cible: 0,
-              ventilSurplus: { celi: 0, reer: 0, nonEnr: 0 },
+              ventilSurplus: {
+                celi: her1.celi + her2.celi,
+                reer: her1.reer + her2.reer,
+                nonEnr: her1.nonEnr + her2.nonEnr,
+              },
             },
             e1,
             e2,
