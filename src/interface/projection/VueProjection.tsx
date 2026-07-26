@@ -9,7 +9,9 @@ import { formatDollars } from '../format';
 import { BoutonReinitialiser, Interrupteur } from '../Champ';
 import { Atelier } from '../atelier/Atelier';
 import { BasculeAvance } from '../ui/ModeDetail';
+import { useScenarios, type LigneComparaison } from '../scenarios';
 import { useAffichageReel, useDossier, useOptimiseur } from '../useDossier';
+import { PanneauScenarios } from './PanneauScenarios';
 import { groupeSolo } from './etapes';
 import { GraphiqueProjection } from './GraphiqueProjection';
 import { DetailAnnees } from './DetailAnnees';
@@ -38,6 +40,7 @@ export function detailsStrategie(s: {
 }
 
 const CLE_STOCKAGE = 'pf2026:projection';
+const CLE_SCENARIOS = 'pf2026:projection:scenarios';
 
 /** Hypothèses vierges (champs à zéro) — comptes présents mais vides, paramètres du modèle par défaut. */
 function defautHypotheses(): HypothesesProjection {
@@ -85,6 +88,35 @@ export function VueProjection() {
     () => resultat.annees.map((a) => ({ ...a, immobilier: a.equiteImmobiliere })),
     [resultat],
   );
+
+  // Scénarios : chaque enregistrement est réévalué sans trace (inutile ici, et bien plus rapide).
+  const { scenarios, enregistrer, supprimer, renommer } = useScenarios<HypothesesProjection>(CLE_SCENARIOS);
+  const lignes = useMemo<LigneComparaison[]>(() => {
+    const courante: LigneComparaison = {
+      id: 'courant',
+      nom: 'Simulation en cours',
+      courant: true,
+      suffisant: resultat.suffisant,
+      ageEpuisement: resultat.ageEpuisement,
+      valeurNette: resultat.valeurNetteAuDecesReelle,
+      impotVie: resultat.impotTotalVieReel,
+    };
+    return [
+      courante,
+      ...scenarios.map((s) => {
+        const r = projeter(s.hypotheses);
+        return {
+          id: s.id,
+          nom: s.nom,
+          courant: false,
+          suffisant: r.suffisant,
+          ageEpuisement: r.ageEpuisement,
+          valeurNette: r.valeurNetteAuDecesReelle,
+          impotVie: r.impotTotalVieReel,
+        };
+      }),
+    ];
+  }, [resultat, scenarios]);
 
   return (
     <div className="space-y-6">
@@ -177,6 +209,17 @@ export function VueProjection() {
           }
           dessous={
             <div className="space-y-5">
+              <PanneauScenarios
+                lignes={lignes}
+                onEnregistrer={(nom) => enregistrer(h, nom)}
+                onCharger={(id) => {
+                  const s = scenarios.find((x) => x.id === id);
+                  if (s) setH(s.hypotheses);
+                }}
+                onSupprimer={supprimer}
+                onRenommer={renommer}
+              />
+
               <div className="carte p-5">
                 <div className="mb-3 flex items-center justify-between">
                   <h3 className="font-semibold text-slate-800">Évolution du patrimoine</h3>

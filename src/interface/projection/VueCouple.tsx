@@ -10,7 +10,9 @@ import { formatDollars } from '../format';
 import { BoutonReinitialiser, Interrupteur } from '../Champ';
 import { Atelier } from '../atelier/Atelier';
 import { BasculeAvance } from '../ui/ModeDetail';
+import { useScenarios, type LigneComparaison } from '../scenarios';
 import { useAffichageReel, useDossier, useOptimiseur } from '../useDossier';
+import { PanneauScenarios } from './PanneauScenarios';
 import { groupeConjoint, groupeMenage } from './etapes';
 import { GraphiqueProjection } from './GraphiqueProjection';
 import { PanneauOptimisation } from './PanneauOptimisation';
@@ -30,6 +32,7 @@ function detailsCouple(s: HypothesesCouple): { label: string; valeur: string }[]
 }
 
 const CLE_STOCKAGE = 'pf2026:couple';
+const CLE_SCENARIOS = 'pf2026:couple:scenarios';
 
 /** Conjoint vierge (champs à zéro) — comptes de base présents mais vides. */
 function personneDefaut(nom: string, sexe: 'H' | 'F', ageActuel: number, ageDeces: number): PersonneProjection {
@@ -74,6 +77,41 @@ export function VueCouple() {
   const optim = useOptimiseur(h, optimiserCouple, appliquer);
 
   const resultat = useMemo(() => projeterCouple(h, { trace: true }), [h]);
+
+  // Scénarios : chaque enregistrement est réévalué sans trace (inutile ici, et bien plus rapide).
+  const { scenarios, enregistrer, supprimer, renommer } = useScenarios<HypothesesCouple>(CLE_SCENARIOS);
+  const lignes = useMemo<LigneComparaison[]>(() => {
+    /** Le couple raisonne en années civiles : on ramène l'épuisement à l'âge de l'aîné. */
+    const versAge = (annee: number | null, depart: number) =>
+      annee != null ? depart + (annee - 2026) : null;
+    const courante: LigneComparaison = {
+      id: 'courant',
+      nom: 'Simulation en cours',
+      courant: true,
+      suffisant: resultat.suffisant,
+      ageEpuisement: versAge(resultat.anneeEpuisement, Math.max(h.personne1.ageActuel, h.personne2.ageActuel)),
+      valeurNette: resultat.valeurNetteAuDernierDecesReelle,
+      impotVie: resultat.impotTotalVieReel,
+    };
+    return [
+      courante,
+      ...scenarios.map((s) => {
+        const r = projeterCouple(s.hypotheses);
+        return {
+          id: s.id,
+          nom: s.nom,
+          courant: false,
+          suffisant: r.suffisant,
+          ageEpuisement: versAge(
+            r.anneeEpuisement,
+            Math.max(s.hypotheses.personne1.ageActuel, s.hypotheses.personne2.ageActuel),
+          ),
+          valeurNette: r.valeurNetteAuDernierDecesReelle,
+          impotVie: r.impotTotalVieReel,
+        };
+      }),
+    ];
+  }, [resultat, scenarios, h.personne1.ageActuel, h.personne2.ageActuel]);
 
   /** Le graphique du ménage est indexé sur l'âge de l'aîné. */
   const elderStart = Math.max(h.personne1.ageActuel, h.personne2.ageActuel);
@@ -157,6 +195,17 @@ export function VueCouple() {
       }
       dessous={
         <div className="space-y-5">
+          <PanneauScenarios
+            lignes={lignes}
+            onEnregistrer={(nom) => enregistrer(h, nom)}
+            onCharger={(id) => {
+              const s = scenarios.find((x) => x.id === id);
+              if (s) setH(s.hypotheses);
+            }}
+            onSupprimer={supprimer}
+            onRenommer={renommer}
+          />
+
           <div className="carte p-5">
             <div className="mb-3 flex items-center justify-between">
               <h3 className="font-semibold text-slate-800">Patrimoine du ménage</h3>

@@ -70,6 +70,31 @@ describe('fichier de dossier', () => {
     if (lu.ok) expect(lu.nombreDossiers).toBe(1);
   });
 
+  it('emporte les scénarios enregistrés', () => {
+    const avec = {
+      projection: { ageActuel: 45 },
+      scenariosProjection: [{ id: 'a', nom: 'Retraite à 65', hypotheses: { ageRetraite: 65 } }],
+    };
+    const lu = lireFichier(JSON.stringify(construireFichier(avec)));
+    expect(lu.ok).toBe(true);
+    if (lu.ok) {
+      expect(lu.nombreDossiers).toBe(2);
+      expect(lu.fichier.dossiers.scenariosProjection).toEqual(avec.scenariosProjection);
+    }
+  });
+
+  it('reste capable de lire un fichier antérieur aux scénarios', () => {
+    const ancien = JSON.stringify({
+      application: SIGNATURE,
+      version: 1,
+      exporteLe: '2026-07-25T00:00:00.000Z',
+      dossiers: { projection: { ageActuel: 40 } },
+    });
+    const lu = lireFichier(ancien);
+    expect(lu.ok).toBe(true);
+    if (lu.ok) expect(lu.nombreDossiers).toBe(1);
+  });
+
   it('refuse une valeur nulle', () => {
     expect(lireFichier('null').ok).toBe(false);
   });

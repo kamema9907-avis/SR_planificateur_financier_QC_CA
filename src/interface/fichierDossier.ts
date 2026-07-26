@@ -14,11 +14,16 @@ export const SIGNATURE = 'planificateur-financier-2026';
 /** Version du format de fichier ; à incrémenter si la structure change de façon incompatible. */
 export const VERSION_FORMAT = 1;
 
-/** Les trois dossiers indépendants de l'application, tels que stockés. */
+/**
+ * Tout ce que l'application conserve, par nom logique. Les scénarios enregistrés en font partie :
+ * les omettre reviendrait à perdre le travail de comparaison au premier changement d'appareil.
+ */
 export const CLES = {
   impot: 'pf2026:entree',
   projection: 'pf2026:projection',
   couple: 'pf2026:couple',
+  scenariosProjection: 'pf2026:projection:scenarios',
+  scenariosCouple: 'pf2026:couple:scenarios',
 } as const;
 
 export interface FichierDossier {
