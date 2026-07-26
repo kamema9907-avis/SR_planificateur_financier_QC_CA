@@ -47,7 +47,7 @@ colonnes de formulaires.
 | **1 — L'Atelier** | Coquille 3 zones, rail d'étapes avec complétude, panneau résultat collant, sélecteur de personne | ✅ **fait** (2026-07-25) |
 | **2 — Densité** | Bascule Essentiel / Avancé, aide en infobulle, validations croisées, rédaction unifiée | ✅ **fait** (2026-07-25) |
 | **2.5 — Onglet Impôt** | Mise à niveau de l'onglet resté à l'ancienne mise en page | ✅ **fait** (2026-07-25) |
-| **3 — Résultats** | Verdict en grand, jauge d'autonomie, graphique avec curseur et infobulle riche, « ce qui change » | à faire |
+| **3 — Résultats** | Verdict en grand, jauge d'autonomie, graphique avec curseur et infobulle riche, « ce qui change » | ✅ **fait** (2026-07-25) |
 | **4 — Puissance** | Scénarios A/B/C, export/import JSON, impression PDF, optimiseur en Web Worker, `useDeferredValue` | à faire |
 | **5 — Finitions** | Mode sombre, responsive mobile, accessibilité, routing partageable | à faire |
 
@@ -215,3 +215,40 @@ un calculateur qu'on remplit d'un trait. Il adopte en revanche toutes les autres
 - `ListeAlertes` est extrait d'`Atelier.tsx` vers `ui/` pour servir les deux onglets.
 - Correctif transverse : les classes `.bouton-*` reçoivent `shrink-0 whitespace-nowrap` — dans une
   colonne étroite, « Réinitialiser » se cassait en deux lignes sous son icône.
+
+---
+
+## Lot 3 — Les résultats racontent une histoire ✅
+
+### Fichiers créés
+
+| Fichier | Rôle |
+|---|---|
+| `projection/Verdict.tsx` | Verdict en grand + jauge d'autonomie (`fractionFinancee` testée) |
+| `projection/Verdict.test.ts` | **5 cas-tests** sur la jauge |
+| `projection/ComparaisonOptimisation.tsx` | Trajectoires actuelle et optimisée superposées |
+
+### Une imprécision de vocabulaire corrigée
+
+Le moteur marque une année d'« épuisement » dès que **les retraits ne suffisent plus à financer la
+cible de dépenses** ([`projection.ts:449`](src/moteur/projection/projection.ts)) — ce n'est *pas*
+« le patrimoine tombe à zéro ». Avec un immeuble non vendu, l'ancienne tuile pouvait donc afficher
+« Épuisé à 71 ans » à côté de « Valeur nette au décès : 839 218 $ », deux affirmations vraies mais
+contradictoires en apparence.
+
+Passer ce message en gros titre rendait l'ambiguïté intenable. Le verdict parle donc de **dépenses
+financées**, et lorsqu'un patrimoine subsiste malgré l'échec, il l'explique : *« il est immobilisé —
+un bien non vendu ne paie pas les dépenses courantes »*. L'infobulle du graphique dit désormais
+« dépenses non financées » plutôt que « capital épuisé ».
+
+### Le reste
+
+- **Verdict** : bandeau vert ou rouge, nombre d'années à découvert, et jauge montrant la part de la
+  retraite financée (27 % dans l'exemple ci-dessus). Il passe **en tête** de la colonne de résultat,
+  devant le bouton d'optimisation : la réponse d'abord, l'action ensuite.
+- **Graphique enrichi** : curseur d'année suivant la souris, infobulle donnant la ventilation par
+  catégorie de compte, point sur la courbe, et **bande grisée** marquant la phase de décaissement.
+  L'ancienne infobulle native `<title>` du navigateur est remplacée.
+- **Comparaison avant/après** : le panneau d'optimisation superpose la trajectoire actuelle
+  (pointillé gris) et l'optimisée (trait vert) — on voit *quand* l'écart se creuse, pas seulement
+  son montant final.

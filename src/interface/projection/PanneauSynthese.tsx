@@ -4,6 +4,7 @@ import { Tuile, type TonTuile } from '../ui/Tuile';
 import { BarreOptimiseur } from './BarreOptimiseur';
 import { GraphiqueCompact } from './GraphiqueCompact';
 import type { PointPatrimoine } from './GraphiqueProjection';
+import { Verdict, type DonneesVerdict } from './Verdict';
 
 export interface IndicateurCle {
   label: string;
@@ -13,6 +14,8 @@ export interface IndicateurCle {
 }
 
 interface Props {
+  /** Réponse à « est-ce que ça tient ? », en tête de colonne. */
+  verdict: DonneesVerdict;
   indicateurs: readonly IndicateurCle[];
   points: readonly PointPatrimoine[];
   reel: boolean;
@@ -31,6 +34,7 @@ interface Props {
  * par année restent sous l'atelier, en pleine largeur, là où ils ont la place d'être lus.
  */
 export function PanneauSynthese({
+  verdict,
   indicateurs,
   points,
   reel,
@@ -42,6 +46,9 @@ export function PanneauSynthese({
 }: Props) {
   return (
     <div className="space-y-4">
+      {/* La réponse d'abord, l'action ensuite : « ça ne tient pas » appelle « optimisez ». */}
+      <Verdict v={verdict} />
+
       <BarreOptimiseur
         label={optimiseur.label}
         aide={optimiseur.aide}
@@ -51,7 +58,7 @@ export function PanneauSynthese({
 
       {optimisation}
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-1">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1">
         {indicateurs.map((i) => (
           <Tuile key={i.label} label={i.label} valeur={i.valeur} ton={i.ton} aide={i.aide} />
         ))}

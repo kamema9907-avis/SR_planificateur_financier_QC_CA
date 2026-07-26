@@ -119,13 +119,14 @@ export function VueProjection() {
           groupes={[groupeSolo(h, setH)]}
           resultat={
             <PanneauSynthese
+              verdict={{
+                suffisant: resultat.suffisant,
+                ageEpuisement: resultat.ageEpuisement,
+                ageRetraite: h.ageRetraite,
+                ageDeces: h.ageDeces,
+                valeurNetteFinale: resultat.valeurNetteAuDecesReelle,
+              }}
               indicateurs={[
-                {
-                  label: 'Autonomie du capital',
-                  valeur: resultat.suffisant ? `Dure jusqu'à ${h.ageDeces} ans` : `Épuisé à ${resultat.ageEpuisement} ans`,
-                  ton: resultat.suffisant ? 'ok' : 'alerte',
-                  aide: resultat.suffisant ? 'Objectif de dépenses financé' : 'Dépenses non financées',
-                },
                 {
                   label: 'Valeur nette au décès',
                   valeur: formatDollars(resultat.valeurNetteAuDecesReelle),
@@ -160,6 +161,12 @@ export function VueProjection() {
                       ageDebutSV: optim.resultat.strategie.svA65 > 0 ? optim.resultat.strategie.ageDebutSV : undefined,
                       immeubles: optim.resultat.strategie.immeubles,
                     })}
+                    trajectoires={{
+                      base: optim.resultat.base.annees.map((an) => an.valeurNette * an.deflateurReel),
+                      optimisee: optim.resultat.resultat.annees.map((an) => an.valeurNette * an.deflateurReel),
+                      ageDe: h.ageActuel,
+                      ageA: h.ageDeces,
+                    }}
                     onAppliquer={optim.appliquerStrategie}
                     onFermer={optim.fermer}
                   />

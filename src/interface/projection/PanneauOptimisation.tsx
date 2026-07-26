@@ -1,16 +1,19 @@
 import { formatDollars } from '../format';
 import { IconeEtincelleDouble } from '../ui/icones';
+import { ComparaisonOptimisation, type Trajectoires } from './ComparaisonOptimisation';
 
 interface Props {
   gainPatrimoine: number;
   gainImpot: number;
   details: { label: string; valeur: string }[];
+  /** Trajectoires actuelle et optimisée, superposées sous la liste des leviers. */
+  trajectoires?: Trajectoires;
   onAppliquer: () => void;
   onFermer: () => void;
 }
 
 /** Panneau présentant la stratégie optimisée trouvée et son amélioration. */
-export function PanneauOptimisation({ gainPatrimoine, gainImpot, details, onAppliquer, onFermer }: Props) {
+export function PanneauOptimisation({ gainPatrimoine, gainImpot, details, trajectoires, onAppliquer, onFermer }: Props) {
   const aucunGain = gainPatrimoine < 1 && gainImpot < 1;
 
   return (
@@ -52,6 +55,11 @@ export function PanneauOptimisation({ gainPatrimoine, gainImpot, details, onAppl
                 </div>
               ))}
             </div>
+            {trajectoires && (
+              <div className="mt-4 border-t border-slate-100 pt-3">
+                <ComparaisonOptimisation t={trajectoires} />
+              </div>
+            )}
           </>
         )}
         <div className="mt-4 flex gap-2">

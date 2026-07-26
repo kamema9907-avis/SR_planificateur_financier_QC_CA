@@ -3,9 +3,10 @@
 > **Document vivant** : synthèse de tout ce que le projet fait à ce jour. À mettre à jour au fil des
 > phases. Voir le [journal des modifications](#-journal-des-modifications) à la fin pour l'historique.
 >
-> Dernière mise à jour : **2026-07-25** — **refonte de l'interface, lots 0 à 2.5** : fondations partagées,
-> coquille « Atelier » (rail d'étapes + résultat collant), densité de saisie, validations croisées, et
-> mise à niveau de l'onglet Impôt. Voir [`PLAN_REFONTE_UI.md`](PLAN_REFONTE_UI.md). Auparavant : crédit fonds de travailleurs dans la projection,
+> Dernière mise à jour : **2026-07-25** — **refonte de l'interface, lots 0 à 3** : fondations partagées,
+> coquille « Atelier » (rail d'étapes + résultat collant), densité de saisie, validations croisées,
+> mise à niveau de l'onglet Impôt, puis verdict en grand et graphique enrichi.
+> Voir [`PLAN_REFONTE_UI.md`](PLAN_REFONTE_UI.md). Auparavant : crédit fonds de travailleurs dans la projection,
 > droits REER (avec facteur d'équivalence), terrain vacant, plafonds CELIAPP / droits CELI, cotisations
 > sociales, syndicat, assurance-salaire, survivant RRQ.
 
@@ -103,7 +104,7 @@ Deux conjoints entièrement modélisés (colonnes côte à côte), un ménage à
   tableau (avec le montant fractionné).
 
 ### Qualité / validation
-- **171 cas-tests automatisés** (moteur fiscal, cotisations, plafonds CELIAPP/CELI/REER, fonds de travailleurs, indexation, comptes, projection, décaissement, couple, immobilier dont terrain, optimiseur).
+- **176 cas-tests automatisés** (moteur fiscal, cotisations, plafonds CELIAPP/CELI/REER, fonds de travailleurs, indexation, comptes, projection, décaissement, couple, immobilier dont terrain, optimiseur).
 - Propriété clé du couple : le **fractionnement ne hausse jamais** l'impôt combiné (testé).
 - **Validation croisée** contre les taux marginaux combinés **publiés** du Québec 2026 :
   sommet **53,31 %**, 140 000 $ → **47,46 %**, 60 000 $ → **36,12 %**.
@@ -230,7 +231,7 @@ L'interface est en cours de refonte (« l'Atelier ») — voir [`PLAN_REFONTE_UI
 ```bash
 npm install      # installer les dépendances
 npm run dev      # développement (http://localhost:5173)
-npm test         # les 171 cas-tests
+npm test         # les 176 cas-tests
 npm run build    # version de production (dossier dist/, à héberger)
 npm run preview  # prévisualiser la version de production
 ```
@@ -273,7 +274,7 @@ Conséquence : les montants sont de bonnes **estimations de planification**, pas
    du REER, âges RRQ/SV, ventes immobilières. Maximise le patrimoine net au décès.
 6. **Phase 5** — **Refonte de l'interface (« l'Atelier »)**, export/import, partage. Plan détaillé en
    6 lots dans [`PLAN_REFONTE_UI.md`](PLAN_REFONTE_UI.md) : **lot 0 (fondations) ✅ fait**,
-   **lot 1 (coquille à 3 zones et rail d’étapes) ✅ fait**, **lot 2 (densité de saisie) ✅ fait**, **lot 2.5 (onglet Impôt) ✅ fait**, lot 3
+   **lot 1 (coquille à 3 zones et rail d’étapes) ✅ fait**, **lot 2 (densité de saisie) ✅ fait**, **lot 2.5 (onglet Impôt) ✅ fait**, **lot 3 (résultats) ✅ fait**, lot 4
    (résultats), lot 4 (scénarios A/B, export, Web Worker), lot 5 (mode sombre, mobile, accessibilité).
    (**Hébergement : ✅ fait** — GitHub Pages, déploiement automatique à chaque `git push`.)
 
@@ -283,6 +284,23 @@ options d'employé, analyse de sensibilité / Monte Carlo, autres provinces.
 ---
 
 ## 📓 Journal des modifications
+
+### 2026-07-25 — Refonte de l'interface, lot 3 : les résultats racontent une histoire
+- **Verdict en grand** en tête de la colonne de résultat (la réponse d'abord, l'action ensuite) :
+  bandeau vert ou rouge, années à découvert, et **jauge** montrant la part de la retraite financée.
+- **Correction de vocabulaire importante.** Le moteur marque une année d'« épuisement » dès que les
+  retraits ne suffisent plus à financer la cible de dépenses (`projection.ts:449`) — ce n'est *pas*
+  « le patrimoine tombe à zéro ». Avec un immeuble non vendu, l'ancienne tuile affichait donc
+  « Épuisé à 71 ans » à côté de « Valeur nette au décès : 839 218 $ » : deux affirmations vraies,
+  contradictoires en apparence. Le verdict parle maintenant de **dépenses financées** et explique le
+  patrimoine restant : *« il est immobilisé — un bien non vendu ne paie pas les dépenses courantes »*.
+- **Graphique enrichi** : curseur d'année suivant la souris, infobulle avec la ventilation par
+  catégorie de compte, et **bande grisée** marquant la phase de décaissement. Remplace l'infobulle
+  native `<title>` du navigateur.
+- **Comparaison avant/après** dans le panneau d'optimisation : trajectoire actuelle (pointillé gris)
+  et optimisée (trait vert) superposées — on voit *quand* l'écart se creuse, pas seulement son
+  montant final. `ResultatOptimisation` exposait déjà `base` et `resultat`, rien à changer au moteur.
+- **176 cas-tests verts** (147 moteur + 14 projection + 10 impôt + 5 jauge), build OK.
 
 ### 2026-07-25 — Onglet Impôt mis à niveau + actions CI à jour
 - Les lots 0 à 2 n'avaient refondu que la Projection : l'onglet Impôt gardait ses sections empilées,

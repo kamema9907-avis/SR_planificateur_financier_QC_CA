@@ -1,3 +1,4 @@
+import { useRef, useState } from 'react';
 import type { TypeCompte } from '../../moteur';
 import { formatDollars, formatDollarsCompact } from '../format';
 
@@ -48,6 +49,9 @@ function maxArrondi(v: number): number {
 }
 
 export function GraphiqueProjection({ annees, reel, ageRetraite, ageEpuisement }: GraphiqueProps) {
+  const conteneur = useRef<HTMLDivElement>(null);
+  const [survol, setSurvol] = useState<number | null>(null);
+
   if (annees.length === 0) return null;
 
   const facteur = (a: PointPatrimoine) => (reel ? a.deflateurReel : 1);
@@ -83,65 +87,118 @@ export function GraphiqueProjection({ annees, reel, ageRetraite, ageEpuisement }
 
   const ageDe = annees[0].age;
   const ageA = annees[n - 1].age;
-  const xAge = (age: number) => x(age - ageDe);
+  const xAge = (age: number) => x(Math.min(n - 1, Math.max(0, age - ageDe)));
   const etiquettesAge = annees
     .filter((a) => a.age % 10 === 0 || a.age === ageDe || a.age === ageA)
     .map((a) => a.age);
 
+  /** Index de l'année sous le pointeur, calculé sur la largeur rendue (le SVG est mis à l'échelle). */
+  const indexSousPointeur = (clientX: number): number | null => {
+    const rect = conteneur.current?.getBoundingClientRect();
+    if (!rect || rect.width === 0) return null;
+    const xSvg = ((clientX - rect.left) / rect.width) * W;
+    const i = Math.round(((xSvg - L) / plotW) * (n - 1));
+    return i >= 0 && i < n ? i : null;
+  };
+
+  const a = survol != null ? annees[survol] : null;
+  /** L'infobulle bascule à gauche du curseur dans le dernier tiers, pour ne pas sortir du cadre. */
+  const fractionX = survol != null ? survol / Math.max(1, n - 1) : 0;
+
   return (
     <div>
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="Évolution du patrimoine">
-        {/* Graduations horizontales + libellés */}
-        {graduations.map((g, i) => (
-          <g key={i}>
-            <line x1={L} y1={y(g)} x2={W - R} y2={y(g)} stroke="#e2e8f0" strokeWidth={1} />
-            <text x={L - 8} y={y(g) + 4} textAnchor="end" className="fill-slate-400" fontSize={11}>
-              {formatDollarsCompact(g)}
+      <div
+        ref={conteneur}
+        className="relative"
+        onMouseMove={(e) => setSurvol(indexSousPointeur(e.clientX))}
+        onMouseLeave={() => setSurvol(null)}
+      >
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="Évolution du patrimoine">
+          {/* Bande de décaissement : la retraite se lit d'un coup d'œil */}
+          {ageRetraite > ageDe && ageRetraite < ageA && (
+            <rect x={xAge(ageRetraite)} y={T} width={W - R - xAge(ageRetraite)} height={plotH} fill="#0f172a" fillOpacity={0.03} />
+          )}
+
+          {/* Graduations horizontales + libellés */}
+          {graduations.map((g, i) => (
+            <g key={i}>
+              <line x1={L} y1={y(g)} x2={W - R} y2={y(g)} stroke="#e2e8f0" strokeWidth={1} />
+              <text x={L - 8} y={y(g) + 4} textAnchor="end" className="fill-slate-400" fontSize={11}>
+                {formatDollarsCompact(g)}
+              </text>
+            </g>
+          ))}
+
+          {/* Aires empilées */}
+          {aires.map((aire, i) => (
+            <path key={i} d={aire.d} fill={aire.couleur} fillOpacity={0.85} />
+          ))}
+
+          {/* Marqueur : retraite */}
+          {ageRetraite >= ageDe && ageRetraite <= ageA && (
+            <g>
+              <line x1={xAge(ageRetraite)} y1={T} x2={xAge(ageRetraite)} y2={T + plotH} stroke="#475569" strokeWidth={1} strokeDasharray="4 3" />
+              <text x={xAge(ageRetraite) + 4} y={T + 12} className="fill-slate-500" fontSize={11}>
+                retraite {ageRetraite}
+              </text>
+            </g>
+          )}
+
+          {/* Marqueur : épuisement */}
+          {ageEpuisement !== null && ageEpuisement >= ageDe && ageEpuisement <= ageA && (
+            <line x1={xAge(ageEpuisement)} y1={T} x2={xAge(ageEpuisement)} y2={T + plotH} stroke="#ef4444" strokeWidth={1.5} />
+          )}
+
+          {/* Curseur de survol */}
+          {survol != null && (
+            <g>
+              <line x1={x(survol)} y1={T} x2={x(survol)} y2={T + plotH} stroke="#0f172a" strokeWidth={1} strokeOpacity={0.35} />
+              <circle cx={x(survol)} cy={y(totaux[survol])} r={3.5} fill="#0f172a" />
+            </g>
+          )}
+
+          {/* Étiquettes d'âge */}
+          {etiquettesAge.map((age) => (
+            <text key={age} x={xAge(age)} y={H - 10} textAnchor="middle" className="fill-slate-400" fontSize={11}>
+              {age}
             </text>
-          </g>
-        ))}
+          ))}
+        </svg>
 
-        {/* Aires empilées */}
-        {aires.map((a, i) => (
-          <path key={i} d={a.d} fill={a.couleur} fillOpacity={0.85} />
-        ))}
-
-        {/* Marqueur : retraite */}
-        {ageRetraite >= ageDe && ageRetraite <= ageA && (
-          <g>
-            <line x1={xAge(ageRetraite)} y1={T} x2={xAge(ageRetraite)} y2={T + plotH} stroke="#475569" strokeWidth={1} strokeDasharray="4 3" />
-            <text x={xAge(ageRetraite) + 4} y={T + 12} className="fill-slate-500" fontSize={11}>
-              retraite {ageRetraite}
-            </text>
-          </g>
-        )}
-
-        {/* Marqueur : épuisement */}
-        {ageEpuisement !== null && ageEpuisement >= ageDe && ageEpuisement <= ageA && (
-          <line x1={xAge(ageEpuisement)} y1={T} x2={xAge(ageEpuisement)} y2={T + plotH} stroke="#ef4444" strokeWidth={1.5} />
-        )}
-
-        {/* Étiquettes d'âge */}
-        {etiquettesAge.map((age) => (
-          <text key={age} x={xAge(age)} y={H - 10} textAnchor="middle" className="fill-slate-400" fontSize={11}>
-            {age}
-          </text>
-        ))}
-
-        {/* Zones de survol (infobulle native) */}
-        {annees.map((a, i) => (
-          <rect
-            key={i}
-            x={x(i) - plotW / (2 * Math.max(1, n - 1))}
-            y={T}
-            width={plotW / Math.max(1, n - 1)}
-            height={plotH}
-            fill="transparent"
+        {/* Infobulle : ventilation de l'année survolée */}
+        {a && (
+          <div
+            className="pointer-events-none absolute top-2 z-10 w-56 rounded-xl bg-white/95 p-3 text-xs shadow-lg ring-1 ring-slate-200 backdrop-blur-sm"
+            style={fractionX > 0.62 ? { right: `${(1 - fractionX) * 100 + 2}%` } : { left: `${fractionX * 100 + 2}%` }}
           >
-            <title>{`Âge ${a.age} — Valeur nette : ${formatDollars(totaux[i])}`}</title>
-          </rect>
-        ))}
-      </svg>
+            <p className="mb-1.5 font-semibold text-slate-800">
+              <span className="chiffres">{a.age}</span> ans
+              {ageEpuisement != null && a.age >= ageEpuisement && (
+                <span className="ml-1.5 font-normal text-rose-600">dépenses non financées</span>
+              )}
+            </p>
+            <ul className="space-y-0.5">
+              {SERIES.map((s) => {
+                const v = valeurSerie(a, s);
+                if (v < 0.5) return null;
+                return (
+                  <li key={s.label} className="flex items-center justify-between gap-3">
+                    <span className="flex min-w-0 items-center gap-1.5">
+                      <span className="h-2 w-2 shrink-0 rounded-sm" style={{ backgroundColor: s.couleur }} />
+                      <span className="truncate text-slate-500">{s.label.split(' (')[0]}</span>
+                    </span>
+                    <span className="chiffres shrink-0 text-slate-700">{formatDollarsCompact(v)}</span>
+                  </li>
+                );
+              })}
+            </ul>
+            <p className="mt-1.5 flex justify-between border-t border-slate-100 pt-1.5 font-semibold text-slate-900">
+              <span>Valeur nette</span>
+              <span className="chiffres">{formatDollars(totaux[survol!])}</span>
+            </p>
+          </div>
+        )}
+      </div>
 
       {/* Légende */}
       <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1.5">
@@ -151,6 +208,7 @@ export function GraphiqueProjection({ annees, reel, ageRetraite, ageEpuisement }
             <span className="text-xs text-slate-600">{s.label}</span>
           </div>
         ))}
+        <span className="ml-auto text-xs text-slate-400">La zone grisée est la phase de décaissement.</span>
       </div>
     </div>
   );

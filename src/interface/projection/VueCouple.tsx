@@ -104,13 +104,15 @@ export function VueCouple() {
       ]}
       resultat={
         <PanneauSynthese
+          verdict={{
+            suffisant: resultat.suffisant,
+            ageEpuisement: ageEpuisementMarker,
+            ageRetraite: ageRetraiteMarker,
+            ageDeces: elderStart + (resultat.annees.length - 1),
+            valeurNetteFinale: resultat.valeurNetteAuDernierDecesReelle,
+            sujet: 'Les dépenses du ménage',
+          }}
           indicateurs={[
-            {
-              label: 'Autonomie du capital',
-              valeur: resultat.suffisant ? 'Suffisant' : `Épuisé en ${resultat.anneeEpuisement}`,
-              ton: resultat.suffisant ? 'ok' : 'alerte',
-              aide: resultat.suffisant ? 'Dépenses financées jusqu’au dernier décès' : 'Dépenses non financées',
-            },
             {
               label: 'Valeur nette au dernier décès',
               valeur: formatDollars(resultat.valeurNetteAuDernierDecesReelle),
@@ -139,6 +141,12 @@ export function VueCouple() {
                 gainPatrimoine={optim.resultat.gainPatrimoineReel}
                 gainImpot={optim.resultat.gainImpotVieReel}
                 details={detailsCouple(optim.resultat.strategie)}
+                trajectoires={{
+                  base: optim.resultat.base.annees.map((an) => an.valeurNette * an.deflateurReel),
+                  optimisee: optim.resultat.resultat.annees.map((an) => an.valeurNette * an.deflateurReel),
+                  ageDe: elderStart,
+                  ageA: elderStart + (resultat.annees.length - 1),
+                }}
                 onAppliquer={optim.appliquerStrategie}
                 onFermer={optim.fermer}
               />
