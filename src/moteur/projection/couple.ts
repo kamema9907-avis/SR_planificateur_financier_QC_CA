@@ -235,10 +235,14 @@ function preparerPersonne(
  * `encaisse` et c'est le solveur qui décide ce qui est dépensé, le surplus étant replacé par
  * `placerSurplusRetraite`.
  */
-function poserHeritage(etat: EtatPersonne, ctx: Contexte) {
+function poserHeritage(etat: EtatPersonne, ctx: Contexte, annee: number, deductionDejaPrevue: number) {
   if (ctx.heritageRecu <= 0) return { celi: 0, reer: 0, nonEnr: 0, deductible: 0 };
+  // Revenu imposable restant après les déductions déjà prévues : borne le versement REER, car
+  // au-delà la déduction serait perdue (le moteur ne modélise pas son report).
+  const base = construireBase({ ...ctx.entree, deductionReer: deductionDejaPrevue }, annee);
+  const deductionUtilisable = Math.max(0, base.revenuTotalImpose - base.deductionsFederal);
   const droits = { droitsCeli: etat.droitsCeli, droitsReer: etat.droitsReer };
-  const pose = placerHeritage(etat.comptes, etat.profilDefaut, droits, ctx.heritageRecu, ctx.age);
+  const pose = placerHeritage(etat.comptes, etat.profilDefaut, droits, ctx.heritageRecu, ctx.age, deductionUtilisable);
   etat.droitsCeli = droits.droitsCeli;
   etat.droitsReer = droits.droitsReer;
   return pose;
@@ -686,8 +690,8 @@ export function projeterCouple(h: HypothesesCouple, options: { trace?: boolean }
         const cot2 = appliquerCotisations(etat2, facteurInflation, etat1);
         // Héritage : placé après l'épargne planifiée (qui a la priorité sur les droits), et avant le
         // calcul de l'impôt — la déduction REER qu'il ouvre doit entrer dans le fractionnement optimal.
-        const her1 = poserHeritage(etat1, ctx1);
-        const her2 = poserHeritage(etat2, ctx2);
+        const her1 = poserHeritage(etat1, ctx1, annee, cot1.deductible);
+        const her2 = poserHeritage(etat2, ctx2, annee, cot2.deductible);
         const e1 = { ...ctx1.entree, deductionReer: cot1.deductible + her1.deductible, cotisationFondsTravailleurs: cot1.fondsTravailleurs };
         const e2 = { ...ctx2.entree, deductionReer: cot2.deductible + her2.deductible, cotisationFondsTravailleurs: cot2.fondsTravailleurs };
         const opt = impotCoupleOptimal(e1, e2, annee, splittable(e1, ctx1.age, ctx1.renteEmp), splittable(e2, ctx2.age, ctx2.renteEmp));

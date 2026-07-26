@@ -76,6 +76,8 @@ Projette le patrimoine et l'impôt **année par année**, de l'âge actuel jusqu
   (déductible, consomme les droits) + crédit de **30 %** sur le 1er 5 000 $, obtenu même sans droits REER.
 - **Profils de rendement** (prudent / équilibré / dynamique) calibrés sur les Normes IQPF 2026.
 - **Rentes publiques** RRQ et SV (saisie manuelle) avec ajustement report/anticipation et indexation.
+- **Héritage** : apport ponctuel non imposable à un âge choisi, placé CELI → REER → non-enregistré
+  selon les droits restants (versement REER borné à la déduction utilisable).
 - **Rentes d'employeur / RREGOP** : rente de base + ponts, indexation configurable, calculateur RREGOP
   (formule 2 % + coordination à 65 ans). Imposables, admissibles au crédit pour revenu de pension.
 - **Minimums de retrait FERR/FRV** forcés dès 72 ans.
@@ -105,7 +107,7 @@ Deux conjoints entièrement modélisés (colonnes côte à côte), un ménage à
   tableau (avec le montant fractionné).
 
 ### Qualité / validation
-- **198 cas-tests automatisés** (moteur fiscal, cotisations, plafonds CELIAPP/CELI/REER, fonds de travailleurs, indexation, comptes, projection, décaissement, couple, immobilier dont terrain, optimiseur).
+- **225 cas-tests automatisés** (moteur fiscal, cotisations, plafonds CELIAPP/CELI/REER, fonds de travailleurs, indexation, comptes, projection, décaissement, couple, immobilier dont terrain, optimiseur).
 - Propriété clé du couple : le **fractionnement ne hausse jamais** l'impôt combiné (testé).
 - **Validation croisée** contre les taux marginaux combinés **publiés** du Québec 2026 :
   sommet **53,31 %**, 140 000 $ → **47,46 %**, 60 000 $ → **36,12 %**.
@@ -232,7 +234,7 @@ L'interface est en cours de refonte (« l'Atelier ») — voir [`PLAN_REFONTE_UI
 ```bash
 npm install      # installer les dépendances
 npm run dev      # développement (http://localhost:5173)
-npm test         # les 198 cas-tests
+npm test         # les 225 cas-tests
 npm run build    # version de production (dossier dist/, à héberger)
 npm run preview  # prévisualiser la version de production
 ```
@@ -291,6 +293,34 @@ options d'employé, analyse de sensibilité / Monte Carlo, autres provinces.
 ---
 
 ## 📓 Journal des modifications
+
+### 2026-07-26 — Nouvelle source d'apport : l'héritage
+- Conception passée au `/grill-me` avant toute ligne de code : unité de saisie, ordre de placement,
+  véhicules admissibles, mode couple, optimiseur, traçabilité.
+- **Non imposable à la réception** : au Canada, la succession du défunt règle l'impôt au décès. Le
+  montant est saisi en **dollars d'aujourd'hui** et indexé jusqu'à l'âge de réception.
+- **Placement CELI → REER → non-enregistré**, dans la limite des droits **restants** (l'épargne
+  planifiée passe d'abord : elle est choisie, l'héritage est un imprévu). La part versée au REER est
+  déductible ; le coût de base du non-enregistré est majoré de la part qui y aboutit.
+- **Véhicules écartés, et pourquoi** : CRI et FRV sont immobilisés (aucun versement personnel
+  possible) ; le CELIAPP demanderait de vérifier l'admissibilité à une première propriété, que le
+  moteur ne connaît pas ; le REEE n'a pas ses plafonds modélisés. Aucun versement REER après 71 ans.
+- **Piège découvert en vérifiant** : avec de gros droits REER accumulés, un héritage de 200 000 $
+  créait une déduction de 166 460 $ sur un revenu de 123 000 $ — revenu imposable **négatif** et
+  43 060 $ de déduction **perdus**, alors qu'une cotisation non déduite est reportable dans la
+  réalité. Le versement REER est désormais **borné au revenu imposable restant** : conservateur, et
+  jamais trompeur sur l'impôt de l'année. Le report de déduction reste non modélisé (limite connue).
+- **Retraite** : l'héritage entre dans l'encaisse comme un produit de vente immobilière — il finance
+  les dépenses de l'année d'abord, seul le surplus est placé.
+- **Couple** : chaque conjoint a SES héritages, dans SES comptes, consommant SES droits. Un héritage
+  n'est jamais commun (une succession désigne un héritier ; au Québec il reste un bien propre).
+- **Interface** : étape « Héritage » (facultative) entre « Rentes d'employeur » et « Immobilier »,
+  badge 🎁 sur l'année, poste « Héritage reçu (non imposable) » au tiroir de détail, et validations
+  (âge hors horizon → erreur ; reçu l'année du décès → avertissement).
+- **L'optimiseur n'y touche pas** (on ne choisit pas quand on hérite) mais en tient compte, puisqu'il
+  évalue chaque stratégie avec `projeter`.
+- **225 cas-tests verts** (+25 : indexation, placement, plafonds, non-imposition, borne de déduction,
+  cas limites, couple, validations).
 
 ### 2026-07-26 — Refonte de l'interface, lot 4 : sauvegarde, scénarios, performance, impression
 - **Verdict neutre** sur un dossier vierge : le bandeau annonçait « OBJECTIF FINANCÉ » sur du néant

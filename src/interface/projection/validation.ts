@@ -87,6 +87,23 @@ function validerPersonne(p: ChampsPersonne, etapeAges: string, prefixe = ''): Al
     }
   }
 
+  for (const h of p.heritages ?? []) {
+    if (h.montant > 0 && (h.age < p.ageActuel || h.age > p.ageDeces)) {
+      a.push({
+        etape: 'heritage',
+        niveau: 'erreur',
+        message: qui(`l'héritage « ${h.nom} » est reçu à ${h.age} ans, hors de l'horizon (${p.ageActuel} à ${p.ageDeces} ans) : il sera ignoré.`),
+      });
+    }
+    if (h.montant > 0 && h.age === p.ageDeces) {
+      a.push({
+        etape: 'heritage',
+        niveau: 'attention',
+        message: qui(`l'héritage « ${h.nom} » est reçu l'année du décès : il sera imposé aussitôt dans les dispositions présumées.`),
+      });
+    }
+  }
+
   for (const t of p.periodesTravail ?? []) {
     if (t.ageFin <= t.ageDebut) {
       a.push({

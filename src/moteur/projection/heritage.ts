@@ -70,6 +70,13 @@ function trouverOuCreer(comptes: Compte[], type: TypeCompte, profil: ProfilRende
  * Le CELIAPP est volontairement exclu : le moteur ne peut pas vérifier l'admissibilité (achat d'une
  * première propriété). Le CRI et le FRV sont immobilisés, donc inéligibles à tout versement.
  * Au-delà de 71 ans, plus aucun versement REER n'est permis.
+ *
+ * `deductionUtilisable` borne le versement REER au revenu imposable qu'il reste à effacer cette
+ * année-là. Sans cette borne, un héritage de 200 000 $ avec de gros droits REER accumulés créait une
+ * déduction de 166 000 $ sur un revenu de 123 000 $ : l'impôt tombait à zéro et les 43 000 $
+ * excédentaires étaient **perdus**, alors que dans la réalité une cotisation non déduite est
+ * reportable indéfiniment. Le moteur ne modélisant pas ce report, on préfère ne verser au REER que
+ * ce qui procure une déduction immédiate — conservateur, et jamais trompeur sur l'impôt de l'année.
  */
 export function placerHeritage(
   comptes: Compte[],
@@ -77,6 +84,7 @@ export function placerHeritage(
   droits: DroitsHeritage,
   montant: number,
   age: number,
+  deductionUtilisable: number,
 ): PlacementHeritage {
   let reste = Math.max(0, montant);
   if (reste === 0) return { celi: 0, reer: 0, nonEnr: 0, deductible: 0 };
@@ -89,8 +97,9 @@ export function placerHeritage(
   }
 
   let reer = 0;
-  if (reste > 0 && age <= AGE_CONVERSION_FERR && droits.droitsReer > 0) {
-    reer = Math.min(reste, droits.droitsReer);
+  const plafondReer = Math.min(droits.droitsReer, Math.max(0, deductionUtilisable));
+  if (reste > 0 && age <= AGE_CONVERSION_FERR && plafondReer > 0) {
+    reer = Math.min(reste, plafondReer);
     trouverOuCreer(comptes, 'REER', profilDefaut).solde += reer;
     droits.droitsReer -= reer;
     reste -= reer;

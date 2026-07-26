@@ -170,3 +170,39 @@ describe('validation du couple', () => {
     expect(alertesMenage(h).some((x) => x.etape === 'depenses')).toBe(true);
   });
 });
+
+describe('validation des héritages', () => {
+  it('accepte un héritage dans l’horizon', () => {
+    const a = validerSolo({ ...soloValide(), heritages: [{ nom: 'Succession', montant: 200_000, age: 58 }] });
+    expect(surEtape(a, 'heritage')).toEqual([]);
+  });
+
+  it('refuse un héritage reçu avant l’âge actuel', () => {
+    const a = validerSolo({ ...soloValide(), heritages: [{ nom: 'S', montant: 100_000, age: 30 }] });
+    expect(surEtape(a, 'heritage').some((x) => x.niveau === 'erreur')).toBe(true);
+    expect(messages(a)).toContain('hors de l');
+  });
+
+  it('refuse un héritage reçu après le décès', () => {
+    const a = validerSolo({ ...soloValide(), heritages: [{ nom: 'S', montant: 100_000, age: 99 }] });
+    expect(surEtape(a, 'heritage').some((x) => x.niveau === 'erreur')).toBe(true);
+  });
+
+  it('signale un héritage reçu l’année du décès', () => {
+    const a = validerSolo({ ...soloValide(), heritages: [{ nom: 'S', montant: 100_000, age: 95 }] });
+    expect(surEtape(a, 'heritage').some((x) => x.message.includes('dispositions présumées'))).toBe(true);
+  });
+
+  it('ignore un héritage à montant nul, même hors horizon', () => {
+    const a = validerSolo({ ...soloValide(), heritages: [{ nom: 'S', montant: 0, age: 200 }] });
+    expect(surEtape(a, 'heritage')).toEqual([]);
+  });
+
+  it('nomme le conjoint concerné en mode couple', () => {
+    const h = coupleValide();
+    h.personne2 = conjoint('Conjointe', { heritages: [{ nom: 'S', montant: 50_000, age: 20 }] });
+    expect(alertesPersonne(h, 'personne1')).toEqual([]);
+    const a = alertesPersonne(h, 'personne2');
+    expect(a.some((x) => x.etape === 'heritage' && x.message.includes('Conjointe'))).toBe(true);
+  });
+});

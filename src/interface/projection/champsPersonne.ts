@@ -10,7 +10,7 @@
  * l'assignation). Les mises à jour passent par un patch que le parent applique à SON propre type,
  * ce qui préserve l'immutabilité côté moteur.
  */
-import type { Compte, PeriodeTravail, RenteEmployeur, TypeCompte } from '../../moteur';
+import type { Compte, Heritage, PeriodeTravail, RenteEmployeur, TypeCompte } from '../../moteur';
 
 export interface ChampsPersonne {
   ageActuel: number;
@@ -20,6 +20,7 @@ export interface ChampsPersonne {
   revenuEmploi: number;
   croissanceSalaireReelle: number;
   periodesTravail?: readonly PeriodeTravail[];
+  heritages?: readonly Heritage[];
 
   epargneAnnuelle: Partial<Record<TypeCompte, number>>;
   celiappDejaCotise?: number;

@@ -59,6 +59,8 @@ function Badges({ a, ageEpuisement }: { a: AnneeProjection; ageEpuisement: numbe
   if (d && d.impot.impotDeces > 0.5) badges.push({ e: '💀', t: 'Décès — impôt sur dispositions présumées' });
   const vente = d?.disponible.entrees.find((p) => p.libelle.startsWith('Produit de vente') && p.montant > 0.5);
   if (vente) badges.push({ e: '🏠', t: 'Vente / downsizing immobilier' });
+  const heritage = d?.disponible.entrees.find((p) => p.libelle.startsWith('Héritage') && p.montant > 0.5);
+  if (heritage) badges.push({ e: '🎁', t: 'Héritage reçu (non imposable)' });
   if (d && d.disponible.surplus > 0.5) badges.push({ e: '💰', t: 'Surplus réinvesti' });
   if (ageEpuisement != null && a.age === ageEpuisement) badges.push({ e: '⚠️', t: 'Capital épuisé' });
   if (badges.length === 0) return null;

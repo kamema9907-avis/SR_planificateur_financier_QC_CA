@@ -32,6 +32,8 @@ const COLS_REVENUS: Colonne[] = [
 function Badges({ a, anneeEpuisement }: { a: AnneeCouple; anneeEpuisement: number | null }) {
   const badges: { e: string; t: string }[] = [];
   if (a.phase === 'survie') badges.push({ e: '🕊️', t: 'Phase de survie (un seul conjoint)' });
+  const heritage = a.detail?.disponible.entrees.find((p) => p.libelle.startsWith('Héritage') && p.montant > 0.5);
+  if (heritage) badges.push({ e: '🎁', t: 'Héritage reçu (non imposable)' });
   if (a.detail && a.detail.disponible.surplus > 0.5) badges.push({ e: '💰', t: 'Surplus réinvesti' });
   if (anneeEpuisement != null && a.annee === anneeEpuisement) badges.push({ e: '⚠️', t: 'Capital épuisé' });
   if (badges.length === 0) return null;

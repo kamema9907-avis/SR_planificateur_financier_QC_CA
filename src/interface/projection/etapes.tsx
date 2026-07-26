@@ -14,6 +14,7 @@ import { Avance } from '../ui/ModeDetail';
 import type { Etape, Groupe } from '../atelier/types';
 import type { ChampsPersonne, PatchPersonne } from './champsPersonne';
 import { EditeurComptes } from './EditeurComptes';
+import { SectionHeritage } from './SectionHeritage';
 import { SectionImmobilier } from './SectionImmobilier';
 import { SectionRentesEmployeur } from './SectionRentesEmployeur';
 import { SectionTravailRetraite } from './SectionTravailRetraite';
@@ -171,6 +172,31 @@ function etapesCommunes(
           rentes={p.rentesEmployeur}
           ageRetraite={p.ageRetraite}
           onChange={(rentesEmployeur) => onChange({ rentesEmployeur })}
+        />
+      ),
+    },
+    {
+      id: 'heritage',
+      titre: 'Héritage',
+      description: 'Sommes que vous attendez d’une succession, et l’âge auquel vous les recevriez.',
+      aide: (
+        <>
+          Un héritage n'est <strong>pas imposable</strong> pour vous : la succession du défunt a déjà
+          réglé l'impôt au décès. Le montant est donc placé net, dans l'ordre
+          <strong> CELI → REER → non-enregistré</strong>, selon les droits qu'il vous reste — la part
+          versée au REER vous donne une déduction. Reçu pendant la retraite, il finance d'abord les
+          dépenses de l'année et seul le surplus est placé. Le CELIAPP est écarté (impossible de
+          vérifier l'admissibilité à une première propriété) ; le CRI et le FRV sont immobilisés et
+          n'acceptent aucun versement.
+        </>
+      ),
+      rempli: (p.heritages ?? []).some((h) => h.montant > 0),
+      optionnel: true,
+      contenu: (
+        <SectionHeritage
+          heritages={p.heritages ?? []}
+          ageActuel={p.ageActuel}
+          onChange={(heritages) => onChange({ heritages })}
         />
       ),
     },

@@ -9,7 +9,7 @@
 import { ANNEE_BASE } from '../constantes/indexation';
 import { AGE_CONVERSION_FERR, facteurRetraitMinimumFERR } from '../constantes/ferr';
 import type { ProfilRendement } from '../constantes/profilsRendement';
-import { impotTotalPour } from '../moteurFiscal';
+import { construireBase, impotTotalPour } from '../moteurFiscal';
 import { calculerCotisations, parametresCotisations } from '../cotisations';
 import type { EntreeFiscale } from '../types';
 import {
@@ -374,8 +374,24 @@ export function projeter(h: HypothesesProjection, options: { trace?: boolean } =
       // droits RESTANTS. L'épargne planifiée ci-dessus a servi la première : elle est choisie, alors
       // que l'héritage est un imprévu. La part versée au REER est déductible du revenu de l'année.
       if (heritageRecu > 0) {
+        // Ce qu'il reste de revenu imposable une fois les déductions déjà prévues appliquées :
+        // au-delà, un versement REER ne procurerait plus aucune économie d'impôt.
+        const entreeSansHeritage: EntreeFiscale = {
+          ...nouvelleEntree(age, h.vitSeul),
+          revenuEmploi,
+          revenuRRQ: rrq,
+          revenuPensionSV: sv,
+          revenuPensionPrivee: minimumFERR + renteEmp,
+          autresRevenus: interetNonEnr + immo.revenuImposable,
+          dividendesDetermines: dividendesNonEnr,
+          gainsCapital: immo.gainBrut,
+          deductionReer: deductible,
+        };
+        const baseAvant = construireBase(entreeSansHeritage, annee);
+        const deductionUtilisable = Math.max(0, baseAvant.revenuTotalImpose - baseAvant.deductionsFederal);
+
         const droits = { droitsCeli, droitsReer };
-        const pose = placerHeritage(comptes, profilDefaut, droits, heritageRecu, age);
+        const pose = placerHeritage(comptes, profilDefaut, droits, heritageRecu, age, deductionUtilisable);
         droitsCeli = droits.droitsCeli;
         droitsReer = droits.droitsReer;
         deductible += pose.deductible;

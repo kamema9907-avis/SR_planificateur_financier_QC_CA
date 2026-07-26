@@ -89,6 +89,31 @@ describe('héritage — placement pendant l’accumulation', () => {
     expect(a.impotTotal).toBeLessThan(anneeDeLAge(sans, 52).impotTotal);
   });
 
+  it('ne verse au REER que ce qui procure une déduction utilisable', () => {
+    // Droits REER énormes, revenu modeste : sans borne, la déduction dépasserait le revenu et
+    // l'excédent serait perdu (le moteur ne modélise pas le report de déduction).
+    const r = projeter(
+      hypotheses({
+        revenuEmploi: 60_000,
+        ageDeces: 55,
+        droitsCeliDisponibles: 0,
+        droitsReerDisponibles: 500_000,
+        heritages: [{ nom: 'S', montant: 400_000, age: 50 }],
+      }),
+      { trace: true },
+    );
+
+    const a = anneeDeLAge(r, 50);
+    // Le revenu imposable ne devient jamais négatif : aucune déduction gaspillée.
+    const imposable = a.detail!.impot.revenuImposable.reduce((s, p) => s + p.montant, 0);
+    expect(imposable).toBeGreaterThanOrEqual(0);
+    // Le REER reçoit au plus le revenu imposable de l'année, le reste va au non-enregistré.
+    expect(a.soldes.REER).toBeLessThanOrEqual(65_000);
+    expect(a.soldes.NON_ENREGISTRE).toBeGreaterThan(300_000);
+    // Et la totalité de l'héritage est bien placée.
+    expect(a.soldes.REER + a.soldes.NON_ENREGISTRE + a.soldes.CELI).toBeCloseTo(400_000, 0);
+  });
+
   it('n’est jamais imposé à la réception', () => {
     const commun = { revenuEmploi: 60_000, ageDeces: 55, droitsCeliDisponibles: 500_000 };
     // Droits CELI énormes : tout va au CELI, aucune déduction REER ne vient brouiller la comparaison.
