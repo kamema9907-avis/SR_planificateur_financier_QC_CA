@@ -44,7 +44,7 @@ export function PanneauScenarios({ lignes, onEnregistrer, onCharger, onSupprimer
       </p>
 
       <form
-        className="mb-4 flex flex-wrap items-center gap-2"
+        className="sansimpression mb-4 flex flex-wrap items-center gap-2"
         onSubmit={(e) => {
           e.preventDefault();
           onEnregistrer(nom);
@@ -115,7 +115,7 @@ export function PanneauScenarios({ lignes, onEnregistrer, onCharger, onSupprimer
                     <span className="chiffres text-slate-700">{formatDollars(l.impotVie)}</span>
                     <Mieux actif={gagnants.impot.includes(l.id)} />
                   </td>
-                  <td className="px-3 py-2 text-right whitespace-nowrap">
+                  <td className="sansimpression px-3 py-2 text-right whitespace-nowrap">
                     {!l.courant && (
                       <span className="inline-flex gap-1">
                         <button

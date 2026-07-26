@@ -131,3 +131,64 @@
     @apply mt-4 rounded-xl bg-amber-50/70 p-4 ring-1 ring-amber-500/20;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Impression et export PDF.
+
+   L'atelier n'affiche qu'une étape à la fois à l'écran ; `useImpression` les
+   déplie toutes avant d'appeler window.print(). Ici on retire ce qui n'a pas de
+   sens sur papier (barres d'outils, navigation, boutons) et on remet à plat les
+   trois colonnes, qui deviendraient illisibles sur une feuille A4.
+   --------------------------------------------------------------------------- */
+@media print {
+  /* Fonds imprimables : les dégradés de marque coûtent de l'encre pour rien,
+     mais le verdict doit rester lisible. */
+  body {
+    background: none !important;
+  }
+
+  /* `.sansimpression` n'est définie qu'ici : c'est un simple marqueur, sans
+     effet à l'écran. Les boutons de commande disparaissent ; ceux des tableaux
+     détaillés restent, car ils PORTENT les montants (drill-down). */
+  .sansimpression,
+  .bouton-primaire,
+  .bouton-secondaire,
+  .bouton-marque,
+  .bouton-fantome,
+  .bouton-ajout,
+  .bouton-suppr {
+    display: none !important;
+  }
+
+  /* Les trois colonnes de l'atelier passent en une seule. */
+  .grid {
+    display: block !important;
+  }
+
+  /* Rien ne doit rester collé : tout défile sur la feuille. */
+  .sticky,
+  .lg\:sticky {
+    position: static !important;
+  }
+
+  /* Les cartes ne doivent pas se couper entre deux pages. */
+  .carte {
+    break-inside: avoid;
+    box-shadow: none !important;
+    background: #fff !important;
+  }
+
+  /* Les tableaux année par année sont défilables à l'écran : tout imprimer. */
+  .max-h-\[30rem\] {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  a[href]::after {
+    content: '';
+  }
+
+  @page {
+    margin: 14mm;
+  }
+}

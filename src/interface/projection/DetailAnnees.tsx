@@ -155,7 +155,7 @@ export function DetailAnnees({ annees, reel, ageEpuisement }: Props) {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-slate-400">Cliquez un montant <span className="text-marque-600 underline decoration-dotted">souligné</span> pour ouvrir le détail du calcul.</p>
-        <div className="inline-flex rounded-lg bg-slate-100 p-0.5 ring-1 ring-slate-200">
+        <div className="sansimpression inline-flex rounded-lg bg-slate-100 p-0.5 ring-1 ring-slate-200">
           <button type="button" onClick={() => setModeComplet(false)} className={ong(!modeComplet)}>Par thème</button>
           <button type="button" onClick={() => setModeComplet(true)} className={ong(modeComplet)}>Tout voir</button>
         </div>

@@ -37,7 +37,7 @@ export function RailEtapes({ etapes, actif, onChoisir }: Props) {
   const { faites, total } = progression(etapes);
 
   return (
-    <nav aria-label="Étapes de la saisie" className="lg:sticky lg:top-6 lg:self-start">
+    <nav aria-label="Étapes de la saisie" className="sansimpression lg:sticky lg:top-6 lg:self-start">
       <ol className="flex gap-1.5 overflow-x-auto pb-2 lg:flex-col lg:gap-0.5 lg:overflow-visible lg:pb-0">
         {etapes.map((e, i) => {
           const estActif = e.id === actif;

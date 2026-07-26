@@ -1,5 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { Aide } from '../ui/Aide';
+import { useImpression } from '../ui/Impression';
 import { ListeAlertes } from '../ui/ListeAlertes';
 import { RailEtapes } from './RailEtapes';
 import type { Groupe } from './types';
@@ -28,6 +29,8 @@ interface Props {
 export function Atelier({ groupes, resultat, dessous, actions }: Props) {
   const [idGroupe, setIdGroupe] = useState(groupes[0].id);
   const [idEtape, setIdEtape] = useState(groupes[0].etapes[0].id);
+  /** À l'impression, toutes les étapes sont dépliées : un PDF d'une étape sur huit ne sert à rien. */
+  const impression = useImpression();
 
   const groupe = groupes.find((g) => g.id === idGroupe) ?? groupes[0];
   const etapes = groupe.etapes;
@@ -52,7 +55,7 @@ export function Atelier({ groupes, resultat, dessous, actions }: Props) {
   return (
     <div className="space-y-6">
       {(ongletsGroupes || actions) && (
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="sansimpression flex flex-wrap items-center justify-between gap-3">
           {ongletsGroupes ? (
             <div className="inline-flex flex-wrap rounded-xl bg-slate-100 p-1 ring-1 ring-slate-200">
               {groupes.map((g) => (
@@ -86,9 +89,9 @@ export function Atelier({ groupes, resultat, dessous, actions }: Props) {
         <div className="order-2 lg:order-last lg:sticky lg:top-6 lg:self-start">{resultat}</div>
 
         {/* Étape courante */}
-        <div className="order-3 lg:order-none">
+        <div className="order-3 space-y-4 lg:order-none">
           {etapes.map((e, i) => (
-            <section key={e.id} className="carte p-6" hidden={e.id !== etape.id}>
+            <section key={e.id} className="carte p-6" hidden={!impression && e.id !== etape.id}>
               <header className="mb-4">
                 <p className="text-xs font-medium tracking-wide text-slate-400 uppercase">
                   Étape {i + 1} sur {etapes.length}
@@ -105,7 +108,7 @@ export function Atelier({ groupes, resultat, dessous, actions }: Props) {
             </section>
           ))}
 
-          <div className="mt-4 flex items-center justify-between gap-3">
+          <div className="mt-4 flex items-center justify-between gap-3 sansimpression">
             <button
               type="button"
               onClick={() => aller(-1)}

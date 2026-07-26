@@ -29,7 +29,7 @@ export function Aide({ titre, children }: { titre: string; children: ReactNode }
   }, [ouvert]);
 
   return (
-    <span ref={conteneur} className="relative inline-block align-middle">
+    <span ref={conteneur} className="sansimpression relative inline-block align-middle">
       <button
         type="button"
         onClick={() => setOuvert((o) => !o)}

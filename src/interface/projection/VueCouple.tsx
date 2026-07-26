@@ -215,7 +215,7 @@ export function VueCouple() {
           <div className="carte p-5">
             <div className="mb-3 flex items-center justify-between">
               <h3 className="font-semibold text-slate-800">Patrimoine du ménage</h3>
-              <label className="flex items-center gap-2 text-xs text-slate-500">
+              <label className="sansimpression flex items-center gap-2 text-xs text-slate-500">
                 <span>Dollars d'aujourd'hui</span>
                 <Interrupteur label="" valeur={!reel} onChange={(v) => setReel(!v)} />
                 <span>Nominaux</span>

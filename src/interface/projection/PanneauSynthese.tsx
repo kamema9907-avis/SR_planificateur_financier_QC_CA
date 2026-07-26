@@ -84,7 +84,7 @@ export function PanneauSynthese({
       <div className="carte p-4">
         <div className="mb-2 flex items-center justify-between gap-2">
           <h3 className="text-sm font-semibold text-slate-800">Valeur nette</h3>
-          <label className="flex items-center gap-1.5 text-[11px] text-slate-500">
+          <label className="sansimpression flex items-center gap-1.5 text-[11px] text-slate-500">
             <span>$ d'aujourd'hui</span>
             <Interrupteur label="" valeur={!reel} onChange={(v) => onReel(!v)} />
             <span>Nominaux</span>

@@ -3,6 +3,7 @@ import { VueImpotAnnuel } from './interface/VueImpotAnnuel';
 import { VueProjection } from './interface/projection/VueProjection';
 import { BoutonsDossier } from './interface/ui/BoutonsDossier';
 import { IconeCadenas, IconeCourbe } from './interface/ui/icones';
+import { BoutonImprimer, ImpressionProvider } from './interface/ui/Impression';
 import { ModeDetailProvider } from './interface/ui/ModeDetail';
 
 type Onglet = 'impot' | 'projection';
@@ -17,6 +18,7 @@ export function App() {
 
   return (
     <ModeDetailProvider>
+    <ImpressionProvider>
     <div className="min-h-screen">
       <header className="border-b border-slate-200/70 bg-white/60 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6">
@@ -33,6 +35,7 @@ export function App() {
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <BoutonsDossier />
+            <BoutonImprimer />
             <span className="inline-flex items-center gap-1.5 rounded-full bg-marque-50 px-3 py-1.5 text-xs font-medium text-marque-700 ring-1 ring-marque-500/20">
               <IconeCadenas />
               100 % local — vos données restent sur votre appareil
@@ -41,7 +44,7 @@ export function App() {
         </div>
 
         {/* Onglets */}
-        <div className="mx-auto max-w-7xl px-4 sm:px-6">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 sansimpression">
           <nav className="flex gap-1">
             {ONGLETS.map((o) => {
               const actif = o.id === onglet;
@@ -77,6 +80,7 @@ export function App() {
         </p>
       </main>
     </div>
+    </ImpressionProvider>
     </ModeDetailProvider>
   );
 }

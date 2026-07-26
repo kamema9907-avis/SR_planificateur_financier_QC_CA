@@ -127,7 +127,7 @@ export function VueProjection() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-3">
+      <div className="sansimpression flex items-center justify-between gap-3">
         <div className="inline-flex rounded-xl bg-slate-100 p-1 ring-1 ring-slate-200">
           {(['solo', 'couple'] as const).map((m) => (
             <button
@@ -233,7 +233,7 @@ export function VueProjection() {
               <div className="carte p-5">
                 <div className="mb-3 flex items-center justify-between">
                   <h3 className="font-semibold text-slate-800">Évolution du patrimoine</h3>
-                  <label className="flex items-center gap-2 text-xs text-slate-500">
+                  <label className="sansimpression flex items-center gap-2 text-xs text-slate-500">
                     <span>Dollars d'aujourd'hui</span>
                     <Interrupteur label="" valeur={!reel} onChange={(v) => setReel(!v)} />
                     <span>Nominaux</span>
