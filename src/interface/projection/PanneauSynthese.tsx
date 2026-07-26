@@ -23,9 +23,18 @@ interface Props {
   ageRetraite: number;
   ageEpuisement: number | null;
   /** Barre de lancement de l'optimiseur (label et texte d'aide propres au mode). */
-  optimiseur: { label: string; aide: string; calcul: boolean; onLancer: () => void };
+  optimiseur: {
+    label: string;
+    aide: string;
+    calcul: boolean;
+    onLancer: () => void;
+    onAnnuler: () => void;
+    erreur?: string | null;
+  };
   /** Panneau de stratégie optimisée, quand l'optimiseur a tourné. */
   optimisation?: ReactNode;
+  /** Un recalcul est en cours : les chiffres affichés sont ceux de la saisie précédente. */
+  enRetard?: boolean;
 }
 
 /**
@@ -43,9 +52,10 @@ export function PanneauSynthese({
   ageEpuisement,
   optimiseur,
   optimisation,
+  enRetard = false,
 }: Props) {
   return (
-    <div className="space-y-4">
+    <div className={`space-y-4 transition-opacity duration-200 ${enRetard ? 'opacity-60' : ''}`}>
       {/* La réponse d'abord, l'action ensuite : « ça ne tient pas » appelle « optimisez ». */}
       <Verdict v={verdict} />
 
@@ -54,7 +64,14 @@ export function PanneauSynthese({
         aide={optimiseur.aide}
         calcul={optimiseur.calcul}
         onLancer={optimiseur.onLancer}
+        onAnnuler={optimiseur.onAnnuler}
       />
+
+      {optimiseur.erreur && (
+        <p role="alert" className="rounded-xl bg-rose-50/70 px-3.5 py-2.5 text-xs text-rose-800 ring-1 ring-rose-500/20">
+          {optimiseur.erreur}
+        </p>
+      )}
 
       {optimisation}
 

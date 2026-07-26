@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useDeferredValue, useMemo, useState } from 'react';
 import {
   optimiserProjection,
   projeter,
@@ -81,9 +81,16 @@ export function VueProjection() {
   const [mode, setMode] = useState<'solo' | 'couple'>('solo');
 
   const appliquer = useCallback((strategie: HypothesesProjection) => setH(strategie), [setH]);
-  const optim = useOptimiseur(h, optimiserProjection, appliquer);
+  const optim = useOptimiseur({ donnees: h, mode: 'solo', optimiserSync: optimiserProjection, appliquer });
 
-  const resultat = useMemo(() => projeter(h, { trace: true }), [h]);
+  /**
+   * La saisie reste prioritaire : `projeter` simule 55 années à chaque frappe, avec la trace
+   * complète. React peint donc d'abord le champ modifié, puis rattrape le calcul — l'ancien
+   * résultat reste affiché en attendant, légèrement estompé.
+   */
+  const hDiffere = useDeferredValue(h);
+  const enRetard = hDiffere !== h;
+  const resultat = useMemo(() => projeter(hDiffere, { trace: true }), [hDiffere]);
   const points = useMemo(
     () => resultat.annees.map((a) => ({ ...a, immobilier: a.equiteImmobiliere })),
     [resultat],
@@ -176,11 +183,14 @@ export function VueProjection() {
               onReel={setReel}
               ageRetraite={h.ageRetraite}
               ageEpuisement={resultat.ageEpuisement}
+              enRetard={enRetard}
               optimiseur={{
                 label: 'Optimiser la stratégie',
                 aide: 'Décaissement, fonte du REER, RRQ/SV, ventes.',
                 calcul: optim.calcul,
                 onLancer: optim.lancer,
+                onAnnuler: optim.annuler,
+                erreur: optim.erreur,
               }}
               optimisation={
                 optim.resultat && (

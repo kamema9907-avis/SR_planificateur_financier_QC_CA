@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useDeferredValue, useMemo } from 'react';
 import {
   optimiserCouple,
   projeterCouple,
@@ -74,9 +74,12 @@ export function VueCouple() {
   const { reel, setReel } = useAffichageReel();
 
   const appliquer = useCallback((strategie: HypothesesCouple) => setH(strategie), [setH]);
-  const optim = useOptimiseur(h, optimiserCouple, appliquer);
+  const optim = useOptimiseur({ donnees: h, mode: 'couple', optimiserSync: optimiserCouple, appliquer });
 
-  const resultat = useMemo(() => projeterCouple(h, { trace: true }), [h]);
+  /** La saisie reste prioritaire : le résultat précédent reste affiché, estompé, le temps du calcul. */
+  const hDiffere = useDeferredValue(h);
+  const enRetard = hDiffere !== h;
+  const resultat = useMemo(() => projeterCouple(hDiffere, { trace: true }), [hDiffere]);
 
   // Scénarios : chaque enregistrement est réévalué sans trace (inutile ici, et bien plus rapide).
   const { scenarios, enregistrer, supprimer, renommer } = useScenarios<HypothesesCouple>(CLE_SCENARIOS);
@@ -168,11 +171,14 @@ export function VueCouple() {
           onReel={setReel}
           ageRetraite={ageRetraiteMarker}
           ageEpuisement={ageEpuisementMarker}
+          enRetard={enRetard}
           optimiseur={{
             label: 'Optimiser le couple',
             aide: 'Fractionnement, décaissement coordonné, fonte, RRQ/SV, ventes.',
             calcul: optim.calcul,
             onLancer: optim.lancer,
+            onAnnuler: optim.annuler,
+            erreur: optim.erreur,
           }}
           optimisation={
             optim.resultat && (
