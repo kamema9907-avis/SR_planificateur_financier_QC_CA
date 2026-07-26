@@ -1,29 +1,8 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { Aide } from '../ui/Aide';
+import { ListeAlertes } from '../ui/ListeAlertes';
 import { RailEtapes } from './RailEtapes';
-import type { Etape, Groupe } from './types';
-
-/** Anomalies de l'étape courante, en tête de la carte. */
-function ListeAlertes({ alertes }: { alertes: Etape['alertes'] }) {
-  if (!alertes || alertes.length === 0) return null;
-  return (
-    <ul className="mb-4 space-y-2">
-      {alertes.map((a, i) => (
-        <li
-          key={i}
-          className={`flex gap-2 rounded-xl px-3.5 py-2.5 text-xs leading-relaxed ring-1 ${
-            a.niveau === 'erreur'
-              ? 'bg-rose-50/70 text-rose-800 ring-rose-500/20'
-              : 'bg-amber-50/70 text-amber-800 ring-amber-500/20'
-          }`}
-        >
-          <span aria-hidden="true">{a.niveau === 'erreur' ? '⛔' : '⚠️'}</span>
-          <span>{a.message}</span>
-        </li>
-      ))}
-    </ul>
-  );
-}
+import type { Groupe } from './types';
 
 interface Props {
   /** Un seul groupe en solo (la barre de groupes est alors masquée) ; trois en couple. */

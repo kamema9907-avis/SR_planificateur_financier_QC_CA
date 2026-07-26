@@ -3,9 +3,9 @@
 > **Document vivant** : synthèse de tout ce que le projet fait à ce jour. À mettre à jour au fil des
 > phases. Voir le [journal des modifications](#-journal-des-modifications) à la fin pour l'historique.
 >
-> Dernière mise à jour : **2026-07-25** — **refonte de l'interface, lots 0 à 2** : fondations partagées,
-> coquille « Atelier » (rail d'étapes + résultat collant), densité de saisie et validations croisées.
-> Voir [`PLAN_REFONTE_UI.md`](PLAN_REFONTE_UI.md). Auparavant : crédit fonds de travailleurs dans la projection,
+> Dernière mise à jour : **2026-07-25** — **refonte de l'interface, lots 0 à 2.5** : fondations partagées,
+> coquille « Atelier » (rail d'étapes + résultat collant), densité de saisie, validations croisées, et
+> mise à niveau de l'onglet Impôt. Voir [`PLAN_REFONTE_UI.md`](PLAN_REFONTE_UI.md). Auparavant : crédit fonds de travailleurs dans la projection,
 > droits REER (avec facteur d'équivalence), terrain vacant, plafonds CELIAPP / droits CELI, cotisations
 > sociales, syndicat, assurance-salaire, survivant RRQ.
 
@@ -103,7 +103,7 @@ Deux conjoints entièrement modélisés (colonnes côte à côte), un ménage à
   tableau (avec le montant fractionné).
 
 ### Qualité / validation
-- **161 cas-tests automatisés** (moteur fiscal, cotisations, plafonds CELIAPP/CELI/REER, fonds de travailleurs, indexation, comptes, projection, décaissement, couple, immobilier dont terrain, optimiseur).
+- **171 cas-tests automatisés** (moteur fiscal, cotisations, plafonds CELIAPP/CELI/REER, fonds de travailleurs, indexation, comptes, projection, décaissement, couple, immobilier dont terrain, optimiseur).
 - Propriété clé du couple : le **fractionnement ne hausse jamais** l'impôt combiné (testé).
 - **Validation croisée** contre les taux marginaux combinés **publiés** du Québec 2026 :
   sommet **53,31 %**, 140 000 $ → **47,46 %**, 60 000 $ → **36,12 %**.
@@ -230,7 +230,7 @@ L'interface est en cours de refonte (« l'Atelier ») — voir [`PLAN_REFONTE_UI
 ```bash
 npm install      # installer les dépendances
 npm run dev      # développement (http://localhost:5173)
-npm test         # les 161 cas-tests
+npm test         # les 171 cas-tests
 npm run build    # version de production (dossier dist/, à héberger)
 npm run preview  # prévisualiser la version de production
 ```
@@ -273,7 +273,7 @@ Conséquence : les montants sont de bonnes **estimations de planification**, pas
    du REER, âges RRQ/SV, ventes immobilières. Maximise le patrimoine net au décès.
 6. **Phase 5** — **Refonte de l'interface (« l'Atelier »)**, export/import, partage. Plan détaillé en
    6 lots dans [`PLAN_REFONTE_UI.md`](PLAN_REFONTE_UI.md) : **lot 0 (fondations) ✅ fait**,
-   **lot 1 (coquille à 3 zones et rail d’étapes) ✅ fait**, **lot 2 (densité de saisie) ✅ fait**, lot 3
+   **lot 1 (coquille à 3 zones et rail d’étapes) ✅ fait**, **lot 2 (densité de saisie) ✅ fait**, **lot 2.5 (onglet Impôt) ✅ fait**, lot 3
    (résultats), lot 4 (scénarios A/B, export, Web Worker), lot 5 (mode sombre, mobile, accessibilité).
    (**Hébergement : ✅ fait** — GitHub Pages, déploiement automatique à chaque `git push`.)
 
@@ -283,6 +283,25 @@ options d'employé, analyse de sensibilité / Monte Carlo, autres provinces.
 ---
 
 ## 📓 Journal des modifications
+
+### 2026-07-25 — Onglet Impôt mis à niveau + actions CI à jour
+- Les lots 0 à 2 n'avaient refondu que la Projection : l'onglet Impôt gardait ses sections empilées,
+  sans bascule ni infobulles — une incohérence créée par la refonte elle-même. Il adopte maintenant
+  les mêmes conventions, **sans** l'Atelier : son formulaire tient déjà à l'écran et ses résultats
+  sont déjà collants, le découper en étapes forcerait des allers-retours inutiles.
+- **Bascule Essentiel / Avancé** partagée : **18 → 10 champs**. Passent en avancé les dividendes
+  ordinaires (SPCC), la rente de survivant RRQ, la cotisation syndicale et l'assurance-salaire.
+- `TitreSection` accepte une **aide en infobulle**. Celle des déductions explique la différence
+  déduction (~53 % au marginal) / crédit (~14-15 %), clé de lecture de tout l'onglet.
+- **`validationImpot.ts`** (**10 cas-tests**) : SV avant 65 ans, rente RRQ avant 60 ans, cumul
+  survivant + retraite plafonné à 65 ans, retenues de paie sans salaire, déduction REER sans revenu
+  gagné. `ListeAlertes` extrait vers `ui/` pour servir les deux onglets.
+- Correctif transverse : `.bouton-*` reçoit `shrink-0 whitespace-nowrap` — dans une colonne étroite,
+  « Réinitialiser » se cassait en deux lignes sous son icône.
+- **CI** : `actions/checkout` et `setup-node` v4 → **v7**, `upload-pages-artifact` v3 → **v5**,
+  `deploy-pages` v4 → **v5**, et `node-version` 20 → **24** pour aligner la CI sur le poste de
+  développement. Le runner signalait « Node.js 20 is deprecated » et forçait déjà Node 24.
+- **171 cas-tests verts** (147 moteur + 14 projection + 10 impôt), build OK.
 
 ### 2026-07-25 — Refonte de l'interface, lot 2 : densité de saisie et cohérence
 - **Bascule « Essentiel / Avancé »** (persistée) : les réglages ayant un défaut sûr sont masqués par

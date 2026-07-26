@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import type { AlerteAffichable } from '../ui/ListeAlertes';
 
 /**
  * Une étape de saisie : un écran court (une dizaine de champs), au lieu d'une section noyée dans
@@ -14,7 +15,7 @@ export interface Etape {
   /** Explication longue, repliée derrière le bouton « ? » à côté du titre. */
   aide?: ReactNode;
   /** Anomalies détectées dans cette étape (voir `validation.ts`). */
-  alertes?: readonly { message: string; niveau: 'erreur' | 'attention' }[];
+  alertes?: readonly AlerteAffichable[];
   /** Vrai dès qu'une donnée y a été saisie → pastille ✓ dans le rail. */
   rempli: boolean;
   /** Étape facultative (immobilier, travail à la retraite…) : la laisser vide n'est pas un manque. */

@@ -1,4 +1,5 @@
-import { useId } from 'react';
+import { useId, type ReactNode } from 'react';
+import { Aide } from './ui/Aide';
 import { IconeReinitialiser } from './ui/icones';
 
 interface ChampMonetaireProps {
@@ -184,14 +185,15 @@ export function BoutonReinitialiser({ onReset }: { onReset: () => void }) {
   );
 }
 
-/** Titre de section du formulaire. */
-export function TitreSection({ numero, titre }: { numero: number; titre: string }) {
+/** Titre de section du formulaire, avec explication repliée derrière un « ? » si fournie. */
+export function TitreSection({ numero, titre, aide }: { numero: number; titre: string; aide?: ReactNode }) {
   return (
     <div className="mb-4 flex items-center gap-2.5">
       <span className="flex h-6 w-6 items-center justify-center rounded-full bg-marque-50 text-xs font-bold text-marque-700 ring-1 ring-marque-500/20">
         {numero}
       </span>
       <h3 className="text-sm font-semibold tracking-wide text-slate-700 uppercase">{titre}</h3>
+      {aide && <Aide titre={titre}>{aide}</Aide>}
     </div>
   );
 }

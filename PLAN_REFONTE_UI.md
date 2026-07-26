@@ -46,6 +46,7 @@ colonnes de formulaires.
 | **0 — Fondations** | Tokens de design, composants partagés, hooks d'état, fusion des formulaires jumeaux | ✅ **fait** (2026-07-25) |
 | **1 — L'Atelier** | Coquille 3 zones, rail d'étapes avec complétude, panneau résultat collant, sélecteur de personne | ✅ **fait** (2026-07-25) |
 | **2 — Densité** | Bascule Essentiel / Avancé, aide en infobulle, validations croisées, rédaction unifiée | ✅ **fait** (2026-07-25) |
+| **2.5 — Onglet Impôt** | Mise à niveau de l'onglet resté à l'ancienne mise en page | ✅ **fait** (2026-07-25) |
 | **3 — Résultats** | Verdict en grand, jauge d'autonomie, graphique avec curseur et infobulle riche, « ce qui change » | à faire |
 | **4 — Puissance** | Scénarios A/B/C, export/import JSON, impression PDF, optimiseur en Web Worker, `useDeferredValue` | à faire |
 | **5 — Finitions** | Mode sombre, responsive mobile, accessibilité, routing partageable | à faire |
@@ -189,3 +190,28 @@ ou hypothèque supérieurs à la valeur, absence de cible de dépenses, inflatio
 
 En mode couple, chaque message est préfixé du nom du conjoint et rattaché à son groupe d'étapes ;
 en solo, il commence simplement par une majuscule.
+
+---
+
+## Lot 2.5 — L'onglet Impôt rattrape son retard ✅
+
+Les lots 0 à 2 n'avaient refondu que la Projection : l'onglet Impôt gardait ses sections empilées,
+sans bascule ni infobulles. Les deux onglets ne se ressemblaient plus — une dette créée par la
+refonte elle-même.
+
+**Choix : ne pas lui imposer l'Atelier.** Ce formulaire tient déjà à l'écran (~1 800 px, 18 champs)
+et ses résultats sont déjà collants ; le découper en trois étapes forcerait des allers-retours pour
+un calculateur qu'on remplit d'un trait. Il adopte en revanche toutes les autres conventions.
+
+- **Bascule Essentiel / Avancé** partagée avec la Projection : **18 → 10 champs**. Passent en avancé
+  les dividendes ordinaires (SPCC), la rente de survivant RRQ, la cotisation syndicale et
+  l'assurance-salaire.
+- **`TitreSection` accepte une `aide`** : chaque section porte son « ? ». Celle des déductions
+  explique la différence déduction (~53 %) / crédit (~14-15 %), qui est la clé de lecture de tout
+  l'onglet.
+- **`validationImpot.ts`** (**10 cas-tests**) : SV avant 65 ans, rente RRQ avant 60 ans, cumul
+  survivant + retraite plafonné à 65 ans, retenues de paie sans salaire, déduction REER sans revenu
+  gagné.
+- `ListeAlertes` est extrait d'`Atelier.tsx` vers `ui/` pour servir les deux onglets.
+- Correctif transverse : les classes `.bouton-*` reçoivent `shrink-0 whitespace-nowrap` — dans une
+  colonne étroite, « Réinitialiser » se cassait en deux lignes sous son icône.
