@@ -98,7 +98,9 @@ describe('droits CELI dans le couple', () => {
             { type: 'NON_ENREGISTRE', solde: 0, profil: 'equilibre', coutBase: 0, rendementPersonnalise: 0 },
           ],
         },
-        {},
+        // Le conjoint doit être en activité lui aussi : le ménage passe en décaissement dès que
+        // l'UN des deux est à la retraite, et l'épargne planifiée cesse alors.
+        { ageActuel: 60, ageRetraite: 65 },
         { inflation: 0, fraisGestion: 0 },
       ),
     );
@@ -257,5 +259,58 @@ describe('retraité-actif dans le couple', () => {
     const a80Avec = avec.annees.find((a) => a.age1 === 80)!;
     const a80Sans = sans.annees.find((a) => a.age1 === 80)!;
     expect(a80Avec.valeurNette).toBeGreaterThan(a80Sans.valeurNette);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Début du décaissement quand les conjoints partent à des âges différents
+// ---------------------------------------------------------------------------
+
+describe('début de la retraite du ménage', () => {
+  /** Ménage sans revenu ni rente : seul le capital finance les dépenses. */
+  const menage = (retraite1: number, retraite2: number) =>
+    couple(
+      {
+        ageActuel: 59, ageRetraite: retraite1, ageDeces: 90, revenuEmploi: 0,
+        comptes: [{ type: 'CELI', solde: 400_000, profil: 'equilibre' }],
+      },
+      {
+        ageActuel: 58, ageRetraite: retraite2, ageDeces: 90, revenuEmploi: 0,
+        comptes: [],
+      },
+      { depensesRetraite: 50_000, inflation: 0, fraisGestion: 0 },
+    );
+
+  it('décaisse dès que le PREMIER conjoint est à la retraite', () => {
+    const r = projeterCouple(menage(60, 65), { trace: true });
+    // À 60 ans, le conjoint 1 est retraité : les dépenses du ménage doivent être financées, même
+    // si le conjoint 2 n'a pas encore atteint son âge de retraite.
+    const a = r.annees.find((x) => x.age1 === 60)!;
+    expect(a.phase).toBe('decaissement');
+    expect(a.detail!.disponible.depenses).toBeCloseTo(50_000, 0);
+  });
+
+  it('ne prélève rien tant qu’un salaire couvre la cible', () => {
+    const r = projeterCouple(
+      couple(
+        { ageActuel: 59, ageRetraite: 60, ageDeces: 90, revenuEmploi: 0, comptes: [{ type: 'CELI', solde: 400_000, profil: 'equilibre' }] },
+        { ageActuel: 58, ageRetraite: 65, ageDeces: 90, revenuEmploi: 120_000, comptes: [] },
+        { depensesRetraite: 50_000, inflation: 0, fraisGestion: 0 },
+      ),
+      { trace: true },
+    );
+    const a = r.annees.find((x) => x.age1 === 61)!;
+    expect(a.phase).toBe('decaissement');
+    // Le salaire du conjoint encore actif suffit : le capital ne doit pas être entamé.
+    expect(a.soldes1.CELI).toBeGreaterThanOrEqual(400_000);
+  });
+
+  it('épuise le capital plus tôt qu’en attendant le second départ', () => {
+    // Le ménage vit trois ans de plus sur son capital si l'on attend le dernier retraité :
+    // c'était le défaut corrigé.
+    const tot = projeterCouple(menage(60, 60));
+    const tard = projeterCouple(menage(60, 65));
+    // Départs échelonnés ou simultanés : le décaissement commence au même âge, donc même épuisement.
+    expect(tard.anneeEpuisement).toBe(tot.anneeEpuisement);
   });
 });

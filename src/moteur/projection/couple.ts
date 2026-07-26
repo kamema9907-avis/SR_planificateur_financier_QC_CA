@@ -473,6 +473,12 @@ interface CompMenage {
   rentesPrivees: number;
   retraits: number;
   loyers: number;
+  /** Produit encaissé d'une vente immobilière. */
+  ventes: number;
+  /** Héritages reçus (non imposables). */
+  heritage: number;
+  /** Capital sorti du flux pour être placé (héritage + produit net de vente). */
+  capitalPlace: number;
   retenues: number;
   cotisations: number;
   paiementImmo: number;
@@ -506,12 +512,15 @@ function construireDetailCouple(
     { libelle: 'Rentes privées / FERR minimum', montant: comp.rentesPrivees },
     { libelle: 'Retraits de comptes', montant: comp.retraits },
     { libelle: 'Loyers encaissés', montant: comp.loyers },
+    { libelle: 'Produit de vente / downsizing', montant: comp.ventes },
+    { libelle: 'Héritage reçu (non imposable)', montant: comp.heritage },
   ];
   const sortiesBrut: Poste[] =
     phase === 'accumulation'
       ? [
           { libelle: 'Impôt du ménage', montant: -impotMenage, lien: 'impot' },
           { libelle: 'Cotisations (épargne)', montant: -comp.cotisations },
+          { libelle: 'Capital placé (héritage, vente)', montant: -comp.capitalPlace },
           { libelle: 'Retenues sur la paie', montant: -comp.retenues },
           { libelle: 'Paiement hypothécaire', montant: -comp.paiementImmo },
         ]
@@ -615,13 +624,24 @@ export function projeterCouple(h: HypothesesCouple, options: { trace?: boolean }
     const paiementImmo = aggImmo[1].paiement + aggImmo[2].paiement;
     const equiteImmo = aggImmo[1].equite + aggImmo[2].equite;
 
+    /** Capital placé cette année (héritage + produit net de vente), retiré du flux consommable. */
+    let capitalPlaceAnnee = 0;
+
     if (vivant1 && vivant2) {
       const ctx1 = preparerPersonne(etat1, i, annee, h.inflation, h.fraisGestion, 0);
       const ctx2 = preparerPersonne(etat2, i, annee, h.inflation, h.fraisGestion, 0);
       foldImmo(ctx1, aggImmo[1]);
       foldImmo(ctx2, aggImmo[2]);
 
-      if (!ctx1.travaille && !ctx2.travaille) {
+      // Le décaissement commence dès que le PREMIER conjoint est à la retraite : c'est à ce
+      // moment que le ménage adopte son budget de retraite. Attendre le second créait un trou —
+      // le conjoint déjà retraité ne gagnait plus rien, et pourtant aucune dépense n'était
+      // prélevée, ce qui surestimait le patrimoine de plusieurs années de dépenses.
+      //
+      // Le salaire de celui qui travaille encore entre dans l'encaisse : le solveur ne retire que
+      // le manque, et rien du tout si ce salaire couvre la cible. Le surplus éventuel est
+      // réinvesti par `placerSurplusRetraite`, qui remplace alors l'épargne planifiée.
+      if (!ctx1.travaille || !ctx2.travaille) {
         phase = 'decaissement';
         const cible = h.depensesRetraite * facteurInflation + paiementImmo;
         const celiAvant1 = soldeCeli(etat1);
@@ -688,6 +708,9 @@ export function projeterCouple(h: HypothesesCouple, options: { trace?: boolean }
               rentesPrivees: ctx1.entree.revenuPensionPrivee + ctx2.entree.revenuPensionPrivee,
               retraits: res.retraits.enr1 + res.retraits.nonenr1 + res.retraits.libre1 + res.retraits.enr2 + res.retraits.nonenr2 + res.retraits.libre2,
               loyers: aggImmo[1].loyerCash + aggImmo[2].loyerCash,
+              ventes: aggImmo[1].cashVente + aggImmo[2].cashVente,
+              heritage: ctx1.heritageRecu + ctx2.heritageRecu,
+              capitalPlace: capitalPlaceAnnee,
               retenues: ctx1.retenuesPaie + ctx2.retenuesPaie,
               cotisations: 0,
               paiementImmo,
@@ -711,6 +734,7 @@ export function projeterCouple(h: HypothesesCouple, options: { trace?: boolean }
         // calcul de l'impôt — la déduction REER qu'il ouvre doit entrer dans le fractionnement optimal.
         const her1 = poserCapital(etat1, ctx1, annee, cot1.deductible);
         const her2 = poserCapital(etat2, ctx2, annee, cot2.deductible);
+        capitalPlaceAnnee = her1.place + her2.place;
         const e1 = { ...ctx1.entree, deductionReer: cot1.deductible + her1.deductible, cotisationFondsTravailleurs: cot1.fondsTravailleurs };
         const e2 = { ...ctx2.entree, deductionReer: cot2.deductible + her2.deductible, cotisationFondsTravailleurs: cot2.fondsTravailleurs };
         const opt = impotCoupleOptimal(e1, e2, annee, splittable(e1, ctx1.age, ctx1.renteEmp), splittable(e2, ctx2.age, ctx2.renteEmp));
@@ -732,6 +756,9 @@ export function projeterCouple(h: HypothesesCouple, options: { trace?: boolean }
               rentesPrivees: ctx1.entree.revenuPensionPrivee + ctx2.entree.revenuPensionPrivee,
               retraits: 0,
               loyers: aggImmo[1].loyerCash + aggImmo[2].loyerCash,
+              ventes: aggImmo[1].cashVente + aggImmo[2].cashVente,
+              heritage: ctx1.heritageRecu + ctx2.heritageRecu,
+              capitalPlace: capitalPlaceAnnee,
               retenues: ctx1.retenuesPaie + ctx2.retenuesPaie,
               cotisations: cot1.cotisations + cot2.cotisations,
               paiementImmo,
@@ -782,6 +809,9 @@ export function projeterCouple(h: HypothesesCouple, options: { trace?: boolean }
               rentesPrivees: ctx.entree.revenuPensionPrivee,
               retraits: 0,
               loyers: aggImmo[idVivant].loyerCash,
+              ventes: aggImmo[idVivant].cashVente,
+              heritage: ctx.heritageRecu,
+              capitalPlace: capitalPlaceAnnee,
               retenues: ctx.retenuesPaie,
               cotisations: cot.cotisations,
               paiementImmo,
@@ -836,6 +866,9 @@ export function projeterCouple(h: HypothesesCouple, options: { trace?: boolean }
               rentesPrivees: ctx.entree.revenuPensionPrivee,
               retraits: res.retraitEnregistre + res.retraitNonEnregistre + res.retraitLibreImpot,
               loyers: aggImmo[idVivant].loyerCash,
+              ventes: aggImmo[idVivant].cashVente,
+              heritage: ctx.heritageRecu,
+              capitalPlace: capitalPlaceAnnee,
               retenues: ctx.retenuesPaie,
               cotisations: 0,
               paiementImmo,

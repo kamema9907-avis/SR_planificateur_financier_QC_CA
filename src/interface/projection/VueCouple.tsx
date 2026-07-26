@@ -124,7 +124,10 @@ export function VueCouple() {
     immobilier: a.equiteImmobiliere,
     deflateurReel: a.deflateurReel,
   }));
-  const ageRetraiteMarker = elderStart + Math.max(h.personne1.ageRetraite - h.personne1.ageActuel, h.personne2.ageRetraite - h.personne2.ageActuel);
+  // Le repère marque le DÉBUT de la retraite du ménage, c'est-à-dire le premier des deux départs :
+  // c'est à ce moment que le décaissement commence. Prendre le plus tardif masquait une retraite
+  // anticipée et plaçait le trait après le vrai changement de régime.
+  const ageRetraiteMarker = elderStart + Math.min(h.personne1.ageRetraite - h.personne1.ageActuel, h.personne2.ageRetraite - h.personne2.ageActuel);
   const ageEpuisementMarker = resultat.anneeEpuisement != null ? elderStart + (resultat.anneeEpuisement - 2026) : null;
 
   const majConjoint = (cle: 'personne1' | 'personne2') => (p: PersonneProjection) =>

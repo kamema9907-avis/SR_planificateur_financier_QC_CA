@@ -108,7 +108,7 @@ Deux conjoints entièrement modélisés (colonnes côte à côte), un ménage à
   tableau (avec le montant fractionné).
 
 ### Qualité / validation
-- **235 cas-tests automatisés** (moteur fiscal, cotisations, plafonds CELIAPP/CELI/REER, fonds de travailleurs, indexation, comptes, projection, décaissement, couple, immobilier dont terrain, optimiseur).
+- **238 cas-tests automatisés** (moteur fiscal, cotisations, plafonds CELIAPP/CELI/REER, fonds de travailleurs, indexation, comptes, projection, décaissement, couple, immobilier dont terrain, optimiseur).
 - Propriété clé du couple : le **fractionnement ne hausse jamais** l'impôt combiné (testé).
 - **Validation croisée** contre les taux marginaux combinés **publiés** du Québec 2026 :
   sommet **53,31 %**, 140 000 $ → **47,46 %**, 60 000 $ → **36,12 %**.
@@ -235,7 +235,7 @@ L'interface est en cours de refonte (« l'Atelier ») — voir [`PLAN_REFONTE_UI
 ```bash
 npm install      # installer les dépendances
 npm run dev      # développement (http://localhost:5173)
-npm test         # les 235 cas-tests
+npm test         # les 238 cas-tests
 npm run build    # version de production (dossier dist/, à héberger)
 npm run preview  # prévisualiser la version de production
 ```
@@ -294,6 +294,28 @@ options d'employé, analyse de sensibilité / Monte Carlo, autres provinces.
 ---
 
 ## 📓 Journal des modifications
+
+### 2026-07-26 — Couple : la retraite du premier conjoint était ignorée
+- **Signalé par l'utilisateur** sur une simulation réelle : conjoint 1 retraité à 60 ans, conjoint 2
+  à 62 ans, et pourtant aucune dépense n'était financée avant 62 ans.
+- **Cause** : `if (!ctx1.travaille && !ctx2.travaille)` — le décaissement attendait que **les deux**
+  soient retraités. Et `travaille = age < ageRetraite`, indépendamment du salaire : un conjoint sans
+  aucun revenu était donc réputé « travailler ». Le ménage vivait plusieurs années sans revenu ET
+  sans dépense prélevée, ce qui **surestimait le patrimoine** (~150 000 $ dans le cas signalé, deux
+  ans d'autonomie en trop).
+- **Correction** : le décaissement commence dès que le **premier** conjoint atteint sa retraite —
+  c'est là que le ménage adopte son budget de retraite. Le salaire de celui qui travaille encore
+  entre dans l'encaisse : le solveur ne retire que le manque, et **rien du tout** si ce salaire
+  couvre la cible (vérifié : capital intact de 60 à 66 ans avec un conjoint à 120 000 $). Le surplus
+  est réinvesti par le mécanisme existant, qui remplace alors l'épargne planifiée.
+- **Marqueur du graphique corrigé** : il affichait le plus tardif des deux départs, masquant une
+  retraite anticipée. Il indique désormais le premier, là où le régime change réellement.
+- **Traçabilité du couple complétée** : le tiroir omettait totalement le produit de vente et
+  l'héritage, d'où des « revenus nets » négatifs à l'année d'une vente. Les postes « Produit de
+  vente / downsizing », « Héritage reçu » et « Capital placé » y figurent maintenant, aux quatre
+  états (accumulation, décaissement, survie).
+- **238 cas-tests verts** (+3). Un test existant a dû être ajusté : il s'appuyait sans le dire sur
+  l'ancienne règle, son second conjoint étant déjà retraité au départ.
 
 ### 2026-07-26 — Produit d'une vente immobilière : correction de justesse
 - Conception passée au `/grill-me`. La demande portait sur l'abri fiscal ; la vérification a révélé
