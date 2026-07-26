@@ -31,8 +31,8 @@ import { financerDepenses } from './decaissement';
 import { rrqNominale, svNominale, renteSurvivantRRQ } from './rentesPubliques';
 import { totalRentesEmployeur } from './rentesEmployeur';
 import { totalRevenuTravail } from './periodesTravail';
-import { placerSurplusRetraite } from './placementSurplus';
-import { placerHeritage, totalHeritage } from './heritage';
+import { placerCapital, placerSurplusRetraite } from './placementSurplus';
+import { totalHeritage } from './heritage';
 import { impotCoupleOptimal } from './fractionnement';
 import { fondreReer } from './fonteReer';
 import {
@@ -159,6 +159,10 @@ interface Contexte {
   retenuesPaie: number;
   /** Héritage reçu cette année (non imposable), déjà inclus dans `encaisse`. */
   heritageRecu: number;
+  /** Produit d'une vente immobilière encaissé cette année, déjà inclus dans `encaisse`. */
+  cashVente: number;
+  /** Gain en capital imposable de cette vente (0 si exempté). */
+  gainVente: number;
 }
 
 function preparerPersonne(
@@ -225,6 +229,8 @@ function preparerPersonne(
     salaire,
     retenuesPaie,
     heritageRecu,
+    cashVente: 0,
+    gainVente: 0,
   };
 }
 
@@ -235,17 +241,31 @@ function preparerPersonne(
  * `encaisse` et c'est le solveur qui décide ce qui est dépensé, le surplus étant replacé par
  * `placerSurplusRetraite`.
  */
-function poserHeritage(etat: EtatPersonne, ctx: Contexte, annee: number, deductionDejaPrevue: number) {
-  if (ctx.heritageRecu <= 0) return { celi: 0, reer: 0, nonEnr: 0, deductible: 0 };
+function poserCapital(etat: EtatPersonne, ctx: Contexte, annee: number, deductionDejaPrevue: number) {
+  const vide = { celi: 0, reer: 0, nonEnr: 0, deductible: 0, place: 0, provision: 0 };
+
+  // Impôt attribuable au gain de la vente : le produit ne peut être placé que NET de cet impôt,
+  // sinon le même argent servirait deux fois. Mesuré par personne (sans fractionnement) — une
+  // approximation de second ordre que le reliquat calculé plus loin corrige en grande partie.
+  let provision = 0;
+  if (ctx.cashVente > 0 && ctx.gainVente > 0) {
+    const avec = { ...ctx.entree, deductionReer: deductionDejaPrevue };
+    const sans = { ...avec, gainsCapital: Math.max(0, avec.gainsCapital - ctx.gainVente) };
+    provision = Math.max(0, impotTotalPour(avec, annee) - impotTotalPour(sans, annee));
+  }
+  const aPlacer = ctx.heritageRecu + Math.max(0, ctx.cashVente - provision);
+  if (aPlacer <= 0) return { ...vide, provision };
+
   // Revenu imposable restant après les déductions déjà prévues : borne le versement REER, car
-  // au-delà la déduction serait perdue (le moteur ne modélise pas son report).
+  // au-delà la déduction serait perdue (le moteur ne modélise pas son report). Le gain de la vente
+  // en fait partie — c'est ce qui permet « vendre puis cotiser au REER pour absorber le gain ».
   const base = construireBase({ ...ctx.entree, deductionReer: deductionDejaPrevue }, annee);
   const deductionUtilisable = Math.max(0, base.revenuTotalImpose - base.deductionsFederal);
   const droits = { droitsCeli: etat.droitsCeli, droitsReer: etat.droitsReer };
-  const pose = placerHeritage(etat.comptes, etat.profilDefaut, droits, ctx.heritageRecu, ctx.age, deductionUtilisable);
+  const pose = placerCapital(etat.comptes, etat.profilDefaut, droits, aPlacer, ctx.age, deductionUtilisable);
   etat.droitsCeli = droits.droitsCeli;
   etat.droitsReer = droits.droitsReer;
-  return pose;
+  return { ...pose, place: aPlacer, provision };
 }
 
 /** Applique les cotisations d'une personne (dont le REER de conjoint versé à l'autre). */
@@ -423,18 +443,17 @@ function impotAuDeces(etat: EtatPersonne, age: number, annee: number, gainImmo: 
 }
 
 /** Injecte l'immobilier d'un propriétaire dans son contexte fiscal (revenus, loyers, produit de vente). */
-function foldImmo(ctx: Contexte, a: AgregatImmo, etat: EtatPersonne): void {
+function foldImmo(ctx: Contexte, a: AgregatImmo): void {
   ctx.entree = {
     ...ctx.entree,
     autresRevenus: ctx.entree.autresRevenus + a.revenuImposable,
     gainsCapital: ctx.entree.gainsCapital + a.gainBrut,
   };
-  ctx.encaisse += a.loyerCash;
-  if (a.cashVente > 0) {
-    const ne = trouverOuCreer(etat.comptes, 'NON_ENREGISTRE', etat.profilDefaut);
-    ne.solde += a.cashVente;
-    ne.coutBase = (ne.coutBase ?? 0) + a.cashVente;
-  }
+  // Le produit rejoint l'encaisse, comme en mode solo : en décaissement il finance les dépenses de
+  // l'année avant tout placement ; en accumulation, `poserCapital` le place net de l'impôt du gain.
+  ctx.encaisse += a.loyerCash + a.cashVente;
+  ctx.cashVente = a.cashVente;
+  ctx.gainVente = a.gainBrut;
 }
 
 /** Équité totale des biens non vendus (valeur − hypothèque). */
@@ -599,8 +618,8 @@ export function projeterCouple(h: HypothesesCouple, options: { trace?: boolean }
     if (vivant1 && vivant2) {
       const ctx1 = preparerPersonne(etat1, i, annee, h.inflation, h.fraisGestion, 0);
       const ctx2 = preparerPersonne(etat2, i, annee, h.inflation, h.fraisGestion, 0);
-      foldImmo(ctx1, aggImmo[1], etat1);
-      foldImmo(ctx2, aggImmo[2], etat2);
+      foldImmo(ctx1, aggImmo[1]);
+      foldImmo(ctx2, aggImmo[2]);
 
       if (!ctx1.travaille && !ctx2.travaille) {
         phase = 'decaissement';
@@ -690,17 +709,18 @@ export function projeterCouple(h: HypothesesCouple, options: { trace?: boolean }
         const cot2 = appliquerCotisations(etat2, facteurInflation, etat1);
         // Héritage : placé après l'épargne planifiée (qui a la priorité sur les droits), et avant le
         // calcul de l'impôt — la déduction REER qu'il ouvre doit entrer dans le fractionnement optimal.
-        const her1 = poserHeritage(etat1, ctx1, annee, cot1.deductible);
-        const her2 = poserHeritage(etat2, ctx2, annee, cot2.deductible);
+        const her1 = poserCapital(etat1, ctx1, annee, cot1.deductible);
+        const her2 = poserCapital(etat2, ctx2, annee, cot2.deductible);
         const e1 = { ...ctx1.entree, deductionReer: cot1.deductible + her1.deductible, cotisationFondsTravailleurs: cot1.fondsTravailleurs };
         const e2 = { ...ctx2.entree, deductionReer: cot2.deductible + her2.deductible, cotisationFondsTravailleurs: cot2.fondsTravailleurs };
         const opt = impotCoupleOptimal(e1, e2, annee, splittable(e1, ctx1.age, ctx1.renteEmp), splittable(e2, ctx2.age, ctx2.renteEmp));
         impotAnnee = opt.impot;
         fractionnement = Math.abs(opt.transfert);
         // Les retenues sur la paie sont déjà déduites de l'encaisse (voir preparerPersonne).
-        // L'héritage a été placé dans les comptes : il n'est pas disponible pour vivre.
+        // Le capital placé (héritage + produit net de vente) n'est pas disponible pour vivre ; la
+        // provision d'impôt retenue sur la vente, elle, sert justement à payer cet impôt.
         revenuDisponible =
-          ctx1.encaisse + ctx2.encaisse - ctx1.heritageRecu - ctx2.heritageRecu -
+          ctx1.encaisse + ctx2.encaisse - her1.place - her2.place -
           impotAnnee - cot1.cotisations - cot2.cotisations - paiementImmo;
         if (options.trace) {
           const rentesPub = (c: Contexte) => c.entree.revenuRRQ + c.entree.renteSurvivantRRQ + c.entree.revenuPensionSV;
@@ -744,7 +764,7 @@ export function projeterCouple(h: HypothesesCouple, options: { trace?: boolean }
         : 0;
       const idVivant: 1 | 2 = vivant1 ? 1 : 2;
       const ctx = preparerPersonne(vivant, i, annee, h.inflation, h.fraisGestion, rrqSurvivantAddl);
-      foldImmo(ctx, aggImmo[idVivant], vivant);
+      foldImmo(ctx, aggImmo[idVivant]);
 
       if (ctx.travaille) {
         accrualReer(vivant, ctx.salaire, annee, facteurInflation);

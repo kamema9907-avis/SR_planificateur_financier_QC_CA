@@ -83,6 +83,7 @@ Projette le patrimoine et l'impôt **année par année**, de l'âge actuel jusqu
 - **Minimums de retrait FERR/FRV** forcés dès 72 ans.
 - **Immobilier** : résidence, chalet, immeuble à revenu, **terrain vacant** — hypothèque (amortissement),
   loyers imposables, appréciation, vente/downsizing, exemption pour résidence principale (arbitrage automatique).
+  Le produit d'une vente est placé **net de l'impôt sur le gain**, en CELI → REER → non-enregistré.
   Le terrain et l'immeuble à revenu sont **toujours imposables** (jamais abrités). Équité au patrimoine.
 - **Phase d'accumulation** (épargne + croissance) puis **décaissement** : un solveur retire dans l'ordre
   choisi pour financer une cible de dépenses **nette d'impôt**.
@@ -107,7 +108,7 @@ Deux conjoints entièrement modélisés (colonnes côte à côte), un ménage à
   tableau (avec le montant fractionné).
 
 ### Qualité / validation
-- **225 cas-tests automatisés** (moteur fiscal, cotisations, plafonds CELIAPP/CELI/REER, fonds de travailleurs, indexation, comptes, projection, décaissement, couple, immobilier dont terrain, optimiseur).
+- **235 cas-tests automatisés** (moteur fiscal, cotisations, plafonds CELIAPP/CELI/REER, fonds de travailleurs, indexation, comptes, projection, décaissement, couple, immobilier dont terrain, optimiseur).
 - Propriété clé du couple : le **fractionnement ne hausse jamais** l'impôt combiné (testé).
 - **Validation croisée** contre les taux marginaux combinés **publiés** du Québec 2026 :
   sommet **53,31 %**, 140 000 $ → **47,46 %**, 60 000 $ → **36,12 %**.
@@ -234,7 +235,7 @@ L'interface est en cours de refonte (« l'Atelier ») — voir [`PLAN_REFONTE_UI
 ```bash
 npm install      # installer les dépendances
 npm run dev      # développement (http://localhost:5173)
-npm test         # les 225 cas-tests
+npm test         # les 235 cas-tests
 npm run build    # version de production (dossier dist/, à héberger)
 npm run preview  # prévisualiser la version de production
 ```
@@ -293,6 +294,34 @@ options d'employé, analyse de sensibilité / Monte Carlo, autres provinces.
 ---
 
 ## 📓 Journal des modifications
+
+### 2026-07-26 — Produit d'une vente immobilière : correction de justesse
+- Conception passée au `/grill-me`. La demande portait sur l'abri fiscal ; la vérification a révélé
+  un défaut plus grave.
+- **Le même argent était compté deux fois.** En accumulation, le produit de vente était placé
+  **brut** au non-enregistré pendant que l'impôt sur le gain était prélevé sur le revenu de l'année.
+  Sur un immeuble à revenu de 400 000 $ avec 300 000 $ de gain et 80 000 $ de salaire : impôt de
+  81 575 $ et **revenu disponible de −7 778 $** — physiquement impossible.
+- **Correction** : on place le produit **net de l'impôt attribuable au gain**, mesuré par différence
+  (impôt avec gain − impôt sans gain), puis dans la chaîne **CELI → REER → non-enregistré**. Sur le
+  même cas : disponible de 58 498 $ l'année de la vente contre 58 274 $ l'année précédente — le train
+  de vie n'est plus perturbé, et 135 000 $ sont abrités au CELI au lieu de dormir au non-enregistré.
+- **Circularité évitée** : l'impôt du gain est mesuré avant tout versement REER issu de la vente
+  (sinon le montant à placer dépendrait de l'impôt, qui dépendrait du montant placé). Le trop-perçu
+  de provision est ensuite **replacé** au non-enregistré, comme `placerSurplusRetraite` le fait de
+  son remboursement — une itération unique, bornée comme ailleurs dans le moteur.
+- Le gain **augmente la déduction REER utilisable**, ce qui rend possible la stratégie classique
+  « vendre un immeuble puis cotiser au REER pour absorber le gain ».
+- **Couple aligné sur le solo** : le produit rejoint l'encaisse (il ne partait jamais dans le flux
+  auparavant, même à la retraite) et le capital est placé chez son propriétaire, consommant SES droits.
+- **Traçabilité refaite** : la cascade du tiroir montre désormais « Produit de vente » en entrée et
+  « Capital placé (héritage, vente) » en sortie. Chaque dollar encaissé se retrouve quelque part.
+- `placerHeritage` devient **`placerCapital`** (héritage et vente partagent la mécanique) et rejoint
+  `placementSurplus.ts`.
+- **235 cas-tests verts** (+10 : disponible jamais négatif, conservation des flux, abri effectif,
+  downsizing partiel, impôt supérieur à l'équité, couple).
+- ⚠️ **Les projections comportant une vente changent** : patrimoines plus bas (l'impôt n'est plus
+  compté deux fois) et mieux abrités. C'est une correction, pas une régression.
 
 ### 2026-07-26 — Nouvelle source d'apport : l'héritage
 - Conception passée au `/grill-me` avant toute ligne de code : unité de saisie, ordre de placement,

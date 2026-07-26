@@ -29,8 +29,8 @@ import { financerDepenses } from './decaissement';
 import { rrqNominale, svNominale } from './rentesPubliques';
 import { totalRentesEmployeur } from './rentesEmployeur';
 import { totalRevenuTravail } from './periodesTravail';
-import { placerHeritage, totalHeritage } from './heritage';
-import { placerSurplusRetraite } from './placementSurplus';
+import { totalHeritage } from './heritage';
+import { placerCapital, placerSurplusRetraite } from './placementSurplus';
 import { clonerImmeubles, determinerBienAbrite, gainAuDeces, traiterImmeublesAnnee, type AgregatImmo, type EtatImmeuble } from './immobilier';
 import { fondreReer } from './fonteReer';
 import {
@@ -96,6 +96,8 @@ interface ComposantesTrace {
   ventes: number;
   /** Héritage encaissé cette année (non imposable). */
   heritage: number;
+  /** Capital sorti du flux pour être placé dans les comptes (héritage + produit net de vente). */
+  capitalPlace: number;
   paiementImmo: number;
   retenues: number;
   cotisations: number;
@@ -131,6 +133,7 @@ function construireDetailAnnee(
           { libelle: 'Rentes d’employeur', montant: c.renteEmp },
           { libelle: 'Retrait minimum FERR', montant: c.minimumFERR },
           { libelle: 'Loyers encaissés', montant: c.loyers },
+          { libelle: 'Produit de vente / downsizing', montant: c.ventes },
           { libelle: 'Héritage reçu (non imposable)', montant: c.heritage },
         ]
       : [
@@ -152,6 +155,7 @@ function construireDetailAnnee(
       ? [
           { libelle: 'Impôt', montant: -impotCourant, lien: 'impot' },
           { libelle: 'Cotisations (épargne)', montant: -c.cotisations },
+          { libelle: 'Capital placé (héritage, vente)', montant: -c.capitalPlace },
           { libelle: 'Retenues sur la paie (RRQ/AE/RQAP)', montant: -c.retenues },
           { libelle: 'Paiement hypothécaire', montant: -c.paiementImmo },
         ]
@@ -274,6 +278,8 @@ export function projeter(h: HypothesesProjection, options: { trace?: boolean } =
     let traceCible = 0;
     let traceRetraitEnr = 0;
     let traceVentil = { celi: 0, reer: 0, nonEnr: 0 };
+    /** Capital sorti du flux pour être placé (héritage + produit net de vente). */
+    let capitalPlace = 0;
     let traceImpotDeces = 0;
     let traceDetailDeces: Poste[] = [];
 
@@ -373,28 +379,52 @@ export function projeter(h: HypothesesProjection, options: { trace?: boolean } =
       // Héritage : capital non imposable, placé CELI → REER → non-enregistré dans la limite des
       // droits RESTANTS. L'épargne planifiée ci-dessus a servi la première : elle est choisie, alors
       // que l'héritage est un imprévu. La part versée au REER est déductible du revenu de l'année.
-      if (heritageRecu > 0) {
+      // Capital reçu cette année : héritage (non imposable) et produit d'une vente immobilière.
+      // La vente, elle, déclenche un gain en capital : on ne peut placer que le produit NET de
+      // l'impôt qu'il engendre, sinon le même argent servirait deux fois — c'est ce que faisait
+      // l'ancien code, qui plaçait le produit brut et laissait le revenu disponible partir en
+      // négatif.
+      const entreeCourante = (dedReer: number, gain: number): EntreeFiscale => ({
+        ...nouvelleEntree(age, h.vitSeul),
+        revenuEmploi,
+        revenuRRQ: rrq,
+        revenuPensionSV: sv,
+        revenuPensionPrivee: minimumFERR + renteEmp,
+        autresRevenus: interetNonEnr + immo.revenuImposable,
+        dividendesDetermines: dividendesNonEnr,
+        gainsCapital: gain,
+        deductionReer: dedReer,
+      });
+
+      let impotSurGainVente = 0;
+      if (immo.cashVente > 0 && immo.gainBrut > 0) {
+        // Mesuré AVANT tout versement REER issu de la vente : sinon le montant à placer dépendrait
+        // de l'impôt, qui dépendrait du montant placé. On place donc un peu moins que le maximum
+        // théorique, jamais plus.
+        impotSurGainVente = Math.max(
+          0,
+          impotTotalPour(entreeCourante(deductible, immo.gainBrut), annee) -
+            impotTotalPour(entreeCourante(deductible, 0), annee),
+        );
+      }
+      const deductibleHorsCapital = deductible; // référence : ce que serait l'année sans la vente
+      const venteAPlacer = Math.max(0, immo.cashVente - impotSurGainVente);
+      const capitalAPlacer = heritageRecu + venteAPlacer;
+
+      if (capitalAPlacer > 0) {
         // Ce qu'il reste de revenu imposable une fois les déductions déjà prévues appliquées :
-        // au-delà, un versement REER ne procurerait plus aucune économie d'impôt.
-        const entreeSansHeritage: EntreeFiscale = {
-          ...nouvelleEntree(age, h.vitSeul),
-          revenuEmploi,
-          revenuRRQ: rrq,
-          revenuPensionSV: sv,
-          revenuPensionPrivee: minimumFERR + renteEmp,
-          autresRevenus: interetNonEnr + immo.revenuImposable,
-          dividendesDetermines: dividendesNonEnr,
-          gainsCapital: immo.gainBrut,
-          deductionReer: deductible,
-        };
-        const baseAvant = construireBase(entreeSansHeritage, annee);
+        // au-delà, un versement REER ne procurerait plus aucune économie d'impôt. Le gain de la
+        // vente en fait partie — c'est ce qui permet la stratégie « vendre puis cotiser au REER
+        // pour absorber le gain ».
+        const baseAvant = construireBase(entreeCourante(deductible, immo.gainBrut), annee);
         const deductionUtilisable = Math.max(0, baseAvant.revenuTotalImpose - baseAvant.deductionsFederal);
 
         const droits = { droitsCeli, droitsReer };
-        const pose = placerHeritage(comptes, profilDefaut, droits, heritageRecu, age, deductionUtilisable);
+        const pose = placerCapital(comptes, profilDefaut, droits, capitalAPlacer, age, deductionUtilisable);
         droitsCeli = droits.droitsCeli;
         droitsReer = droits.droitsReer;
         deductible += pose.deductible;
+        capitalPlace = capitalAPlacer;
         traceVentil = { celi: pose.celi, reer: pose.reer, nonEnr: pose.nonEnr };
       }
 
@@ -414,14 +444,33 @@ export function projeter(h: HypothesesProjection, options: { trace?: boolean } =
       // Retenues sur la paie (RRQ + AE + RQAP) : sortie de trésorerie en plus de l'impôt.
       const retenuesPaie = calculerCotisations(revenuEmploi, parametresCotisations(annee)).total;
       traceRetenues = retenuesPaie;
-      revenuDisponible =
-        revenuEmploi + rrq + sv + minimumFERR + renteEmp + immo.loyerCash -
-        immo.paiement - impotAnnee - cotisations - retenuesPaie;
-      if (immo.cashVente > 0) {
-        const nonEnr = trouverOuCreer(comptes, 'NON_ENREGISTRE', profilDefaut);
-        nonEnr.solde += immo.cashVente;
-        nonEnr.coutBase = (nonEnr.coutBase ?? 0) + immo.cashVente;
+
+      // La provision d'impôt retenue sur la vente s'est peut-être révélée trop élevée : un versement
+      // REER issu de cette même vente réduit l'impôt du gain. On replace l'écart au non-enregistré,
+      // comme `placerSurplusRetraite` le fait du remboursement qu'il obtient. Une seule itération :
+      // la rétroaction est volontairement bornée, comme ailleurs dans le moteur.
+      let reliquatVente = 0;
+      if (impotSurGainVente > 0) {
+        // Référence : l'impôt qu'aurait donné une année SANS la vente — donc sans son gain et sans
+        // la cotisation REER qu'elle a permise. Comparer à l'impôt recalculé avec cette cotisation
+        // sous-estimerait le reliquat, l'argent placé venant précisément de la vente.
+        const impotSansVente = impotTotalPour(entreeCourante(deductibleHorsCapital, 0), annee);
+        reliquatVente = Math.max(0, impotSurGainVente - Math.max(0, impotAnnee - impotSansVente));
+        if (reliquatVente > 0) {
+          const ne = trouverOuCreer(comptes, 'NON_ENREGISTRE', profilDefaut);
+          ne.solde += reliquatVente;
+          ne.coutBase = (ne.coutBase ?? 0) + reliquatVente;
+          traceVentil = { ...traceVentil, nonEnr: traceVentil.nonEnr + reliquatVente };
+          capitalPlace += reliquatVente;
+        }
       }
+
+      // Conservation, lisible telle quelle dans le tiroir de détail : tout ce qui entre (revenus,
+      // loyers, produit de vente, héritage) ressort en impôt, cotisations, capital placé ou
+      // disponible. Aucun dollar ne se crée ni ne disparaît.
+      revenuDisponible =
+        revenuEmploi + rrq + sv + minimumFERR + renteEmp + immo.loyerCash + immo.cashVente +
+        heritageRecu - capitalPlace - immo.paiement - impotAnnee - cotisations - retenuesPaie;
     } else {
       // Revenu de travail poursuivi À LA RETRAITE (« retraité-actif ») : imposé comme emploi, net
       // des retenues (RRQ/AE/RQAP) dans l'encaisse, et rouvrant des droits REER (jusqu'à 71 ans).
@@ -565,6 +614,7 @@ export function projeter(h: HypothesesProjection, options: { trace?: boolean } =
               loyers: immo.loyerCash,
               ventes: immo.cashVente,
               heritage: heritageRecu,
+              capitalPlace,
               paiementImmo: immo.paiement,
               retenues: traceRetenues,
               cotisations,
