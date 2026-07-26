@@ -48,7 +48,7 @@ colonnes de formulaires.
 | **2 — Densité** | Bascule Essentiel / Avancé, aide en infobulle, validations croisées, rédaction unifiée | ✅ **fait** (2026-07-25) |
 | **2.5 — Onglet Impôt** | Mise à niveau de l'onglet resté à l'ancienne mise en page | ✅ **fait** (2026-07-25) |
 | **3 — Résultats** | Verdict en grand, jauge d'autonomie, graphique avec curseur et infobulle riche, « ce qui change » | ✅ **fait** (2026-07-25) |
-| **4 — Puissance** | Scénarios A/B/C, export/import JSON, impression PDF, optimiseur en Web Worker, `useDeferredValue` | à faire |
+| **4 — Puissance** | Scénarios A/B/C, export/import JSON, impression PDF, optimiseur en Web Worker, `useDeferredValue` | ✅ **fait** (2026-07-26) |
 | **5 — Finitions** | Mode sombre, responsive mobile, accessibilité, routing partageable | à faire |
 
 ---
@@ -252,3 +252,43 @@ un bien non vendu ne paie pas les dépenses courantes »*. L'infobulle du graphi
 - **Comparaison avant/après** : le panneau d'optimisation superpose la trajectoire actuelle
   (pointillé gris) et l'optimisée (trait vert) — on voit *quand* l'écart se creuse, pas seulement
   son montant final.
+
+---
+
+## Lot 4 — Puissance ✅
+
+### Fichiers créés
+
+| Fichier | Rôle |
+|---|---|
+| `interface/fichierDossier.ts` + test | Format de sauvegarde signé et versionné (**12 cas-tests**) |
+| `interface/ui/BoutonsDossier.tsx` | Boutons « Enregistrer » / « Ouvrir » |
+| `interface/scenarios.ts` + test | Scénarios nommés, comparaison, ex æquo (**8 cas-tests**) |
+| `interface/projection/PanneauScenarios.tsx` | Tableau comparatif |
+| `interface/optimiseur.worker.ts` | Optimiseur sur un fil séparé |
+| `interface/ui/Impression.tsx` | Mode impression (déplie tout) + bouton |
+
+### Ce que ça change
+
+- **Verdict neutre** sur dossier vierge : plus de feu vert sur du néant. Repéré en
+  inspectant le site déployé, pas en relisant le code.
+- **Sauvegarde en fichier** : c'était le seul risque réel de perte de données — tout vivait dans le
+  `localStorage`. Le fichier est écrit par le navigateur, rien n'est envoyé : la promesse « 100 %
+  local » tient. L'import valide avant d'écrire et demande confirmation.
+- **Scénarios comparables** : la fonction la plus attendue d'un planificateur. Sur un cas réel,
+  reporter la retraite de 62 à 67 ans et la RRQ à 70 ans vaut **+734 489 $ de patrimoine** contre
+  247 558 $ d'impôt supplémentaire — l'arbitrage devient visible au lieu d'être supposé.
+- **Optimiseur en Web Worker** : la page ne gèle plus (~320 ms auparavant), et le calcul est
+  annulable. Repli synchrone si les workers de module manquent.
+- **`useDeferredValue`** : `projeter` simulait 55 années à chaque frappe sans étalement ; la saisie
+  passe maintenant devant, le résultat précédent restant affiché en attendant.
+- **Impression / PDF** : l'atelier déplie ses huit étapes le temps de l'impression, les colonnes
+  repassent à plat, les tableaux s'impriment en entier. Les commandes disparaissent, sauf les boutons
+  qui portent des montants (drill-down).
+
+### Deux défauts de ma part, attrapés en vérifiant
+
+1. Les scénarios n'étaient pas inclus dans l'export — tout le travail de comparaison aurait été perdu
+   au premier changement d'appareil.
+2. `.sansimpression` était définie avec `display: contents`, ce qui cassait la mise en page à l'écran
+   des conteneurs marqués. Elle n'existe plus que dans `@media print`.

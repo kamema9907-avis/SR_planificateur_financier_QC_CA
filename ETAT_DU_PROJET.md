@@ -3,9 +3,10 @@
 > **Document vivant** : synthèse de tout ce que le projet fait à ce jour. À mettre à jour au fil des
 > phases. Voir le [journal des modifications](#-journal-des-modifications) à la fin pour l'historique.
 >
-> Dernière mise à jour : **2026-07-25** — **refonte de l'interface, lots 0 à 3** : fondations partagées,
+> Dernière mise à jour : **2026-07-25** — **refonte de l'interface, lots 0 à 4** : fondations partagées,
 > coquille « Atelier » (rail d'étapes + résultat collant), densité de saisie, validations croisées,
-> mise à niveau de l'onglet Impôt, puis verdict en grand et graphique enrichi.
+> mise à niveau de l'onglet Impôt, verdict et graphique enrichi, puis sauvegarde en fichier,
+> scénarios comparables, optimiseur sur un fil séparé et impression PDF.
 > Voir [`PLAN_REFONTE_UI.md`](PLAN_REFONTE_UI.md). Auparavant : crédit fonds de travailleurs dans la projection,
 > droits REER (avec facteur d'équivalence), terrain vacant, plafonds CELIAPP / droits CELI, cotisations
 > sociales, syndicat, assurance-salaire, survivant RRQ.
@@ -104,7 +105,7 @@ Deux conjoints entièrement modélisés (colonnes côte à côte), un ménage à
   tableau (avec le montant fractionné).
 
 ### Qualité / validation
-- **176 cas-tests automatisés** (moteur fiscal, cotisations, plafonds CELIAPP/CELI/REER, fonds de travailleurs, indexation, comptes, projection, décaissement, couple, immobilier dont terrain, optimiseur).
+- **198 cas-tests automatisés** (moteur fiscal, cotisations, plafonds CELIAPP/CELI/REER, fonds de travailleurs, indexation, comptes, projection, décaissement, couple, immobilier dont terrain, optimiseur).
 - Propriété clé du couple : le **fractionnement ne hausse jamais** l'impôt combiné (testé).
 - **Validation croisée** contre les taux marginaux combinés **publiés** du Québec 2026 :
   sommet **53,31 %**, 140 000 $ → **47,46 %**, 60 000 $ → **36,12 %**.
@@ -231,7 +232,7 @@ L'interface est en cours de refonte (« l'Atelier ») — voir [`PLAN_REFONTE_UI
 ```bash
 npm install      # installer les dépendances
 npm run dev      # développement (http://localhost:5173)
-npm test         # les 176 cas-tests
+npm test         # les 198 cas-tests
 npm run build    # version de production (dossier dist/, à héberger)
 npm run preview  # prévisualiser la version de production
 ```
@@ -273,9 +274,15 @@ Conséquence : les montants sont de bonnes **estimations de planification**, pas
 5. **✅ Phase 4** — **Optimiseur automatique** (recherche sur le moteur) : ordre de décaissement, fonte
    du REER, âges RRQ/SV, ventes immobilières. Maximise le patrimoine net au décès.
 6. **Phase 5** — **Refonte de l'interface (« l'Atelier »)**, export/import, partage. Plan détaillé en
-   6 lots dans [`PLAN_REFONTE_UI.md`](PLAN_REFONTE_UI.md) : **lot 0 (fondations) ✅ fait**,
-   **lot 1 (coquille à 3 zones et rail d’étapes) ✅ fait**, **lot 2 (densité de saisie) ✅ fait**, **lot 2.5 (onglet Impôt) ✅ fait**, **lot 3 (résultats) ✅ fait**, lot 4
-   (résultats), lot 4 (scénarios A/B, export, Web Worker), lot 5 (mode sombre, mobile, accessibilité).
+   lots dans [`PLAN_REFONTE_UI.md`](PLAN_REFONTE_UI.md) :
+   - ✅ **lot 0** — fondations partagées
+   - ✅ **lot 1** — coquille à 3 zones et rail d'étapes
+   - ✅ **lot 2** — densité de saisie (Essentiel / Avancé) et validations
+   - ✅ **lot 2.5** — mise à niveau de l'onglet Impôt
+   - ✅ **lot 3** — verdict, graphique enrichi, comparaison avant/après
+   - ✅ **lot 4** — sauvegarde en fichier, scénarios comparables, Web Worker, impression PDF
+   - **lot 5** — mode sombre, responsive mobile, accessibilité, routing partageable
+
    (**Hébergement : ✅ fait** — GitHub Pages, déploiement automatique à chaque `git push`.)
 
 Idées / à explorer : immobilier détaillé (résidence/chalet/immeuble à revenu, arbitrage d'exemption),
@@ -284,6 +291,26 @@ options d'employé, analyse de sensibilité / Monte Carlo, autres provinces.
 ---
 
 ## 📓 Journal des modifications
+
+### 2026-07-26 — Refonte de l'interface, lot 4 : sauvegarde, scénarios, performance, impression
+- **Verdict neutre** sur un dossier vierge : le bandeau annonçait « OBJECTIF FINANCÉ » sur du néant
+  (zéro dépense est toujours finançable). Repéré en inspectant le site déployé. Un troisième état
+  gris invite désormais à remplir ; critère : `depensesRetraite > 0`.
+- **Sauvegarde et restauration en fichier** (`fichierDossier.ts`, 12 cas-tests) : boutons
+  « Enregistrer » / « Ouvrir » dans l'en-tête. Tout vivait dans le `localStorage` — un nettoyage de
+  cache et le travail disparaissait. Le fichier est signé et versionné, l'import valide avant
+  d'écrire et demande confirmation. Rien n'est envoyé en ligne.
+- **Scénarios nommés et comparables** (`scenarios.ts`, 8 cas-tests) : tableau des dépenses financées,
+  de la valeur nette et de l'impôt, la simulation en cours incluse. Les ex æquo sont TOUS marqués.
+  Sur un cas réel, reporter la retraite de 62 à 67 ans et la RRQ à 70 ans vaut **+734 489 $** de
+  patrimoine contre 247 558 $ d'impôt de plus. Les scénarios sont inclus dans l'export.
+- **Optimiseur en Web Worker** : la page gelait ~320 ms par optimisation. Le calcul part sur un fil
+  séparé (chunk de 41 kB), devient **annulable**, et les erreurs remontent. Repli synchrone prévu.
+- **`useDeferredValue`** : `projeter` simulait 55 années avec la trace à chaque frappe. La saisie
+  passe devant ; le résultat précédent reste affiché, estompé, le temps du calcul.
+- **Impression / PDF** : l'atelier déplie ses huit étapes le temps de l'impression, les colonnes
+  repassent à plat, les tableaux s'impriment en entier. Vérifié en générant un vrai PDF.
+- **198 cas-tests verts** (147 moteur + 51 interface).
 
 ### 2026-07-25 — Refonte de l'interface, lot 3 : les résultats racontent une histoire
 - **Verdict en grand** en tête de la colonne de résultat (la réponse d'abord, l'action ensuite) :
