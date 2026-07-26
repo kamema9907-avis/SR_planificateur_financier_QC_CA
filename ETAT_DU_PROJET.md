@@ -3,9 +3,11 @@
 > **Document vivant** : synthèse de tout ce que le projet fait à ce jour. À mettre à jour au fil des
 > phases. Voir le [journal des modifications](#-journal-des-modifications) à la fin pour l'historique.
 >
-> Dernière mise à jour : **2026-07-04** — **crédit fonds de travailleurs** (FTQ/Fondaction) désormais
-> appliqué dans la projection (auparavant ignoré). Auparavant : droits REER (avec facteur d'équivalence),
-> terrain vacant, plafonds CELIAPP / droits CELI, cotisations sociales, syndicat, assurance-salaire, survivant RRQ.
+> Dernière mise à jour : **2026-07-25** — **refonte de l'interface, lots 0 à 2** : fondations partagées,
+> coquille « Atelier » (rail d'étapes + résultat collant), densité de saisie et validations croisées.
+> Voir [`PLAN_REFONTE_UI.md`](PLAN_REFONTE_UI.md). Auparavant : crédit fonds de travailleurs dans la projection,
+> droits REER (avec facteur d'équivalence), terrain vacant, plafonds CELIAPP / droits CELI, cotisations
+> sociales, syndicat, assurance-salaire, survivant RRQ.
 
 ## Table des matières
 1. [Vision et objectif](#-vision-et-objectif)
@@ -101,7 +103,7 @@ Deux conjoints entièrement modélisés (colonnes côte à côte), un ménage à
   tableau (avec le montant fractionné).
 
 ### Qualité / validation
-- **122 cas-tests automatisés** (moteur fiscal, cotisations, plafonds CELIAPP/CELI/REER, fonds de travailleurs, indexation, comptes, projection, décaissement, couple, immobilier dont terrain, optimiseur).
+- **161 cas-tests automatisés** (moteur fiscal, cotisations, plafonds CELIAPP/CELI/REER, fonds de travailleurs, indexation, comptes, projection, décaissement, couple, immobilier dont terrain, optimiseur).
 - Propriété clé du couple : le **fractionnement ne hausse jamais** l'impôt combiné (testé).
 - **Validation croisée** contre les taux marginaux combinés **publiés** du Québec 2026 :
   sommet **53,31 %**, 140 000 $ → **47,46 %**, 60 000 $ → **36,12 %**.
@@ -162,14 +164,25 @@ src/
 │   │   ├── decaissement.ts         # Solveur de retrait (cible nette d'impôt)
 │   │   └── projection.ts           # Boucle année par année (cycle de vie)
 │   ├── index.ts                    # API publique du moteur
-│   └── *.test.ts                   # 122 cas-tests
+│   └── *.test.ts                   # 147 cas-tests (moteur)
 └── interface/                      # UI React (habillage)
     ├── Champ.tsx                   # Champs de saisie réutilisables
     ├── format.ts                   # Formatage $ / % (fr-CA)
+    ├── useDossier.ts               # Persistance locale, affichage réel/nominal, optimiseur
     ├── Resultats.tsx               # Résultats de l'onglet Impôt
     ├── VueImpotAnnuel.tsx          # Onglet « Impôt (1 année) »
-    └── projection/                 # Onglet « Projection » (formulaire, graphique, tableau)
+    ├── ui/                         # Briques partagées (Tuile, CarteListe, icônes)
+    ├── atelier/                    # Coquille de saisie : rail d'étapes, étape, résultat collant
+    └── projection/                 # Onglet « Projection »
+        ├── champsPersonne.ts       # Vue « personne » commune au solo et au couple
+        ├── etapes.tsx              # Découpage en étapes : solo (8), conjoint (6), ménage (2)
+        ├── SectionVieActive.tsx    # Section commune (solo ET chaque conjoint)
+        ├── BlocsEpargne.tsx        # Encadrés de plafonds (CELIAPP, droits CELI/REER, fonds)
+        ├── PanneauSynthese.tsx     # Colonne collante : optimiseur, indicateurs, courbe
+        └── …                       # Graphiques, tableaux, drill-down, optimiseur
 ```
+
+L'interface est en cours de refonte (« l'Atelier ») — voir [`PLAN_REFONTE_UI.md`](PLAN_REFONTE_UI.md).
 
 ---
 
@@ -217,7 +230,7 @@ src/
 ```bash
 npm install      # installer les dépendances
 npm run dev      # développement (http://localhost:5173)
-npm test         # les 122 cas-tests
+npm test         # les 161 cas-tests
 npm run build    # version de production (dossier dist/, à héberger)
 npm run preview  # prévisualiser la version de production
 ```
@@ -258,8 +271,11 @@ Conséquence : les montants sont de bonnes **estimations de planification**, pas
    downsizing, arbitrage d'exemption, roulement au conjoint).
 5. **✅ Phase 4** — **Optimiseur automatique** (recherche sur le moteur) : ordre de décaissement, fonte
    du REER, âges RRQ/SV, ventes immobilières. Maximise le patrimoine net au décès.
-6. **Phase 5** — Finitions UI, export/import chiffré, partage. (**Hébergement : ✅ fait** — GitHub Pages,
-   déploiement automatique à chaque `git push`.)
+6. **Phase 5** — **Refonte de l'interface (« l'Atelier »)**, export/import, partage. Plan détaillé en
+   6 lots dans [`PLAN_REFONTE_UI.md`](PLAN_REFONTE_UI.md) : **lot 0 (fondations) ✅ fait**,
+   **lot 1 (coquille à 3 zones et rail d’étapes) ✅ fait**, **lot 2 (densité de saisie) ✅ fait**, lot 3
+   (résultats), lot 4 (scénarios A/B, export, Web Worker), lot 5 (mode sombre, mobile, accessibilité).
+   (**Hébergement : ✅ fait** — GitHub Pages, déploiement automatique à chaque `git push`.)
 
 Idées / à explorer : immobilier détaillé (résidence/chalet/immeuble à revenu, arbitrage d'exemption),
 options d'employé, analyse de sensibilité / Monte Carlo, autres provinces.
@@ -267,6 +283,69 @@ options d'employé, analyse de sensibilité / Monte Carlo, autres provinces.
 ---
 
 ## 📓 Journal des modifications
+
+### 2026-07-25 — Refonte de l'interface, lot 2 : densité de saisie et cohérence
+- **Bascule « Essentiel / Avancé »** (persistée) : les réglages ayant un défaut sûr sont masqués par
+  défaut — croissance réelle du salaire, facteur d'équivalence, âges de début RRQ/SV, indexation des
+  rentes, appréciation immobilière, âge min. de vente, fraction libérée, inflation, frais de gestion,
+  et les comptes CELIAPP/CRI/REEE tant qu'ils sont vides. **Mesuré : 46 → 32 champs** pour le groupe
+  solo complet, **12 → 7** pour l'étape Immobilier. Les droits REER et CELI restent visibles : leur
+  valeur change réellement le résultat.
+- **Aide en infobulle** : chaque étape n'affiche plus qu'**une phrase** ; le détail (règles fiscales,
+  chaînes de débordement, formule RREGOP) passe derrière un bouton « ? » fermable au clic extérieur
+  ou à Échap. L'étape Immobilier ouvrait sur cinq lignes de texte gris avant le premier champ.
+- **Validations croisées** (`interface/projection/validation.ts`, code pur, **14 nouveaux cas-tests**) :
+  ordre des âges, rente ou période de travail se terminant avant de commencer, cotisation REER
+  dépassant les droits estimés (18 % du salaire + report), paiement hypothécaire ne couvrant pas les
+  intérêts, âge de vente antérieur au minimum autorisé, équité négative, absence de cible de
+  dépenses, inflation ou frais aberrants.
+- Les alertes s'affichent en tête de l'étape concernée **et** comme point rouge (erreur) ou ambre
+  (à vérifier) dans le rail : une incohérence se repère sans ouvrir l'étape. En couple, chaque
+  message porte le nom du conjoint concerné.
+- **161 cas-tests verts** (147 moteur + 14 validation), build OK, aucune erreur console.
+
+### 2026-07-25 — Refonte de l'interface, lot 1 : « l'Atelier »
+- La saisie passe d'une page qui défile à une **coquille à trois zones** : rail d'étapes à gauche,
+  une étape à la fois au centre, **panneau de synthèse collant** à droite (optimiseur, indicateurs,
+  courbe de valeur nette). Le principe : la saisie occupe une zone bornée, le résultat ne quitte
+  jamais l'écran.
+- **Le mode couple utilise la même coquille que le solo** : un sélecteur `Conjoint 1 / Conjoint 2 /
+  Ménage` remplace les deux formulaires côte à côte. Les identifiants d'étape étant partagés, passer
+  d'un conjoint à l'autre conserve l'étape courante — pratique pour les comparer.
+- Découpage : `groupeSolo` (8 étapes), `groupeConjoint` (6), `groupeMenage` (2) dans `etapes.tsx`.
+  Chaque étape porte son titre, son explication, son caractère facultatif et son état de complétude
+  (pastille ✓ et compteur « n / m essentielles »).
+- Nouveau `GraphiqueCompact` : courbe de valeur nette lisible dans une colonne de 21 rem (le
+  graphique empilé par catégorie de compte, illisible à cette largeur, reste en pleine largeur sous
+  l'atelier avec les tableaux année par année).
+- Les étapes du groupe actif restent **montées mais masquées** (`hidden`) : l'état interne des
+  sous-composants, dont le calculateur RREGOP, survit à la navigation.
+- Suppression de `FormulaireProjection.tsx`, `FormulairePersonne.tsx` et `EtapesPersonne.tsx`.
+- **Mesuré en navigateur** (Chrome headless, 1600 × 1150) : page du couple **6 000 → 3 408 px**,
+  contrôles de saisie à l'écran **60-80 → 5-15**. Aucune erreur console ; **147 cas-tests verts**.
+
+### 2026-07-25 — Refonte de l'interface, lot 0 : les fondations partagées
+- Diagnostic : la page de saisie atteignait **~3 200 px en solo et ~6 000 px en couple** (jusqu'à 80
+  contrôles à l'écran), les résultats du couple se trouvant **sous** deux formulaires complets — la
+  boucle de rétroaction du simulateur était rompue. Plan complet : [`PLAN_REFONTE_UI.md`](PLAN_REFONTE_UI.md).
+- `FormulaireProjection` et `FormulairePersonne` étaient à ~85 % identiques (blocs CELIAPP/CELI/REER/
+  fonds de travailleurs copiés mot pour mot) et avaient déjà divergé. Nouveau **`EtapesPersonne`** :
+  les cinq sections communes (vie active, travail à la retraite, comptes, rentes publiques, rentes
+  d'employeur) servent désormais la personne seule **et** chaque conjoint. 191 → 84 et 170 → 66 lignes.
+- Nouveau type d'interface **`ChampsPersonne`** : intersection structurelle de `HypothesesProjection`
+  et `PersonneProjection`, mise à jour par patch partiel appliqué par chaque vue à son propre type
+  (l'immutabilité du moteur est préservée, aucun type du moteur n'est modifié).
+- Nouveaux partagés : `ui/Tuile`, `ui/CarteListe`, `ui/icones`, `projection/BlocsEpargne`,
+  `projection/BarreOptimiseur`, et les hooks **`useDossier` / `useAffichageReel` / `useOptimiseur`**
+  (le trio `useState` + `localStorage` + `useEffect` était répété dans les trois vues).
+- `index.css` : palette de marque complète (50→900) et classes de composants `.bouton-primaire`,
+  `.bouton-marque`, `.bouton-secondaire`, `.bouton-fantome`, `.bouton-ajout`, `.bouton-suppr`,
+  `.carte-liste`, `.encadre-marque/ciel/ambre` — remplacent des chaînes Tailwind recopiées à la main.
+- Corrections au passage : numérotation des sections du couple (immobilier et ménage portaient 5 et 6,
+  déjà pris par chaque conjoint → 7 et 8) ; **rédaction unifiée au vouvoiement** ; anneaux de focus
+  visibles sur tous les boutons ; libellé de suppression explicite (« Supprimer « Chalet » »).
+- Bilan : `−547 / +235` lignes dans les fichiers existants, remplacées par du code partagé.
+  **Aucune ligne du moteur touchée — 147 cas-tests verts**, typecheck et build OK.
 
 ### 2026-07-04 — Crédit pour fonds de travailleurs dans la projection
 - La projection ignorait le crédit FTQ/Fondaction (`cotisationFondsTravailleurs: 0` codé en dur chaque

@@ -6,9 +6,15 @@
 
   /* Palette de marque : ardoise + émeraude (croissance) + ambre/rose (impôt) */
   --color-marque-50: #ecfdf5;
+  --color-marque-100: #d1fae5;
+  --color-marque-200: #a7f3d0;
+  --color-marque-300: #6ee7b7;
+  --color-marque-400: #34d399;
   --color-marque-500: #10b981;
   --color-marque-600: #059669;
   --color-marque-700: #047857;
+  --color-marque-800: #065f46;
+  --color-marque-900: #064e3b;
 }
 
 @layer base {
@@ -37,6 +43,11 @@
     @apply rounded-2xl bg-white/80 ring-1 ring-slate-200/80 shadow-sm backdrop-blur-sm;
   }
 
+  /* Élément d'une liste éditable (un immeuble, une rente, une période de travail) */
+  .carte-liste {
+    @apply relative rounded-xl p-4 ring-1 ring-slate-200;
+  }
+
   .etiquette {
     @apply block text-sm font-medium text-slate-600;
   }
@@ -58,5 +69,65 @@
   }
   .saisie[type='number'] {
     -moz-appearance: textfield;
+  }
+
+  /* --- Boutons ------------------------------------------------------------
+     Chaque variante est autonome (pas de composition entre classes de
+     composants : `@apply` ne s'applique qu'aux utilitaires Tailwind). */
+
+  /* Action principale d'une vue (« Optimiser la stratégie ») */
+  .bouton-primaire {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5
+      text-sm font-semibold text-white transition hover:bg-slate-800
+      focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2
+      focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  /* Action de confirmation, teintée marque (« Appliquer cette stratégie ») */
+  .bouton-marque {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-marque-500 px-4 py-2
+      text-sm font-medium text-white transition hover:bg-marque-600
+      focus-visible:ring-2 focus-visible:ring-marque-500 focus-visible:ring-offset-2
+      focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  /* Action secondaire (« Fermer ») */
+  .bouton-secondaire {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-slate-100 px-4 py-2
+      text-sm font-medium text-slate-600 ring-1 ring-slate-200 transition hover:bg-slate-200
+      focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:outline-none;
+  }
+
+  /* Action discrète, petite (« Réinitialiser ») */
+  .bouton-fantome {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs
+      font-medium text-slate-500 ring-1 ring-slate-200 transition hover:bg-slate-50
+      hover:text-slate-700 focus-visible:ring-2 focus-visible:ring-slate-400
+      focus-visible:outline-none;
+  }
+
+  /* Ajout d'un élément à une liste (« + Rente de base », « + Chalet ») */
+  .bouton-ajout {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg bg-slate-100 px-3 py-1.5
+      text-sm font-medium text-slate-700 ring-1 ring-slate-200 transition hover:bg-slate-200
+      focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:outline-none;
+  }
+
+  /* Retrait d'un élément de liste (croix en coin de carte) */
+  .bouton-suppr {
+    @apply absolute top-2.5 right-2.5 flex h-6 w-6 items-center justify-center rounded-full
+      text-slate-400 transition hover:bg-rose-50 hover:text-rose-500
+      focus-visible:ring-2 focus-visible:ring-rose-400 focus-visible:outline-none;
+  }
+
+  /* --- Encadrés d'aide contextuelle --------------------------------------- */
+  .encadre-marque {
+    @apply mt-4 rounded-xl bg-marque-50/60 p-4 ring-1 ring-marque-500/15;
+  }
+  .encadre-ciel {
+    @apply mt-4 rounded-xl bg-sky-50/60 p-4 ring-1 ring-sky-500/15;
+  }
+  .encadre-ambre {
+    @apply mt-4 rounded-xl bg-amber-50/70 p-4 ring-1 ring-amber-500/20;
   }
 }

@@ -1,6 +1,7 @@
 import { rendementBrut, type Compte, type ProfilRendement, type TypeCompte } from '../../moteur';
 import { ChampMonetaire, ChampPourcent, ChampSelect } from '../Champ';
 import { formatPourcent } from '../format';
+import { useModeDetail } from '../ui/ModeDetail';
 
 interface Props {
   comptes: readonly Compte[];
@@ -19,9 +20,17 @@ const AVOIRS_DEFAUT: readonly { type: TypeCompte; label: string }[] = [
   { type: 'REEE', label: 'REEE' },
 ];
 
+/** Comptes moins courants : masqués en mode Essentiel tant qu'ils sont vides. */
+const AVOIRS_RARES: readonly TypeCompte[] = ['CELIAPP', 'CRI', 'REEE'];
+
 /** Éditeur réutilisable des comptes (solde + profil/rendement + coût de base non-enr.). */
 export function EditeurComptes({ comptes, fraisGestion, onChange, types = AVOIRS_DEFAUT }: Props) {
+  const { avance } = useModeDetail();
   const compte = (type: TypeCompte) => comptes.find((c) => c.type === type);
+
+  const typesVisibles = types.filter(
+    ({ type }) => avance || !AVOIRS_RARES.includes(type) || (compte(type)?.solde ?? 0) > 0,
+  );
 
   const majCompte = (
     type: TypeCompte,
@@ -44,7 +53,7 @@ export function EditeurComptes({ comptes, fraisGestion, onChange, types = AVOIRS
 
   return (
     <div className="space-y-4">
-      {types.map(({ type, label }) => {
+      {typesVisibles.map(({ type, label }) => {
         const c = compte(type);
         const perso = c?.rendementPersonnalise != null;
         return (

@@ -1,32 +1,14 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { calculerImpot, entreeVide, type EntreeFiscale } from '../moteur';
 import { BoutonReinitialiser, ChampMonetaire, ChampNombre, Interrupteur, TitreSection } from './Champ';
 import { Resultats } from './Resultats';
+import { useDossier } from './useDossier';
 
 const CLE_STOCKAGE = 'pf2026:entree';
 
-/** Charge l'entrée sauvegardée localement, sinon une entrée vierge (champs à zéro). */
-function chargerEntree(): EntreeFiscale {
-  try {
-    const brut = localStorage.getItem(CLE_STOCKAGE);
-    if (brut) return { ...entreeVide(), ...JSON.parse(brut) };
-  } catch {
-    /* ignore */
-  }
-  return entreeVide();
-}
-
 /** Vue « Impôt (1 année) » — le calculateur d'impôt de la Phase 1. */
 export function VueImpotAnnuel() {
-  const [entree, setEntree] = useState<EntreeFiscale>(chargerEntree);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(CLE_STOCKAGE, JSON.stringify(entree));
-    } catch {
-      /* ignore */
-    }
-  }, [entree]);
+  const { donnees: entree, setDonnees: setEntree, reinitialiser } = useDossier(CLE_STOCKAGE, entreeVide);
 
   const resultat = useMemo(() => calculerImpot(entree), [entree]);
 
@@ -37,8 +19,8 @@ export function VueImpotAnnuel() {
     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
       <div className="space-y-6">
         <div className="flex items-center justify-between gap-3">
-          <p className="text-xs text-slate-400">Tes données restent sur ton appareil — rien n'est envoyé en ligne.</p>
-          <BoutonReinitialiser onReset={() => setEntree(entreeVide())} />
+          <p className="text-xs text-slate-400">Vos données restent sur votre appareil — rien n'est envoyé en ligne.</p>
+          <BoutonReinitialiser onReset={reinitialiser} />
         </div>
         <section className="carte p-6">
           <TitreSection numero={1} titre="Votre situation" />
@@ -87,7 +69,7 @@ export function VueImpotAnnuel() {
             calculées automatiquement à partir de ton salaire et détaillées dans les résultats (crédits + déduction
             de la portion bonifiée du RRQ).
           </p>
-          <div className="mt-5 rounded-xl bg-marque-50/60 p-4 ring-1 ring-marque-500/15">
+          <div className="encadre-marque mt-5">
             <Interrupteur
               label="Fonds de travailleurs (FTQ / Fondaction CSN)"
               valeur={entree.cotisationFondsTravailleurs > 0}

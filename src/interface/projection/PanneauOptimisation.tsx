@@ -1,4 +1,5 @@
 import { formatDollars } from '../format';
+import { IconeEtincelleDouble } from '../ui/icones';
 
 interface Props {
   gainPatrimoine: number;
@@ -16,9 +17,7 @@ export function PanneauOptimisation({ gainPatrimoine, gainImpot, details, onAppl
     <div className="carte overflow-hidden ring-2 ring-marque-500/40">
       <div className="bg-gradient-to-br from-marque-600 to-sky-500 p-5 text-white">
         <div className="flex items-center gap-2">
-          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
-            <path d="M5 3v4M3 5h4M6 17v4M4 19h4M13 3l2.5 6.5L22 12l-6.5 2.5L13 21l-2.5-6.5L4 12l6.5-2.5z" />
-          </svg>
+          <IconeEtincelleDouble classe="h-5 w-5" />
           <h3 className="font-semibold">
             {aucunGain ? 'Votre stratégie est déjà optimale' : 'Stratégie optimisée trouvée'}
           </h3>
@@ -57,19 +56,11 @@ export function PanneauOptimisation({ gainPatrimoine, gainImpot, details, onAppl
         )}
         <div className="mt-4 flex gap-2">
           {!aucunGain && (
-            <button
-              type="button"
-              onClick={onAppliquer}
-              className="rounded-lg bg-marque-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-marque-600"
-            >
+            <button type="button" onClick={onAppliquer} className="bouton-marque">
               Appliquer cette stratégie
             </button>
           )}
-          <button
-            type="button"
-            onClick={onFermer}
-            className="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-600 ring-1 ring-slate-200 transition hover:bg-slate-200"
-          >
+          <button type="button" onClick={onFermer} className="bouton-secondaire">
             Fermer
           </button>
         </div>

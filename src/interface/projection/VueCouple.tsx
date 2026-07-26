@@ -1,19 +1,20 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 import {
   optimiserCouple,
   projeterCouple,
   type HypothesesCouple,
   type PersonneProjection,
-  type ResultatCouple,
-  type ResultatOptimisation,
   type TypeCompte,
 } from '../../moteur';
 import { formatDollars } from '../format';
-import { BoutonReinitialiser, ChampMonetaire, ChampPourcent, Interrupteur, TitreSection } from '../Champ';
-import { FormulairePersonne } from './FormulairePersonne';
-import { SectionImmobilier } from './SectionImmobilier';
+import { BoutonReinitialiser, Interrupteur } from '../Champ';
+import { Atelier } from '../atelier/Atelier';
+import { BasculeAvance } from '../ui/ModeDetail';
+import { useAffichageReel, useDossier, useOptimiseur } from '../useDossier';
+import { groupeConjoint, groupeMenage } from './etapes';
 import { GraphiqueProjection } from './GraphiqueProjection';
 import { PanneauOptimisation } from './PanneauOptimisation';
+import { PanneauSynthese } from './PanneauSynthese';
 import { DetailAnneesCouple } from './DetailAnneesCouple';
 
 /** Décrit les leviers d'une stratégie de couple optimisée. */
@@ -58,16 +59,6 @@ function defautCouple(): HypothesesCouple {
   };
 }
 
-function charger(): HypothesesCouple {
-  try {
-    const brut = localStorage.getItem(CLE_STOCKAGE);
-    if (brut) return { ...defautCouple(), ...JSON.parse(brut) };
-  } catch {
-    /* ignore */
-  }
-  return defautCouple();
-}
-
 const TYPES: TypeCompte[] = ['REER', 'FERR', 'CRI', 'FRV', 'CELI', 'CELIAPP', 'NON_ENREGISTRE', 'REEE'];
 function combineSoldes(a: Record<TypeCompte, number>, b: Record<TypeCompte, number>): Record<TypeCompte, number> {
   const r = {} as Record<TypeCompte, number>;
@@ -75,41 +66,16 @@ function combineSoldes(a: Record<TypeCompte, number>, b: Record<TypeCompte, numb
   return r;
 }
 
-function Tuile({ label, valeur, ton, aide }: { label: string; valeur: string; ton: 'ok' | 'alerte' | 'neutre'; aide?: string }) {
-  const couleur = ton === 'ok' ? 'text-marque-700' : ton === 'alerte' ? 'text-rose-600' : 'text-slate-900';
-  return (
-    <div className="carte p-4">
-      <p className="text-xs font-medium tracking-wide text-slate-500 uppercase">{label}</p>
-      <p className={`chiffres mt-1 text-xl font-bold ${couleur}`}>{valeur}</p>
-      {aide && <p className="mt-0.5 text-xs text-slate-400">{aide}</p>}
-    </div>
-  );
-}
-
 export function VueCouple() {
-  const [h, setH] = useState<HypothesesCouple>(charger);
-  const [reel, setReel] = useState(true);
-  const [optim, setOptim] = useState<ResultatOptimisation<HypothesesCouple, ResultatCouple> | null>(null);
-  const [calcul, setCalcul] = useState(false);
+  const { donnees: h, setDonnees: setH, reinitialiser } = useDossier(CLE_STOCKAGE, defautCouple);
+  const { reel, setReel } = useAffichageReel();
 
-  const lancerOptim = () => {
-    setCalcul(true);
-    setTimeout(() => {
-      setOptim(optimiserCouple(h));
-      setCalcul(false);
-    }, 20);
-  };
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(CLE_STOCKAGE, JSON.stringify(h));
-    } catch {
-      /* ignore */
-    }
-  }, [h]);
+  const appliquer = useCallback((strategie: HypothesesCouple) => setH(strategie), [setH]);
+  const optim = useOptimiseur(h, optimiserCouple, appliquer);
 
   const resultat = useMemo(() => projeterCouple(h, { trace: true }), [h]);
 
+  /** Le graphique du ménage est indexé sur l'âge de l'aîné. */
   const elderStart = Math.max(h.personne1.ageActuel, h.personne2.ageActuel);
   const points = resultat.annees.map((a) => ({
     age: elderStart + (a.annee - 2026),
@@ -120,102 +86,89 @@ export function VueCouple() {
   const ageRetraiteMarker = elderStart + Math.max(h.personne1.ageRetraite - h.personne1.ageActuel, h.personne2.ageRetraite - h.personne2.ageActuel);
   const ageEpuisementMarker = resultat.anneeEpuisement != null ? elderStart + (resultat.anneeEpuisement - 2026) : null;
 
+  const majConjoint = (cle: 'personne1' | 'personne2') => (p: PersonneProjection) =>
+    setH((cur) => ({ ...cur, [cle]: p }));
+
   return (
-    <div className="space-y-8">
-      {/* Barre supérieure : réinitialiser (visible sans défiler) */}
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-xs text-slate-400">Chaque conjoint a ses propres comptes, rentes et droits.</p>
-        <BoutonReinitialiser onReset={() => setH(defautCouple())} />
-      </div>
-
-      {/* Deux colonnes : les conjoints */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        {([h.personne1, h.personne2] as const).map((p, idx) => (
-          <div key={idx} className="space-y-4">
-            <div className="rounded-xl bg-gradient-to-br from-marque-500/10 to-sky-500/10 px-4 py-2 ring-1 ring-marque-500/15">
-              <span className="text-sm font-semibold text-slate-700">{p.nom}</span>
+    <Atelier
+      actions={
+        <div className="flex items-center gap-2">
+          <BasculeAvance />
+          <BoutonReinitialiser onReset={reinitialiser} />
+        </div>
+      }
+      groupes={[
+        groupeConjoint('personne1', h, majConjoint('personne1')),
+        groupeConjoint('personne2', h, majConjoint('personne2')),
+        groupeMenage(h, setH),
+      ]}
+      resultat={
+        <PanneauSynthese
+          indicateurs={[
+            {
+              label: 'Autonomie du capital',
+              valeur: resultat.suffisant ? 'Suffisant' : `Épuisé en ${resultat.anneeEpuisement}`,
+              ton: resultat.suffisant ? 'ok' : 'alerte',
+              aide: resultat.suffisant ? 'Dépenses financées jusqu’au dernier décès' : 'Dépenses non financées',
+            },
+            {
+              label: 'Valeur nette au dernier décès',
+              valeur: formatDollars(resultat.valeurNetteAuDernierDecesReelle),
+              aide: "En $ d'aujourd'hui, après impôt",
+            },
+            {
+              label: 'Impôt total sur la vie',
+              valeur: formatDollars(resultat.impotTotalVieReel),
+              aide: "Couple, en $ d'aujourd'hui",
+            },
+          ]}
+          points={points}
+          reel={reel}
+          onReel={setReel}
+          ageRetraite={ageRetraiteMarker}
+          ageEpuisement={ageEpuisementMarker}
+          optimiseur={{
+            label: 'Optimiser le couple',
+            aide: 'Fractionnement, décaissement coordonné, fonte, RRQ/SV, ventes.',
+            calcul: optim.calcul,
+            onLancer: optim.lancer,
+          }}
+          optimisation={
+            optim.resultat && (
+              <PanneauOptimisation
+                gainPatrimoine={optim.resultat.gainPatrimoineReel}
+                gainImpot={optim.resultat.gainImpotVieReel}
+                details={detailsCouple(optim.resultat.strategie)}
+                onAppliquer={optim.appliquerStrategie}
+                onFermer={optim.fermer}
+              />
+            )
+          }
+        />
+      }
+      dessous={
+        <div className="space-y-5">
+          <div className="carte p-5">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="font-semibold text-slate-800">Patrimoine du ménage</h3>
+              <label className="flex items-center gap-2 text-xs text-slate-500">
+                <span>Dollars d'aujourd'hui</span>
+                <Interrupteur label="" valeur={!reel} onChange={(v) => setReel(!v)} />
+                <span>Nominaux</span>
+              </label>
             </div>
-            <FormulairePersonne
-              p={p}
-              fraisGestion={h.fraisGestion}
-              onChange={(np) => setH((cur) => ({ ...cur, [idx === 0 ? 'personne1' : 'personne2']: np }))}
-            />
+            <GraphiqueProjection annees={points} reel={reel} ageRetraite={ageRetraiteMarker} ageEpuisement={ageEpuisementMarker} />
           </div>
-        ))}
-      </div>
 
-      {/* Immobilier du ménage */}
-      <SectionImmobilier immeubles={h.immeubles} onChange={(immeubles) => setH((c) => ({ ...c, immeubles }))} couple numero={5} />
-
-      {/* Ménage */}
-      <section className="carte p-6">
-        <TitreSection numero={6} titre="Ménage" />
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <ChampMonetaire label="Dépenses du ménage" valeur={h.depensesRetraite} onChange={(v) => setH((c) => ({ ...c, depensesRetraite: v }))} indice="Net d'impôt, en $ d'aujourd'hui" />
-          <ChampPourcent label="Dépenses du survivant" valeur={h.fractionSurvivant} onChange={(v) => setH((c) => ({ ...c, fractionSurvivant: v }))} indice="% des dépenses du couple" pas={1} />
-          <ChampPourcent label="Inflation" valeur={h.inflation} onChange={(v) => setH((c) => ({ ...c, inflation: v }))} />
-          <ChampPourcent label="Frais de gestion" valeur={h.fraisGestion} onChange={(v) => setH((c) => ({ ...c, fraisGestion: v }))} />
-        </div>
-      </section>
-
-      {/* Résultats */}
-      <div className="space-y-5">
-        {/* Optimiseur */}
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            onClick={lancerOptim}
-            disabled={calcul}
-            className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
-          >
-            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
-              <path d="M5 3v4M3 5h4M13 3l2.5 6.5L22 12l-6.5 2.5L13 21l-2.5-6.5L4 12l6.5-2.5z" />
-            </svg>
-            {calcul ? 'Optimisation…' : 'Optimiser la stratégie du couple'}
-          </button>
-          <span className="text-xs text-slate-400">Fractionnement, décaissement coordonné, fonte, RRQ/SV, ventes.</span>
-        </div>
-        {optim && (
-          <PanneauOptimisation
-            gainPatrimoine={optim.gainPatrimoineReel}
-            gainImpot={optim.gainImpotVieReel}
-            details={detailsCouple(optim.strategie)}
-            onAppliquer={() => { setH(optim.strategie); setOptim(null); }}
-            onFermer={() => setOptim(null)}
-          />
-        )}
-
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <Tuile
-            label="Autonomie du capital"
-            valeur={resultat.suffisant ? 'Suffisant' : `Épuisé en ${resultat.anneeEpuisement}`}
-            ton={resultat.suffisant ? 'ok' : 'alerte'}
-            aide={resultat.suffisant ? 'Dépenses financées jusqu’au dernier décès' : 'Dépenses non financées'}
-          />
-          <Tuile label="Valeur nette au dernier décès" valeur={formatDollars(resultat.valeurNetteAuDernierDecesReelle)} ton="neutre" aide="En $ d'aujourd'hui, après impôt" />
-          <Tuile label="Impôt total sur la vie" valeur={formatDollars(resultat.impotTotalVieReel)} ton="neutre" aide="Couple, en $ d'aujourd'hui" />
-        </div>
-
-        <div className="carte p-5">
-          <div className="mb-3 flex items-center justify-between">
-            <h3 className="font-semibold text-slate-800">Patrimoine du ménage</h3>
-            <label className="flex items-center gap-2 text-xs text-slate-500">
-              <span>Dollars d'aujourd'hui</span>
-              <Interrupteur label="" valeur={!reel} onChange={(v) => setReel(!v)} />
-              <span>Nominaux</span>
-            </label>
+          <div className="carte p-5">
+            <h3 className="mb-1 font-semibold text-slate-800">Détail année par année — ménage</h3>
+            <p className="mb-3 text-xs text-slate-400">
+              Le fractionnement du revenu de pension est optimisé automatiquement chaque année. Cliquez un montant souligné pour voir son calcul.
+            </p>
+            <DetailAnneesCouple annees={resultat.annees} reel={reel} anneeEpuisement={resultat.anneeEpuisement} />
           </div>
-          <GraphiqueProjection annees={points} reel={reel} ageRetraite={ageRetraiteMarker} ageEpuisement={ageEpuisementMarker} />
         </div>
-
-        <div className="carte p-5">
-          <h3 className="mb-1 font-semibold text-slate-800">Détail année par année — ménage</h3>
-          <p className="mb-3 text-xs text-slate-400">
-            Le fractionnement du revenu de pension est optimisé automatiquement chaque année. Cliquez un montant souligné pour voir son calcul.
-          </p>
-          <DetailAnneesCouple annees={resultat.annees} reel={reel} anneeEpuisement={resultat.anneeEpuisement} />
-        </div>
-      </div>
-    </div>
+      }
+    />
   );
 }

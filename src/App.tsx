@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { VueImpotAnnuel } from './interface/VueImpotAnnuel';
 import { VueProjection } from './interface/projection/VueProjection';
+import { IconeCadenas, IconeCourbe } from './interface/ui/icones';
+import { ModeDetailProvider } from './interface/ui/ModeDetail';
 
 type Onglet = 'impot' | 'projection';
 
@@ -13,15 +15,13 @@ export function App() {
   const [onglet, setOnglet] = useState<Onglet>('impot');
 
   return (
+    <ModeDetailProvider>
     <div className="min-h-screen">
       <header className="border-b border-slate-200/70 bg-white/60 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-marque-500 to-sky-500 shadow-sm">
-              <svg viewBox="0 0 24 24" className="h-6 w-6 text-white" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
-                <path d="M4 16 L10 10 L14 13 L20 6" />
-                <circle cx="20" cy="6" r="1.4" fill="currentColor" stroke="none" />
-              </svg>
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-marque-500 to-sky-500 text-white shadow-sm">
+              <IconeCourbe />
             </div>
             <div>
               <h1 className="text-lg font-bold tracking-tight text-slate-900">
@@ -31,10 +31,7 @@ export function App() {
             </div>
           </div>
           <span className="inline-flex items-center gap-1.5 rounded-full bg-marque-50 px-3 py-1.5 text-xs font-medium text-marque-700 ring-1 ring-marque-500/20">
-            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
-              <rect x="5" y="11" width="14" height="10" rx="2" />
-              <path d="M8 11V7a4 4 0 0 1 8 0v4" />
-            </svg>
+            <IconeCadenas />
             100 % local — vos données restent sur votre appareil
           </span>
         </div>
@@ -76,5 +73,6 @@ export function App() {
         </p>
       </main>
     </div>
+    </ModeDetailProvider>
   );
 }
