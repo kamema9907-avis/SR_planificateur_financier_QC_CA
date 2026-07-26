@@ -125,6 +125,7 @@ export function VueProjection() {
                 ageRetraite: h.ageRetraite,
                 ageDeces: h.ageDeces,
                 valeurNetteFinale: resultat.valeurNetteAuDecesReelle,
+                evaluable: h.depensesRetraite > 0,
               }}
               indicateurs={[
                 {

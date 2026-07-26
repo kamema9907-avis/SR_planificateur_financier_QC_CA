@@ -111,6 +111,7 @@ export function VueCouple() {
             ageDeces: elderStart + (resultat.annees.length - 1),
             valeurNetteFinale: resultat.valeurNetteAuDernierDecesReelle,
             sujet: 'Les dépenses du ménage',
+            evaluable: h.depensesRetraite > 0,
           }}
           indicateurs={[
             {

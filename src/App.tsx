@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { VueImpotAnnuel } from './interface/VueImpotAnnuel';
 import { VueProjection } from './interface/projection/VueProjection';
+import { BoutonsDossier } from './interface/ui/BoutonsDossier';
 import { IconeCadenas, IconeCourbe } from './interface/ui/icones';
 import { ModeDetailProvider } from './interface/ui/ModeDetail';
 
@@ -30,10 +31,13 @@ export function App() {
               <p className="text-xs text-slate-500">Québec + fédéral</p>
             </div>
           </div>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-marque-50 px-3 py-1.5 text-xs font-medium text-marque-700 ring-1 ring-marque-500/20">
-            <IconeCadenas />
-            100 % local — vos données restent sur votre appareil
-          </span>
+          <div className="flex flex-wrap items-center gap-3">
+            <BoutonsDossier />
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-marque-50 px-3 py-1.5 text-xs font-medium text-marque-700 ring-1 ring-marque-500/20">
+              <IconeCadenas />
+              100 % local — vos données restent sur votre appareil
+            </span>
+          </div>
         </div>
 
         {/* Onglets */}

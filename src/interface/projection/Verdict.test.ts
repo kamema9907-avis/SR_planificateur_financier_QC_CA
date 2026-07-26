@@ -7,6 +7,7 @@ const base: DonneesVerdict = {
   ageRetraite: 62,
   ageDeces: 95,
   valeurNetteFinale: 1_000_000,
+  evaluable: true,
 };
 
 describe('jauge d’autonomie', () => {

@@ -9,8 +9,14 @@ export interface DonneesVerdict {
   ageDeces: number;
   /** Valeur nette au décès, en dollars d'aujourd'hui. */
   valeurNetteFinale: number;
-  /** « votre capital » en solo, « le capital du ménage » en couple. */
+  /** « vos dépenses » en solo, « les dépenses du ménage » en couple. */
   sujet?: string;
+  /**
+   * Y a-t-il quelque chose à juger ? Sans cible de dépenses, le verdict serait « financé » — vrai
+   * (zéro dépense est toujours finançable) mais trompeur pour qui ouvre l'outil pour la première
+   * fois. On affiche alors une invitation neutre plutôt qu'un feu vert.
+   */
+  evaluable: boolean;
 }
 
 /**
@@ -34,6 +40,23 @@ export function fractionFinancee(v: DonneesVerdict): number {
  */
 export function Verdict({ v }: { v: DonneesVerdict }) {
   const sujet = v.sujet ?? 'Vos dépenses';
+
+  if (!v.evaluable) {
+    return (
+      <div className="carte p-5">
+        <p className="text-xs font-medium tracking-wide text-slate-400 uppercase">En attente de vos chiffres</p>
+        <p className="mt-1 text-lg leading-snug font-semibold text-slate-700">
+          Indiquez vos comptes et votre cible de dépenses
+        </p>
+        <p className="mt-2 text-xs leading-relaxed text-slate-500">
+          Le verdict s'affichera ici : combien d'années vos dépenses sont financées, ce qu'il reste au
+          décès, et l'impôt payé sur toute la vie. Les étapes signalées par un point dans le rail
+          attendent une valeur.
+        </p>
+      </div>
+    );
+  }
+
   const fraction = fractionFinancee(v);
   const anneesDecouvert = v.ageEpuisement != null ? Math.max(0, v.ageDeces - v.ageEpuisement) : 0;
   const patrimoineImmobilise = !v.suffisant && v.valeurNetteFinale > 1_000;
