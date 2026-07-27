@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, type KeyboardEvent } from 'react';
 import type { Etape } from './types';
 import { idOnglet, idPanneau, progression } from './types';
 
@@ -47,7 +47,7 @@ export function RailEtapes({ etapes, actif, onChoisir }: Props) {
   const liste = useRef<HTMLDivElement>(null);
 
   /** Flèches, Début et Fin : on déplace la sélection ET le focus, comme le veut le modèle onglets. */
-  const auClavier = (e: React.KeyboardEvent, index: number) => {
+  const auClavier = (e: KeyboardEvent, index: number) => {
     const dernier = etapes.length - 1;
     // Les deux paires de flèches sont acceptées : le rail est vertical sur grand écran et
     // horizontal sur téléphone, et l'utilisateur ne devrait pas avoir à s'en soucier.

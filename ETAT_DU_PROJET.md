@@ -384,6 +384,13 @@ dans un Chrome piloté : le responsive ne se juge pas à l'œil, et le contraste
 - **Lecteur d'écran** : le verdict est une zone `aria-live="polite"`. Sans elle, la réponse à
   « est-ce que ça tient ? » n'existait qu'à l'écran.
 
+**Correctif de suivi, le même jour.** La vérification du site déployé a montré que la zone `aria-live`
+était **absente** — l'attribut ne vivait que sur la carte « évaluable », alors qu'un nouvel
+utilisateur voit d'abord la carte « en attente de vos chiffres ». Or une région d'annonce doit exister
+**avant** que son contenu change : apparaître en même temps que le texte, et la plupart des lecteurs
+d'écran ne disent rien. C'est précisément la transition la plus intéressante — le premier verdict —
+qui passait sous silence. La zone enveloppe désormais les deux états.
+
 **Ce que la vérification a aussi révélé, et qui n'est pas corrigé** : `useDossier` fusionne le dossier
 sauvegardé avec les valeurs par défaut **sur un seul niveau**. Un dossier partiel dont un objet
 imbriqué manque des champs (un `localStorage` corrompu, un fichier d'une version antérieure) produit

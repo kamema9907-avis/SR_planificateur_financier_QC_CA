@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { formatDollars } from '../format';
 
 export interface DonneesVerdict {
@@ -31,6 +32,25 @@ export function fractionFinancee(v: DonneesVerdict): number {
 }
 
 /**
+ * Zone d'annonce vocale, **toujours montée**, quel que soit l'état du verdict.
+ *
+ * Une région `aria-live` doit exister AVANT que son contenu change : si elle apparaît en même temps
+ * que le texte, la plupart des lecteurs d'écran ne disent rien. C'est exactement ce qui se passait
+ * quand l'attribut ne vivait que sur la carte « évaluable » — la transition entre « en attente de
+ * vos chiffres » et le premier verdict, le moment le plus intéressant, passait sous silence.
+ *
+ * En « polite » l'annonce attend une pause dans la frappe au lieu de couper la parole, et
+ * `aria-atomic` fait relire la phrase entière plutôt que le seul chiffre qui a changé.
+ */
+function ZoneAnnonce({ className, children }: { className: string; children: ReactNode }) {
+  return (
+    <div aria-live="polite" aria-atomic="true" className={className}>
+      {children}
+    </div>
+  );
+}
+
+/**
  * La réponse à la question qu'on se pose vraiment, en grand : « est-ce que ça tient ? ».
  *
  * Vocabulaire : le moteur marque une année d'« épuisement » dès que les retraits ne suffisent plus
@@ -43,7 +63,7 @@ export function Verdict({ v }: { v: DonneesVerdict }) {
 
   if (!v.evaluable) {
     return (
-      <div className="carte p-5">
+      <ZoneAnnonce className="carte p-5">
         <p className="text-xs font-medium tracking-wide text-slate-500 uppercase">En attente de vos chiffres</p>
         <p className="mt-1 text-lg leading-snug font-semibold text-slate-700">
           Indiquez vos comptes et votre cible de dépenses
@@ -53,7 +73,7 @@ export function Verdict({ v }: { v: DonneesVerdict }) {
           décès, et l'impôt payé sur toute la vie. Les étapes signalées par un point dans le rail
           attendent une valeur.
         </p>
-      </div>
+      </ZoneAnnonce>
     );
   }
 
@@ -62,15 +82,7 @@ export function Verdict({ v }: { v: DonneesVerdict }) {
   const patrimoineImmobilise = !v.suffisant && v.valeurNetteFinale > 1_000;
 
   return (
-    /*
-      `aria-live` : le verdict est la seule chose qui doit être annoncée quand on modifie un champ.
-      Sans lui, un lecteur d'écran reste muet — la réponse à « est-ce que ça tient ? » n'existe qu'à
-      l'écran. En « polite » l'annonce attend une pause dans la frappe au lieu de couper la parole,
-      et `aria-atomic` fait relire la phrase entière plutôt que le seul chiffre qui a changé.
-    */
-    <div
-      aria-live="polite"
-      aria-atomic="true"
+    <ZoneAnnonce
       className={`carte overflow-hidden ${v.suffisant ? '' : 'ring-2 ring-rose-500/30'}`}
     >
       {/*
@@ -146,6 +158,6 @@ export function Verdict({ v }: { v: DonneesVerdict }) {
           </p>
         )}
       </div>
-    </div>
+    </ZoneAnnonce>
   );
 }
