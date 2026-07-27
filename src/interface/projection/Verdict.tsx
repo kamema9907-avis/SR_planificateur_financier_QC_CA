@@ -44,7 +44,7 @@ export function Verdict({ v }: { v: DonneesVerdict }) {
   if (!v.evaluable) {
     return (
       <div className="carte p-5">
-        <p className="text-xs font-medium tracking-wide text-slate-400 uppercase">En attente de vos chiffres</p>
+        <p className="text-xs font-medium tracking-wide text-slate-500 uppercase">En attente de vos chiffres</p>
         <p className="mt-1 text-lg leading-snug font-semibold text-slate-700">
           Indiquez vos comptes et votre cible de dépenses
         </p>
@@ -62,9 +62,24 @@ export function Verdict({ v }: { v: DonneesVerdict }) {
   const patrimoineImmobilise = !v.suffisant && v.valeurNetteFinale > 1_000;
 
   return (
-    <div className={`carte overflow-hidden ${v.suffisant ? '' : 'ring-2 ring-rose-500/30'}`}>
-      <div className={`p-5 ${v.suffisant ? 'bg-gradient-to-br from-marque-600 to-marque-500' : 'bg-gradient-to-br from-rose-600 to-rose-500'} text-white`}>
-        <p className="text-xs font-medium tracking-wide text-white/80 uppercase">
+    /*
+      `aria-live` : le verdict est la seule chose qui doit être annoncée quand on modifie un champ.
+      Sans lui, un lecteur d'écran reste muet — la réponse à « est-ce que ça tient ? » n'existe qu'à
+      l'écran. En « polite » l'annonce attend une pause dans la frappe au lieu de couper la parole,
+      et `aria-atomic` fait relire la phrase entière plutôt que le seul chiffre qui a changé.
+    */
+    <div
+      aria-live="polite"
+      aria-atomic="true"
+      className={`carte overflow-hidden ${v.suffisant ? '' : 'ring-2 ring-rose-500/30'}`}
+    >
+      {/*
+        Dégradés assombris d'un cran : le blanc sur émeraude 500 ne donnait que 2,5:1, et sur rose
+        500 que 3,7:1 — sous la norme AA, y compris pour le titre en 24 px (qui exige 3:1). Sur le
+        point le plus clair du nouveau dégradé, le titre atteint 5,5:1 et les libellés 4,8:1.
+      */}
+      <div className={`p-5 ${v.suffisant ? 'bg-gradient-to-br from-marque-800 to-marque-700' : 'bg-gradient-to-br from-rose-800 to-rose-700'} text-white`}>
+        <p className="text-xs font-medium tracking-wide text-white/90 uppercase">
           {v.suffisant ? 'Objectif financé' : 'Objectif non financé'}
         </p>
         <p className="mt-1 text-2xl leading-tight font-bold">
@@ -107,11 +122,11 @@ export function Verdict({ v }: { v: DonneesVerdict }) {
           aria-label={`Retraite financée à ${Math.round(fraction * 100)} %`}
         >
           <div
-            className={`h-full rounded-full transition-all duration-500 ${v.suffisant ? 'bg-marque-500' : 'bg-rose-500'}`}
+            className={`h-full rounded-full transition-all duration-500 ${v.suffisant ? 'bg-marque-600' : 'bg-rose-600'}`}
             style={{ width: `${fraction * 100}%` }}
           />
         </div>
-        <div className="mt-1.5 flex justify-between text-[11px] text-slate-400">
+        <div className="mt-1.5 flex justify-between text-[11px] text-slate-500">
           <span>
             retraite <span className="chiffres">{v.ageRetraite}</span>
           </span>

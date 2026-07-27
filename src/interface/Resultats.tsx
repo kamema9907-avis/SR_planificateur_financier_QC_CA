@@ -94,7 +94,7 @@ function Retenues({ r }: { r: ResultatFiscal }) {
         <Ligne libelle="Revenu après impôt" montant={formatDollars(r.revenuApresImpot)} sourdine />
         <Ligne libelle="Revenu net en poche" montant={formatDollars(r.revenuNetEnPoche)} gras />
       </div>
-      <p className="mt-2 text-xs text-slate-400">
+      <p className="mt-2 text-xs text-slate-500">
         Après impôt <span className="font-medium">et</span> retenues. Le RRQ de base, l'AE et le RQAP donnent des
         crédits d'impôt ; la portion bonifiée du RRQ est déduite du revenu.
       </p>
@@ -108,7 +108,7 @@ function TuileTaux({ label, valeur, aide }: { label: string; valeur: string; aid
     <div className="carte p-4">
       <p className="text-xs font-medium tracking-wide text-slate-500 uppercase">{label}</p>
       <p className="chiffres mt-1 text-2xl font-bold text-slate-900">{valeur}</p>
-      <p className="mt-0.5 text-xs text-slate-400">{aide}</p>
+      <p className="mt-0.5 text-xs text-slate-500">{aide}</p>
     </div>
   );
 }
@@ -118,7 +118,7 @@ export function Resultats({ r }: { r: ResultatFiscal }) {
     <div className="space-y-5">
       {/* Carte héro : revenu après impôt */}
       <div className="carte overflow-hidden">
-        <div className="bg-gradient-to-br from-marque-600 to-marque-500 p-6 text-white">
+        <div className="bg-gradient-to-br from-marque-800 to-marque-700 p-6 text-white">
           <p className="text-sm font-medium text-marque-50/90">Revenu net après impôt</p>
           <p className="chiffres mt-1 text-4xl font-bold tracking-tight sm:text-5xl">
             {formatDollars(r.revenuApresImpot)}

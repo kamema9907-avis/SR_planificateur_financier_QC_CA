@@ -30,7 +30,7 @@ export function Section({ titre, postes, facteur, onLienImpot }: { titre: string
   if (postes.length === 0) return null;
   return (
     <div className="mb-4">
-      <p className="mb-1 text-xs font-semibold tracking-wide text-slate-400 uppercase">{titre}</p>
+      <p className="mb-1 text-xs font-semibold tracking-wide text-slate-500 uppercase">{titre}</p>
       <div className="divide-y divide-slate-50">
         {postes.map((p, i) => (
           <LignePoste key={i} poste={p} facteur={facteur} onLien={p.lien === 'impot' ? onLienImpot : undefined} />

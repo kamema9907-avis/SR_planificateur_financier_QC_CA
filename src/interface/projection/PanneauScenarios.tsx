@@ -37,7 +37,7 @@ export function PanneauScenarios({ lignes, onEnregistrer, onCharger, onSupprimer
   return (
     <div className="carte p-5">
       <h3 className="font-semibold text-slate-800">Comparer des scénarios</h3>
-      <p className="mt-1 mb-4 text-xs leading-relaxed text-slate-400">
+      <p className="mt-1 mb-4 text-xs leading-relaxed text-slate-500">
         Enregistrez la simulation en cours sous un nom, modifiez vos hypothèses, enregistrez-en une
         autre : les chiffres se comparent ligne à ligne. Charger un scénario remplace la simulation
         en cours.
@@ -64,7 +64,7 @@ export function PanneauScenarios({ lignes, onEnregistrer, onCharger, onSupprimer
       </form>
 
       {enregistres.length === 0 ? (
-        <p className="text-sm text-slate-400">
+        <p className="text-sm text-slate-500">
           Aucun scénario enregistré. Le premier servira de point de comparaison.
         </p>
       ) : (
@@ -86,7 +86,7 @@ export function PanneauScenarios({ lignes, onEnregistrer, onCharger, onSupprimer
                     {l.courant ? (
                       <span className="font-medium text-slate-800">
                         Simulation en cours
-                        <span className="ml-1.5 text-xs font-normal text-slate-400">non enregistrée</span>
+                        <span className="ml-1.5 text-xs font-normal text-slate-500">non enregistrée</span>
                       </span>
                     ) : (
                       <input
@@ -134,7 +134,7 @@ export function PanneauScenarios({ lignes, onEnregistrer, onCharger, onSupprimer
                             if (window.confirm(`Supprimer « ${l.nom} » ?`)) onSupprimer(l.id);
                           }}
                           aria-label={`Supprimer ${l.nom}`}
-                          className="rounded-md px-2 py-1 text-xs text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
+                          className="rounded-md px-2 py-1 text-xs text-slate-500 transition hover:bg-rose-50 hover:text-rose-600"
                         >
                           ✕
                         </button>

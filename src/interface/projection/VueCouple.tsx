@@ -229,7 +229,7 @@ export function VueCouple() {
 
           <div className="carte p-5">
             <h3 className="mb-1 font-semibold text-slate-800">Détail année par année — ménage</h3>
-            <p className="mb-3 text-xs text-slate-400">
+            <p className="mb-3 text-xs text-slate-500">
               Le fractionnement du revenu de pension est optimisé automatiquement chaque année. Cliquez un montant souligné pour voir son calcul.
             </p>
             <DetailAnneesCouple annees={resultat.annees} reel={reel} anneeEpuisement={resultat.anneeEpuisement} />

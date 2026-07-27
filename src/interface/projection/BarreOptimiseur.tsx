@@ -34,7 +34,7 @@ export function BarreOptimiseur({ label, aide, calcul, onLancer, onAnnuler, acti
           {calcul ? 'Optimisation…' : label}
         </button>
       )}
-      <span className="text-xs text-slate-400">{aide}</span>
+      <span className="text-xs text-slate-500">{aide}</span>
       {actions && <div className="ml-auto">{actions}</div>}
     </div>
   );

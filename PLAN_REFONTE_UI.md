@@ -49,7 +49,8 @@ colonnes de formulaires.
 | **2.5 — Onglet Impôt** | Mise à niveau de l'onglet resté à l'ancienne mise en page | ✅ **fait** (2026-07-25) |
 | **3 — Résultats** | Verdict en grand, jauge d'autonomie, graphique avec curseur et infobulle riche, « ce qui change » | ✅ **fait** (2026-07-25) |
 | **4 — Puissance** | Scénarios A/B/C, export/import JSON, impression PDF, optimiseur en Web Worker, `useDeferredValue` | ✅ **fait** (2026-07-26) |
-| **5 — Finitions** | Mode sombre, responsive mobile, accessibilité, routing partageable | à faire |
+| **5 — Finitions** | Responsive mobile, accessibilité, routing partageable | ✅ **fait** (2026-07-27) |
+| **5b — Mode sombre** | Jetons de couleur sémantiques, puis palette foncée | à faire |
 
 ---
 
@@ -292,3 +293,61 @@ un bien non vendu ne paie pas les dépenses courantes »*. L'infobulle du graphi
    au premier changement d'appareil.
 2. `.sansimpression` était définie avec `display: contents`, ce qui cassait la mise en page à l'écran
    des conteneurs marqués. Elle n'existe plus que dans `@media print`.
+
+---
+
+## Lot 5 — Finitions ✅
+
+Trois chantiers indépendants, aucun ne touche le moteur. Le point commun : **chacun a été mesuré**,
+avant et après, dans un Chrome piloté. Le responsive ne se juge pas à l'œil, et le contraste encore
+moins.
+
+### Mobile : un défaut de trois mots
+
+Les colonnes se réempilaient bien sous `lg:`, mais la page n'avait jamais été ouverte sous 1600 px.
+
+| Vue | 390 px | 768 px | 1600 px |
+|---|---|---|---|
+| Impôt | 0 | 0 | 0 |
+| Projection solo | **+968 px** → 0 | **+598 px** → 0 | 0 |
+| Projection couple | **+666 px** → 0 | **+296 px** → 0 | 0 |
+
+Un enfant de grille CSS vaut `min-width: auto` : « au moins la largeur de mon contenu ». Le rail
+d'étapes, en `whitespace-nowrap`, imposait donc **1 358 px** à toute la page, et son `overflow-x-auto`
+ne pouvait jamais s'activer. `min-w-0` sur les trois colonnes suffit.
+
+J'étais parti sur une fausse piste : les tableaux année par année, que je croyais dépourvus de
+défilement horizontal. Ils ont `overflow-auto`, qui couvre les deux axes.
+
+### Adresse partageable
+
+`routage.ts` : `#/impot`, `#/projection/solo/comptes`, `#/projection/couple/menage/depenses`.
+
+Le **dièse** et non un vrai chemin, parce que GitHub Pages sert des fichiers statiques : `/projection/couple`
+provoquerait un 404 au rechargement. Le groupe et l'étape quittent le `useState` de l'Atelier pour
+l'URL — F5 conserve la position, Retour revient à l'étape précédente.
+
+`lireRoute` ne rejette jamais : un lien abîmé ouvre l'application plutôt qu'une erreur. 10 cas-tests.
+
+### Contraste, clavier, lecteur d'écran
+
+**59 styles de texte** sous la norme WCAG AA au départ, 0 à l'arrivée :
+
+| Famille | Avant | Après |
+|---|---|---|
+| `text-slate-400` (42 usages) | 2,5:1 | slate-500 → 4,6:1 |
+| `text-slate-300` (tirets des tableaux) | 1,5:1 | slate-500 |
+| Blanc sur `marque-500` (boutons, pastille) | 2,5:1 | marque-700 → 5,5:1 |
+| `text-marque-600` sur blanc | 3,7:1 | marque-700 → 5,5:1 |
+| Cartes de verdict en dégradé | 2,5:1 (titre 24 px inclus) | 800→700 → 5,5:1 |
+
+Le rail devient un vrai jeu d'onglets (`tablist`/`tab`/`tabpanel`) : flèches, Début, Fin, et **une
+seule** étape dans l'ordre de tabulation — atteindre le formulaire ne demande plus de traverser les
+neuf étapes. Le verdict devient une zone `aria-live="polite"`.
+
+### Ce qui reste : le mode sombre
+
+Zéro occurrence de `dark:` aujourd'hui, et les couleurs sont écrites en dur partout. Le faire
+proprement veut dire introduire des **jetons sémantiques** (`--couleur-surface`, `--couleur-texte`,
+`--couleur-bordure`), remplacer les couleurs littérales, puis redéfinir les jetons dans un bloc
+sombre. C'est un refactor de palette, pas une finition — d'où le lot séparé.

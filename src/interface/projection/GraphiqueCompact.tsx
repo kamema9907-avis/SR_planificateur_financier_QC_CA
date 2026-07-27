@@ -32,7 +32,7 @@ export function GraphiqueCompact({ annees, reel, ageRetraite, ageEpuisement }: P
   const sommet = Math.max(0, ...valeurs);
   if (sommet < 1) {
     return (
-      <p className="py-6 text-center text-xs text-slate-400">
+      <p className="py-6 text-center text-xs text-slate-500">
         Renseignez vos comptes et vos dépenses : la courbe de votre patrimoine apparaîtra ici.
       </p>
     );
@@ -95,7 +95,7 @@ export function GraphiqueCompact({ annees, reel, ageRetraite, ageEpuisement }: P
           {ageA} ans
         </text>
       </svg>
-      <p className="mt-1 text-xs text-slate-400">
+      <p className="mt-1 text-xs text-slate-500">
         Sommet du patrimoine : <span className="chiffres font-medium text-slate-600">{formatDollarsCompact(maxY)}</span>
       </p>
     </div>

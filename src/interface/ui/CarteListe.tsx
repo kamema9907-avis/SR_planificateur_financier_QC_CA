@@ -33,5 +33,5 @@ export function CarteListe({ nom, onNom, onSupprimer, libelleNom, children }: Pr
 
 /** Message affiché à la place d'une liste vide. */
 export function ListeVide({ children }: { children: ReactNode }) {
-  return <p className="text-sm text-slate-400">{children}</p>;
+  return <p className="text-sm text-slate-500">{children}</p>;
 }

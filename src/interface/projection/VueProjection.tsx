@@ -1,4 +1,4 @@
-import { useCallback, useDeferredValue, useMemo, useState } from 'react';
+import { useCallback, useDeferredValue, useMemo } from 'react';
 import {
   optimiserProjection,
   projeter,
@@ -9,6 +9,7 @@ import { formatDollars } from '../format';
 import { BoutonReinitialiser, Interrupteur } from '../Champ';
 import { Atelier } from '../atelier/Atelier';
 import { BasculeAvance } from '../ui/ModeDetail';
+import { useRoute } from '../routage';
 import { useScenarios, type LigneComparaison } from '../scenarios';
 import { useAffichageReel, useDossier, useOptimiseur } from '../useDossier';
 import { PanneauScenarios } from './PanneauScenarios';
@@ -78,7 +79,8 @@ function defautHypotheses(): HypothesesProjection {
 export function VueProjection() {
   const { donnees: h, setDonnees: setH, reinitialiser } = useDossier(CLE_STOCKAGE, defautHypotheses);
   const { reel, setReel } = useAffichageReel();
-  const [mode, setMode] = useState<'solo' | 'couple'>('solo');
+  const { route, naviguer } = useRoute();
+  const mode = route.mode;
 
   const appliquer = useCallback((strategie: HypothesesProjection) => setH(strategie), [setH]);
   const optim = useOptimiseur({ donnees: h, mode: 'solo', optimiserSync: optimiserProjection, appliquer });
@@ -133,10 +135,13 @@ export function VueProjection() {
             <button
               key={m}
               type="button"
-              onClick={() => setMode(m)}
+              // Changer de mode remet l'atelier à sa première étape : un identifiant d'étape du
+              // couple ne veut rien dire en solo, et inversement.
+              onClick={() => naviguer({ mode: m, groupe: undefined, etape: undefined })}
+              aria-pressed={mode === m}
               className={`rounded-lg px-4 py-1.5 text-sm font-medium transition focus-visible:ring-2
                 focus-visible:ring-marque-500 focus-visible:outline-none ${
-                  mode === m ? 'bg-white text-marque-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                  mode === m ? 'bg-white text-marque-700 shadow-sm' : 'text-slate-600 hover:text-slate-800'
                 }`}
             >
               {m === 'solo' ? 'Une personne' : 'Couple'}
@@ -249,7 +254,7 @@ export function VueProjection() {
 
               <div className="carte p-5">
                 <h3 className="mb-1 font-semibold text-slate-800">Détail année par année</h3>
-                <p className="mb-3 text-xs text-slate-400">
+                <p className="mb-3 text-xs text-slate-500">
                   Toute la traçabilité : revenus, impôt, comptes et patrimoine. Cliquez un montant souligné pour ouvrir son calcul.
                 </p>
                 <DetailAnnees annees={resultat.annees} reel={reel} ageEpuisement={resultat.ageEpuisement} />

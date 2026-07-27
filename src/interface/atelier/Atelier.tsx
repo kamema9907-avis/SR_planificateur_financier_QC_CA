@@ -1,8 +1,10 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
+import { useRoute } from '../routage';
 import { Aide } from '../ui/Aide';
 import { useImpression } from '../ui/Impression';
 import { ListeAlertes } from '../ui/ListeAlertes';
 import { RailEtapes } from './RailEtapes';
+import { idOnglet, idPanneau } from './types';
 import type { Groupe } from './types';
 
 interface Props {
@@ -27,27 +29,38 @@ interface Props {
  * interne des sous-composants (le calculateur RREGOP, par exemple) survit à la navigation.
  */
 export function Atelier({ groupes, resultat, dessous, actions }: Props) {
-  const [idGroupe, setIdGroupe] = useState(groupes[0].id);
-  const [idEtape, setIdEtape] = useState(groupes[0].etapes[0].id);
+  /**
+   * Le groupe et l'étape vivent dans l'URL, pas dans un état local : on peut recharger la page,
+   * revenir en arrière, ou envoyer un lien qui ouvre l'étape exacte. Une valeur absente ou inconnue
+   * retombe sur le premier élément, ce qui rend tout lien approximatif inoffensif.
+   */
+  const { route, naviguer } = useRoute();
   /** À l'impression, toutes les étapes sont dépliées : un PDF d'une étape sur huit ne sert à rien. */
   const impression = useImpression();
 
-  const groupe = groupes.find((g) => g.id === idGroupe) ?? groupes[0];
+  const groupe = groupes.find((g) => g.id === route.groupe) ?? groupes[0];
   const etapes = groupe.etapes;
-  const index = Math.max(0, etapes.findIndex((e) => e.id === idEtape));
+  const index = Math.max(0, etapes.findIndex((e) => e.id === route.etape));
   const etape = etapes[index];
+
+  /**
+   * On réécrit toujours le groupe, même s'il n'a pas changé : sur une adresse comme
+   * `#/projection/couple` (groupe implicite), une étape seule serait refusée à l'écriture, car
+   * `#/projection/couple/situation` se relirait comme un groupe nommé « situation ».
+   */
+  const allerA = (id: string) => naviguer({ groupe: groupe.id, etape: id });
 
   /** Changer de personne conserve l'étape courante si elle existe aussi chez l'autre. */
   const changerGroupe = (id: string) => {
     const cible = groupes.find((g) => g.id === id);
     if (!cible) return;
-    setIdGroupe(id);
-    if (!cible.etapes.some((e) => e.id === idEtape)) setIdEtape(cible.etapes[0].id);
+    const etapeCible = cible.etapes.some((e) => e.id === etape.id) ? etape.id : cible.etapes[0].id;
+    naviguer({ groupe: id, etape: etapeCible });
   };
 
   const aller = (delta: number) => {
     const suivant = etapes[index + delta];
-    if (suivant) setIdEtape(suivant.id);
+    if (suivant) allerA(suivant.id);
   };
 
   const ongletsGroupes = useMemo(() => groupes.length > 1, [groupes.length]);
@@ -65,7 +78,7 @@ export function Atelier({ groupes, resultat, dessous, actions }: Props) {
                   onClick={() => changerGroupe(g.id)}
                   className={`rounded-lg px-4 py-1.5 text-sm font-medium transition focus-visible:ring-2
                     focus-visible:ring-marque-500 focus-visible:outline-none ${
-                      g.id === groupe.id ? 'bg-white text-marque-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                      g.id === groupe.id ? 'bg-white text-marque-700 shadow-sm' : 'text-slate-600 hover:text-slate-800'
                     }`}
                 >
                   {g.label}
@@ -79,21 +92,35 @@ export function Atelier({ groupes, resultat, dessous, actions }: Props) {
         </div>
       )}
 
+      {/*
+        `min-w-0` sur chaque colonne n'est pas décoratif : un enfant de grille vaut `min-width:auto`,
+        c'est-à-dire « au moins la largeur de mon contenu ». Sans lui, le rail (dont les titres sont
+        en `whitespace-nowrap`) imposait sa largeur naturelle — 1 358 px — à toute la page, qui
+        débordait alors de 968 px sur un téléphone. Avec `min-w-0`, la colonne accepte de rétrécir
+        et l'`overflow-x-auto` du rail reprend son rôle.
+      */}
       <div className="grid gap-6 lg:grid-cols-[12rem_minmax(0,1fr)_21rem]">
         {/* Rail — en tête sur petit écran, colonne à gauche sur grand écran */}
-        <div className="order-1 lg:order-none">
-          <RailEtapes etapes={etapes} actif={etape.id} onChoisir={setIdEtape} />
+        <div className="order-1 min-w-0 lg:order-none">
+          <RailEtapes etapes={etapes} actif={etape.id} onChoisir={allerA} />
         </div>
 
         {/* Résultat — juste sous le rail en mobile, colonne de droite collante en grand écran */}
-        <div className="order-2 lg:order-last lg:sticky lg:top-6 lg:self-start">{resultat}</div>
+        <div className="order-2 min-w-0 lg:order-last lg:sticky lg:top-6 lg:self-start">{resultat}</div>
 
         {/* Étape courante */}
-        <div className="order-3 space-y-4 lg:order-none">
+        <div className="order-3 min-w-0 space-y-4 lg:order-none">
           {etapes.map((e, i) => (
-            <section key={e.id} className="carte p-6" hidden={!impression && e.id !== etape.id}>
+            <section
+              key={e.id}
+              role="tabpanel"
+              id={idPanneau(e.id)}
+              aria-labelledby={idOnglet(e.id)}
+              className="carte p-6"
+              hidden={!impression && e.id !== etape.id}
+            >
               <header className="mb-4">
-                <p className="text-xs font-medium tracking-wide text-slate-400 uppercase">
+                <p className="text-xs font-medium tracking-wide text-slate-500 uppercase">
                   Étape {i + 1} sur {etapes.length}
                   {e.optionnel && ' · facultative'}
                 </p>

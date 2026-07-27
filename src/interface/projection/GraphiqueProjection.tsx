@@ -208,7 +208,7 @@ export function GraphiqueProjection({ annees, reel, ageRetraite, ageEpuisement }
             <span className="text-xs text-slate-600">{s.label}</span>
           </div>
         ))}
-        <span className="ml-auto text-xs text-slate-400">La zone grisée est la phase de décaissement.</span>
+        <span className="ml-auto text-xs text-slate-500">La zone grisée est la phase de décaissement.</span>
       </div>
     </div>
   );

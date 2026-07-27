@@ -42,7 +42,7 @@ function Badges({ a, anneeEpuisement }: { a: AnneeCouple; anneeEpuisement: numbe
 
 function Cellule({ a, col, reel, onOuvrir }: { a: AnneeCouple; col: Colonne; reel: boolean; onOuvrir: (v: VueDrawerCouple) => void }) {
   const val = col.v(a);
-  if (val == null || (col.format !== 'pourcent' && Math.abs(val) < 0.5)) return <span className="text-slate-300">—</span>;
+  if (val == null || (col.format !== 'pourcent' && Math.abs(val) < 0.5)) return <span className="text-slate-500">—</span>;
   const texte = col.format === 'pourcent' ? formatPourcent(val) : formatDollars((reel ? a.deflateurReel : 1) * val);
   if (col.agregat) {
     return (
@@ -96,7 +96,7 @@ function BlocTableau({ titre, aide, children }: { titre: string; aide: string; c
   return (
     <div>
       <h4 className="text-sm font-semibold text-slate-700">{titre}</h4>
-      <p className="mb-2 text-xs text-slate-400">{aide}</p>
+      <p className="mb-2 text-xs text-slate-500">{aide}</p>
       {children}
     </div>
   );
@@ -125,12 +125,12 @@ export function DetailAnneesCouple({ annees, reel, anneeEpuisement }: Props) {
   const colsPatrimoine: Colonne[] = [...colsComptes, { titre: 'Valeur nette', v: (a) => a.valeurNette, agregat: 'valeurNette', accent: true }];
 
   const ong = (actif: boolean) =>
-    `rounded-md px-3 py-1 text-xs font-medium transition ${actif ? 'bg-white text-marque-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`;
+    `rounded-md px-3 py-1 text-xs font-medium transition ${actif ? 'bg-white text-marque-700 shadow-sm' : 'text-slate-600 hover:text-slate-800'}`;
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs text-slate-400">Cliquez un montant <span className="text-marque-600 underline decoration-dotted">souligné</span> pour ouvrir le détail (dont le fractionnement).</p>
+        <p className="text-xs text-slate-500">Cliquez un montant <span className="text-marque-700 underline decoration-dotted">souligné</span> pour ouvrir le détail (dont le fractionnement).</p>
         <div className="sansimpression inline-flex rounded-lg bg-slate-100 p-0.5 ring-1 ring-slate-200">
           <button type="button" onClick={() => setModeComplet(false)} className={ong(!modeComplet)}>Par thème</button>
           <button type="button" onClick={() => setModeComplet(true)} className={ong(modeComplet)}>Tout voir</button>

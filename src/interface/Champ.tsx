@@ -18,7 +18,7 @@ export function ChampMonetaire({ label, valeur, onChange, indice }: ChampMonetai
         {label}
       </label>
       <div className="relative">
-        <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm font-medium text-slate-400">
+        <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm font-medium text-slate-500">
           $
         </span>
         <input
@@ -33,7 +33,7 @@ export function ChampMonetaire({ label, valeur, onChange, indice }: ChampMonetai
           onChange={(e) => onChange(Math.max(0, Number(e.target.value) || 0))}
         />
       </div>
-      {indice && <p className="mt-1 text-xs text-slate-400">{indice}</p>}
+      {indice && <p className="mt-1 text-xs text-slate-500">{indice}</p>}
     </div>
   );
 }
@@ -115,7 +115,7 @@ export function ChampPourcent({ label, valeur, onChange, indice, pas = 0.1 }: Ch
         {label}
       </label>
       <div className="relative">
-        <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm font-medium text-slate-400">
+        <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm font-medium text-slate-500">
           %
         </span>
         <input
@@ -128,7 +128,7 @@ export function ChampPourcent({ label, valeur, onChange, indice, pas = 0.1 }: Ch
           onChange={(e) => onChange((Number(e.target.value) || 0) / 100)}
         />
       </div>
-      {indice && <p className="mt-1 text-xs text-slate-400">{indice}</p>}
+      {indice && <p className="mt-1 text-xs text-slate-500">{indice}</p>}
     </div>
   );
 }

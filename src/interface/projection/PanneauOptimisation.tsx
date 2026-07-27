@@ -18,7 +18,7 @@ export function PanneauOptimisation({ gainPatrimoine, gainImpot, details, trajec
 
   return (
     <div className="carte overflow-hidden ring-2 ring-marque-500/40">
-      <div className="bg-gradient-to-br from-marque-600 to-sky-500 p-5 text-white">
+      <div className="bg-gradient-to-br from-marque-800 to-sky-700 p-5 text-white">
         <div className="flex items-center gap-2">
           <IconeEtincelleDouble classe="h-5 w-5" />
           <h3 className="font-semibold">

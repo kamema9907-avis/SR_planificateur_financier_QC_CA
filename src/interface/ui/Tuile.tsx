@@ -20,7 +20,7 @@ export function Tuile({ label, valeur, ton = 'neutre', aide }: Props) {
     <div className="carte p-4">
       <p className="text-xs font-medium tracking-wide text-slate-500 uppercase">{label}</p>
       <p className={`chiffres mt-1 text-xl font-bold ${COULEUR[ton]}`}>{valeur}</p>
-      {aide && <p className="mt-0.5 text-xs text-slate-400">{aide}</p>}
+      {aide && <p className="mt-0.5 text-xs text-slate-500">{aide}</p>}
     </div>
   );
 }

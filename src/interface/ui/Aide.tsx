@@ -39,8 +39,8 @@ export function Aide({ titre, children }: { titre: string; children: ReactNode }
         className={`flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold transition
           focus-visible:ring-2 focus-visible:ring-marque-500 focus-visible:outline-none ${
             ouvert
-              ? 'bg-marque-500 text-white'
-              : 'bg-slate-100 text-slate-500 ring-1 ring-slate-200 hover:bg-slate-200 hover:text-slate-700'
+              ? 'bg-marque-700 text-white'
+              : 'bg-slate-100 text-slate-600 ring-1 ring-slate-200 hover:bg-slate-200 hover:text-slate-800'
           }`}
       >
         ?

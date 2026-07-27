@@ -3,10 +3,14 @@
 > **Document vivant** : synthèse de tout ce que le projet fait à ce jour. À mettre à jour au fil des
 > phases. Voir le [journal des modifications](#-journal-des-modifications) à la fin pour l'historique.
 >
-> Dernière mise à jour : **2026-07-26** — **héritage** (nouvelle source d'apport) et **trois
+> Dernière mise à jour : **2026-07-27** — **lot 5, première moitié** : l'application tient enfin sur
+> un téléphone (elle débordait de 968 px), l'adresse est **partageable** (`#/projection/couple/...`,
+> rechargement et bouton Retour fonctionnels), et **tout le texte respecte le contraste WCAG AA**,
+> avec navigation au clavier dans le rail et annonce vocale du verdict.
+> Auparavant : **héritage** (nouvelle source d'apport) et **trois
 > correctifs de justesse** trouvés en simulant : produit de vente placé net d'impôt, décaissement dès
 > la retraite du premier conjoint, CELI des deux conjoints rempli avant le non-enregistré.
-> Auparavant : **refonte de l'interface, lots 0 à 4** — fondations partagées, coquille « Atelier »
+> Plus tôt : **refonte de l'interface, lots 0 à 4** — fondations partagées, coquille « Atelier »
 > (rail d'étapes + résultat collant), densité de saisie, validations croisées, mise à niveau de
 > l'onglet Impôt, verdict et graphique enrichi, sauvegarde en fichier, scénarios comparables,
 > optimiseur sur un fil séparé et impression PDF — voir [`PLAN_REFONTE_UI.md`](PLAN_REFONTE_UI.md).
@@ -110,8 +114,23 @@ Deux conjoints entièrement modélisés (colonnes côte à côte), un ménage à
 - Résultats du ménage : autonomie, valeur nette au dernier décès, impôt total sur la vie, graphique et
   tableau (avec le montant fractionné).
 
+### Accessibilité et usage
+- **Utilisable sur téléphone et tablette** : les trois colonnes de l'Atelier se réempilent, le rail
+  d'étapes devient une bande défilable, les tableaux défilent dans leur cadre. Vérifié à 390, 768 et
+  1600 px sur les trois vues.
+- **Adresse partageable** : `#/impot`, `#/projection/couple/menage/depenses`… Le rechargement garde
+  la position, le bouton **Retour** revient à l'étape précédente, et un lien s'envoie tel quel.
+- **Contraste WCAG AA vérifié par mesure** sur tous les textes des trois vues, fonds en dégradé
+  compris (rapport ≥ 4,5:1, ou ≥ 3:1 pour les grands titres).
+- **Clavier** : le rail d'étapes est un jeu d'onglets (flèches, Début, Fin) ; une seule étape occupe
+  l'ordre de tabulation, pour atteindre le formulaire sans traverser les neuf étapes.
+- **Lecteur d'écran** : le verdict est une zone `aria-live` — la réponse à « est-ce que ça tient ? »
+  est annoncée quand elle change.
+
 ### Qualité / validation
-- **240 cas-tests automatisés** (moteur fiscal, cotisations, plafonds CELIAPP/CELI/REER, fonds de travailleurs, indexation, comptes, projection, décaissement, couple, immobilier dont terrain, optimiseur).
+- **250 cas-tests automatisés** — 183 moteur (fiscalité, cotisations, plafonds CELIAPP/CELI/REER,
+  fonds de travailleurs, indexation, comptes, projection, décaissement, couple, immobilier dont
+  terrain, optimiseur) + 67 interface (validations, verdict, fichier, scénarios, routage).
 - Propriété clé du couple : le **fractionnement ne hausse jamais** l'impôt combiné (testé).
 - **Validation croisée** contre les taux marginaux combinés **publiés** du Québec 2026 :
   sommet **53,31 %**, 140 000 $ → **47,46 %**, 60 000 $ → **36,12 %**.
@@ -180,10 +199,11 @@ src/
 │   │   ├── couple.ts               # Boucle du ménage (fractionnement, survie)
 │   │   └── projection.ts           # Boucle année par année (cycle de vie)
 │   ├── index.ts                    # API publique du moteur
-│   └── *.test.ts                   # 147 cas-tests (moteur)
+│   └── *.test.ts                   # 183 cas-tests (moteur)
 └── interface/                      # UI React (habillage)
     ├── Champ.tsx                   # Champs de saisie réutilisables
     ├── format.ts                   # Formatage $ / % (fr-CA)
+    ├── routage.ts                  # Adresse partageable (#/projection/couple/…), Retour, F5
     ├── useDossier.ts               # Persistance locale, affichage réel/nominal, optimiseur
     ├── Resultats.tsx               # Résultats de l'onglet Impôt
     ├── VueImpotAnnuel.tsx          # Onglet « Impôt (1 année) »
@@ -253,7 +273,7 @@ L'interface est en cours de refonte (« l'Atelier ») — voir [`PLAN_REFONTE_UI
 ```bash
 npm install      # installer les dépendances
 npm run dev      # développement (http://localhost:5173)
-npm test         # les 240 cas-tests
+npm test         # les 250 cas-tests
 npm run build    # version de production (dossier dist/, à héberger)
 npm run preview  # prévisualiser la version de production
 ```
@@ -306,7 +326,9 @@ Conséquence : les montants sont de bonnes **estimations de planification**, pas
    - ✅ **lot 2.5** — mise à niveau de l'onglet Impôt
    - ✅ **lot 3** — verdict, graphique enrichi, comparaison avant/après
    - ✅ **lot 4** — sauvegarde en fichier, scénarios comparables, Web Worker, impression PDF
-   - **lot 5** — mode sombre, responsive mobile, accessibilité, routing partageable
+   - **lot 5** — ✅ responsive mobile, ✅ accessibilité (contraste, clavier, `aria-live`),
+     ✅ routing partageable · **reste : mode sombre** (refonte de palette en jetons sémantiques,
+     le seul chantier qui touche presque tous les fichiers d'interface)
 
    (**Hébergement : ✅ fait** — GitHub Pages, déploiement automatique à chaque `git push`.)
 
@@ -316,6 +338,61 @@ options d'employé, analyse de sensibilité / Monte Carlo, autres provinces.
 ---
 
 ## 📓 Journal des modifications
+
+### 2026-07-27 — Lot 5 (1/2) : mobile, adresse partageable, accessibilité
+Trois chantiers indépendants, **aucune ligne du moteur touchée**. Chacun a été mesuré avant et après,
+dans un Chrome piloté : le responsive ne se juge pas à l'œil, et le contraste encore moins.
+
+**1. L'application débordait de 968 px sur un téléphone.**
+- La coquille de l'Atelier prévoyait bien le repli des trois colonnes sous `lg:`, mais personne ne
+  l'avait jamais ouverte sous 1600 px. À 390 px la page faisait **1 358 px de large** : tout était
+  coupé à droite, dans les trois vues.
+- **Cause** : un enfant de grille CSS vaut `min-width: auto`, soit « au moins la largeur de mon
+  contenu ». Le rail d'étapes, dont les titres sont en `whitespace-nowrap`, imposait donc sa largeur
+  naturelle à toute la page — et son `overflow-x-auto` ne servait à rien, puisque le conteneur
+  n'était jamais trop étroit.
+- **Correctif** : `min-w-0` sur les trois colonnes ([`Atelier.tsx`](src/interface/atelier/Atelier.tsx)).
+  Trois mots. Le débordement tombe à **0 px** à 390, 768 et 1600 px, sur les trois vues.
+- Au passage, une hypothèse de départ s'est révélée fausse : je soupçonnais les tableaux année par
+  année, qui n'ont pas de `overflow-x-auto`. Ils ont `overflow-auto`, qui couvre les deux axes — ils
+  n'ont jamais été en cause.
+
+**2. L'application n'avait qu'une seule adresse.**
+- Recharger ramenait à l'onglet Impôt, le bouton **Retour** quittait l'application, et il était
+  impossible d'envoyer un lien vers le mode couple.
+- **Nouveau** [`routage.ts`](src/interface/routage.ts) : `#/impot`, `#/projection/solo/comptes`,
+  `#/projection/couple/menage/depenses`. Le groupe et l'étape de l'Atelier vivent désormais dans
+  l'URL au lieu d'un `useState`, donc F5 conserve la position et Retour revient à l'étape précédente.
+- **Le dièse plutôt qu'un vrai chemin** : GitHub Pages sert des fichiers statiques ; `/projection/couple`
+  demanderait au serveur un fichier inexistant (404 au rechargement). Ce qui suit le `#` ne lui est
+  jamais envoyé.
+- `lireRoute` **ne rejette jamais** : un lien tronqué ou mal recopié ouvre l'application sur la valeur
+  par défaut. **10 cas-tests**, dont l'aller-retour lecture/écriture.
+
+**3. Le contraste était sous la norme presque partout.**
+- Mesure automatisée (luminance relative WCAG, fonds semi-transparents fusionnés, arrêts de dégradé
+  résolus) : **59 styles de texte** échouaient sur les trois vues.
+- Les familles : `text-slate-400` (2,5:1 pour 42 usages), `text-slate-300` (1,5:1), blanc sur
+  `marque-500` (2,5:1 — les boutons de confirmation et la pastille d'étape active), `text-marque-600`
+  sur blanc (3,7:1), et les **cartes de verdict en dégradé** dont même le titre en 24 px gras
+  n'atteignait pas les 3:1 exigés.
+- Correctifs : ardoise 400/300 → **500** (600 sur les fonds `slate-100`), émeraude 500 → **700** dès
+  qu'elle porte du texte blanc, dégradés assombris d'un cran. **0 échec** après coup.
+- **Clavier** : le rail devient un vrai jeu d'onglets (`tablist`/`tab`/`tabpanel`) — flèches, Début,
+  Fin, et une seule étape dans l'ordre de tabulation. Atteindre le formulaire ne demande plus de
+  traverser les neuf étapes.
+- **Lecteur d'écran** : le verdict est une zone `aria-live="polite"`. Sans elle, la réponse à
+  « est-ce que ça tient ? » n'existait qu'à l'écran.
+
+**Ce que la vérification a aussi révélé, et qui n'est pas corrigé** : `useDossier` fusionne le dossier
+sauvegardé avec les valeurs par défaut **sur un seul niveau**. Un dossier partiel dont un objet
+imbriqué manque des champs (un `localStorage` corrompu, un fichier d'une version antérieure) produit
+des `NaN` silencieux à l'écran plutôt qu'un message. Découvert en me trompant moi-même dans un jeu
+d'essai. À traiter le jour où le format de fichier évoluera.
+
+- **250 cas-tests verts** (+10, tous sur le routage), build OK. La documentation portait encore
+  « 147 cas-tests (moteur) » alors qu'il y en a 183 : écart rattrapé par la commande de vérification
+  de la checklist ci-dessous.
 
 ### 2026-07-26 — Couple : les droits CELI du second conjoint dormaient
 - **Signalé par l'utilisateur** : « j'avais 109 000 $ de droits CELI par conjoint, mais l'argent est

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRoute, type Onglet } from './interface/routage';
 import { VueImpotAnnuel } from './interface/VueImpotAnnuel';
 import { VueProjection } from './interface/projection/VueProjection';
 import { BoutonsDossier } from './interface/ui/BoutonsDossier';
@@ -6,15 +6,14 @@ import { IconeCadenas, IconeCourbe } from './interface/ui/icones';
 import { BoutonImprimer, ImpressionProvider } from './interface/ui/Impression';
 import { ModeDetailProvider } from './interface/ui/ModeDetail';
 
-type Onglet = 'impot' | 'projection';
-
 const ONGLETS: { id: Onglet; label: string; sous: string }[] = [
   { id: 'impot', label: 'Impôt', sous: '1 année' },
   { id: 'projection', label: 'Projection', sous: 'cycle de vie' },
 ];
 
 export function App() {
-  const [onglet, setOnglet] = useState<Onglet>('impot');
+  const { route, naviguer } = useRoute();
+  const onglet = route.onglet;
 
   return (
     <ModeDetailProvider>
@@ -28,7 +27,7 @@ export function App() {
             </div>
             <div>
               <h1 className="text-lg font-bold tracking-tight text-slate-900">
-                Planificateur Financier <span className="text-marque-600">2026</span>
+                Planificateur Financier <span className="text-marque-700">2026</span>
               </h1>
               <p className="text-xs text-slate-500">Québec + fédéral</p>
             </div>
@@ -52,7 +51,8 @@ export function App() {
                 <button
                   key={o.id}
                   type="button"
-                  onClick={() => setOnglet(o.id)}
+                  onClick={() => naviguer({ onglet: o.id })}
+                  aria-current={actif ? 'page' : undefined}
                   className={`-mb-px flex items-baseline gap-1.5 border-b-2 px-4 py-2.5 text-sm font-medium transition ${
                     actif
                       ? 'border-marque-500 text-marque-700'
@@ -60,7 +60,7 @@ export function App() {
                   }`}
                 >
                   {o.label}
-                  <span className="text-xs font-normal text-slate-400">{o.sous}</span>
+                  <span className="text-xs font-normal text-slate-500">{o.sous}</span>
                 </button>
               );
             })}
@@ -71,7 +71,7 @@ export function App() {
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
         {onglet === 'impot' ? <VueImpotAnnuel /> : <VueProjection />}
 
-        <p className="mx-auto mt-10 max-w-3xl text-center text-xs leading-relaxed text-slate-400">
+        <p className="mx-auto mt-10 max-w-3xl text-center text-xs leading-relaxed text-slate-500">
           Outil de calcul et de simulation à des fins de planification personnelle. Les montants sont
           des estimations (fidélité « planification ») calibrées sur les barèmes fédéraux et québécois
           2026 et les Normes d'hypothèses de projection IQPF ; certains crédits mineurs, cotisations

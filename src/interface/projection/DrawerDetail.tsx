@@ -39,11 +39,11 @@ export function DrawerDetail({ vue, reel, onClose }: { vue: VueDrawer | null; re
           <div className="flex flex-wrap items-center gap-1.5">
             {pile.map((v, i) => (
               <span key={i} className="flex items-center gap-1.5">
-                {i > 0 && <span className="text-slate-300">›</span>}
+                {i > 0 && <span className="text-slate-500">›</span>}
                 <button
                   type="button"
                   onClick={() => setPile((p) => p.slice(0, i + 1))}
-                  className={`text-sm ${i === pile.length - 1 ? 'font-semibold text-slate-800' : 'text-slate-400 hover:text-slate-600'}`}
+                  className={`text-sm ${i === pile.length - 1 ? 'font-semibold text-slate-800' : 'text-slate-500 hover:text-slate-600'}`}
                 >
                   {TITRES[v.agregat]}
                 </button>
@@ -54,13 +54,13 @@ export function DrawerDetail({ vue, reel, onClose }: { vue: VueDrawer | null; re
             type="button"
             onClick={onClose}
             aria-label="Fermer"
-            className="flex h-7 w-7 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+            className="flex h-7 w-7 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-slate-600"
           >
             ✕
           </button>
         </div>
 
-        <div className="border-b border-slate-100 px-4 py-2 text-xs text-slate-400">
+        <div className="border-b border-slate-100 px-4 py-2 text-xs text-slate-500">
           {courante.annee.age} ans · {courante.annee.annee} · {reel ? "dollars d'aujourd'hui" : 'dollars nominaux'}
         </div>
 

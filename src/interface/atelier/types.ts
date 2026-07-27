@@ -33,6 +33,13 @@ export interface Groupe {
   etapes: Etape[];
 }
 
+/**
+ * Identifiants liant un onglet du rail au panneau qu'il commande (`aria-controls` /
+ * `aria-labelledby`). Définis ici pour que les deux composants ne puissent pas diverger.
+ */
+export const idOnglet = (etapeId: string) => `onglet-${etapeId}`;
+export const idPanneau = (etapeId: string) => `panneau-${etapeId}`;
+
 /** Nombre d'étapes essentielles remplies sur le total, pour la barre de progression du rail. */
 export function progression(etapes: readonly Etape[]): { faites: number; total: number } {
   const essentielles = etapes.filter((e) => !e.optionnel);

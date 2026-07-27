@@ -56,7 +56,7 @@
   .saisie {
     @apply w-full rounded-xl border-0 bg-slate-50 py-2.5 pr-3 text-right text-[15px] font-semibold
       text-slate-900 ring-1 ring-inset ring-slate-200 transition
-      placeholder:font-normal placeholder:text-slate-400
+      placeholder:font-normal placeholder:text-slate-500
       focus:bg-white focus:ring-2 focus:ring-marque-500 focus:outline-none;
     font-variant-numeric: tabular-nums;
   }
@@ -83,11 +83,13 @@
       focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60;
   }
 
-  /* Action de confirmation, teintée marque (« Appliquer cette stratégie ») */
+  /* Action de confirmation, teintée marque (« Appliquer cette stratégie »).
+     Le fond est en `marque-700` et non `marque-500` : blanc sur émeraude 500 ne donne que 2,5:1,
+     sous la norme WCAG AA (4,5:1). Le 700 monte à 5,5:1 sans quitter la couleur de marque. */
   .bouton-marque {
-    @apply inline-flex shrink-0 items-center justify-center whitespace-nowrap gap-2 rounded-xl bg-marque-500 px-4 py-2
-      text-sm font-medium text-white transition hover:bg-marque-600
-      focus-visible:ring-2 focus-visible:ring-marque-500 focus-visible:ring-offset-2
+    @apply inline-flex shrink-0 items-center justify-center whitespace-nowrap gap-2 rounded-xl bg-marque-700 px-4 py-2
+      text-sm font-medium text-white transition hover:bg-marque-800
+      focus-visible:ring-2 focus-visible:ring-marque-700 focus-visible:ring-offset-2
       focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60;
   }
 
@@ -116,7 +118,7 @@
   /* Retrait d'un élément de liste (croix en coin de carte) */
   .bouton-suppr {
     @apply absolute top-2.5 right-2.5 flex h-6 w-6 items-center justify-center rounded-full
-      text-slate-400 transition hover:bg-rose-50 hover:text-rose-500
+      text-slate-500 transition hover:bg-rose-50 hover:text-rose-500
       focus-visible:ring-2 focus-visible:ring-rose-400 focus-visible:outline-none;
   }
 

@@ -69,7 +69,9 @@ export function BasculeAvance() {
           }
           className={`rounded-md px-2.5 py-1 text-xs font-medium transition focus-visible:ring-2
             focus-visible:ring-marque-500 focus-visible:outline-none ${
-              avance === o.v ? 'bg-white text-marque-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              // `slate-600` et non `500` : le fond de la bascule est `slate-100`, sur lequel le
+              // slate-500 tombe à 4,35:1, juste sous la norme.
+              avance === o.v ? 'bg-white text-marque-700 shadow-sm' : 'text-slate-600 hover:text-slate-800'
             }`}
         >
           {o.label}
