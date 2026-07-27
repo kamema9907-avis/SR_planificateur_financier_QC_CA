@@ -9,10 +9,10 @@
 > Auparavant : **refonte de l'interface, lots 0 à 4** — fondations partagées, coquille « Atelier »
 > (rail d'étapes + résultat collant), densité de saisie, validations croisées, mise à niveau de
 > l'onglet Impôt, verdict et graphique enrichi, sauvegarde en fichier, scénarios comparables,
-> optimiseur sur un fil séparé et impression PDF.
-> Voir [`PLAN_REFONTE_UI.md`](PLAN_REFONTE_UI.md). Auparavant : crédit fonds de travailleurs dans la projection,
-> droits REER (avec facteur d'équivalence), terrain vacant, plafonds CELIAPP / droits CELI, cotisations
-> sociales, syndicat, assurance-salaire, survivant RRQ.
+> optimiseur sur un fil séparé et impression PDF — voir [`PLAN_REFONTE_UI.md`](PLAN_REFONTE_UI.md).
+> Plus tôt : crédit fonds de travailleurs dans la projection, droits REER (avec facteur
+> d'équivalence), terrain vacant, plafonds CELIAPP / droits CELI, cotisations sociales, syndicat,
+> assurance-salaire, survivant RRQ.
 
 ## Table des matières
 1. [Vision et objectif](#-vision-et-objectif)
@@ -170,6 +170,10 @@ src/
 │   │   ├── comptes.ts              # Classification fiscale + croissance des comptes
 │   │   ├── rentesPubliques.ts      # RRQ / SV (ajustement + indexation)
 │   │   ├── decaissement.ts         # Solveur de retrait (cible nette d'impôt)
+│   │   ├── typesCouple.ts          # Types du ménage (PersonneProjection, AnneeCouple)
+│   │   ├── trace.ts                # Traçabilité « drill-down » : postes et liens
+│   │   ├── rentesEmployeur.ts      # Rentes d'employeur + calculateur RREGOP
+│   │   ├── periodesTravail.ts      # Travail poursuivi à la retraite
 │   │   ├── heritage.ts             # Héritage : indexation du montant reçu
 │   │   ├── placementSurplus.ts     # placerCapital / placerSurplusRetraite (CELI → REER → non-enr.)
 │   │   ├── immobilier.ts           # Biens, hypothèque, vente, exemption résidence
@@ -653,5 +657,25 @@ options d'employé, analyse de sensibilité / Monte Carlo, autres provinces.
 - Ajouts après revue : revenus de pension correctement imposés ; crédit fonds de travailleurs FTQ/CSN.
 
 ### Comment mettre à jour ce document
-À chaque changement notable : (1) ajouter une entrée datée en haut du journal, (2) mettre à jour les
-sections concernées (« Ce que l'outil fait », feuille de route, limites), (3) actualiser la date en tête.
+
+Ce document a **deux moitiés** : un *journal* (ce qui s'est passé) et un *inventaire* (ce qui existe
+aujourd'hui). Le journal se remplit naturellement en fin de tâche ; l'inventaire demande de relire
+des sections qu'on n'a pas touchées — c'est celui qu'on oublie. Passer la liste **entière** :
+
+- [ ] **Journal** — une entrée datée en haut, expliquant le *pourquoi* et pas seulement le *quoi*
+- [ ] **Date et résumé en tête** du document
+- [ ] **« Ce que l'outil fait aujourd'hui »** — si une capacité s'ajoute ou change
+- [ ] **Architecture** — l'arborescence doit lister les fichiers réellement présents
+- [ ] **Nombre de cas-tests** (trois endroits : qualité/validation, commande `npm test`, journal)
+- [ ] **Limites et simplifications** — toute approximation nouvelle ou levée
+- [ ] **Feuille de route** — cocher ce qui est fait
+
+Vérification rapide de l'arborescence. Le **moteur** est documenté fichier par fichier — c'est là que
+la justesse fiscale se joue ; l'**interface**, qui compte plus de trente fichiers, l'est par dossier.
+
+```bash
+# Fichiers du moteur absents de ce document (doit ne rien afficher)
+for f in $(git ls-files 'src/moteur/**/*.ts' | grep -v test | xargs -n1 basename | sort -u); do
+  grep -q "$f" ETAT_DU_PROJET.md || echo "absent de la doc : $f"
+done
+```
