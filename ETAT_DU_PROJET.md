@@ -3,10 +3,13 @@
 > **Document vivant** : synthèse de tout ce que le projet fait à ce jour. À mettre à jour au fil des
 > phases. Voir le [journal des modifications](#-journal-des-modifications) à la fin pour l'historique.
 >
-> Dernière mise à jour : **2026-07-25** — **refonte de l'interface, lots 0 à 4** : fondations partagées,
-> coquille « Atelier » (rail d'étapes + résultat collant), densité de saisie, validations croisées,
-> mise à niveau de l'onglet Impôt, verdict et graphique enrichi, puis sauvegarde en fichier,
-> scénarios comparables, optimiseur sur un fil séparé et impression PDF.
+> Dernière mise à jour : **2026-07-26** — **héritage** (nouvelle source d'apport) et **trois
+> correctifs de justesse** trouvés en simulant : produit de vente placé net d'impôt, décaissement dès
+> la retraite du premier conjoint, CELI des deux conjoints rempli avant le non-enregistré.
+> Auparavant : **refonte de l'interface, lots 0 à 4** — fondations partagées, coquille « Atelier »
+> (rail d'étapes + résultat collant), densité de saisie, validations croisées, mise à niveau de
+> l'onglet Impôt, verdict et graphique enrichi, sauvegarde en fichier, scénarios comparables,
+> optimiseur sur un fil séparé et impression PDF.
 > Voir [`PLAN_REFONTE_UI.md`](PLAN_REFONTE_UI.md). Auparavant : crédit fonds de travailleurs dans la projection,
 > droits REER (avec facteur d'équivalence), terrain vacant, plafonds CELIAPP / droits CELI, cotisations
 > sociales, syndicat, assurance-salaire, survivant RRQ.
@@ -163,10 +166,14 @@ src/
 │   ├── impotQuebec.ts              # Impôt du Québec — barèmes indexables
 │   ├── moteurFiscal.ts             # Orchestrateur (assemble tout, taux moyen/marginal)
 │   ├── projection/
-│   │   ├── types.ts                # Comptes, hypothèses, résultat de projection
+│   │   ├── types.ts                # Comptes, hypothèses, héritage, résultat de projection
 │   │   ├── comptes.ts              # Classification fiscale + croissance des comptes
 │   │   ├── rentesPubliques.ts      # RRQ / SV (ajustement + indexation)
 │   │   ├── decaissement.ts         # Solveur de retrait (cible nette d'impôt)
+│   │   ├── heritage.ts             # Héritage : indexation du montant reçu
+│   │   ├── placementSurplus.ts     # placerCapital / placerSurplusRetraite (CELI → REER → non-enr.)
+│   │   ├── immobilier.ts           # Biens, hypothèque, vente, exemption résidence
+│   │   ├── couple.ts               # Boucle du ménage (fractionnement, survie)
 │   │   └── projection.ts           # Boucle année par année (cycle de vie)
 │   ├── index.ts                    # API publique du moteur
 │   └── *.test.ts                   # 147 cas-tests (moteur)
@@ -176,14 +183,21 @@ src/
     ├── useDossier.ts               # Persistance locale, affichage réel/nominal, optimiseur
     ├── Resultats.tsx               # Résultats de l'onglet Impôt
     ├── VueImpotAnnuel.tsx          # Onglet « Impôt (1 année) »
-    ├── ui/                         # Briques partagées (Tuile, CarteListe, icônes)
+    ├── fichierDossier.ts           # Sauvegarde / restauration du dossier (fichier signé)
+    ├── scenarios.ts                # Scénarios nommés et comparaison
+    ├── optimiseur.worker.ts        # Optimiseur sur un fil séparé (Web Worker)
+    ├── ui/                         # Briques partagées (Tuile, CarteListe, Aide, icônes,
+    │                               #   ModeDetail, Impression, BoutonsDossier, ListeAlertes)
     ├── atelier/                    # Coquille de saisie : rail d'étapes, étape, résultat collant
     └── projection/                 # Onglet « Projection »
         ├── champsPersonne.ts       # Vue « personne » commune au solo et au couple
         ├── etapes.tsx              # Découpage en étapes : solo (8), conjoint (6), ménage (2)
         ├── SectionVieActive.tsx    # Section commune (solo ET chaque conjoint)
         ├── BlocsEpargne.tsx        # Encadrés de plafonds (CELIAPP, droits CELI/REER, fonds)
-        ├── PanneauSynthese.tsx     # Colonne collante : optimiseur, indicateurs, courbe
+        ├── PanneauSynthese.tsx     # Colonne collante : verdict, optimiseur, indicateurs, courbe
+        ├── Verdict.tsx             # « Vos dépenses sont financées jusqu'à… » + jauge
+        ├── PanneauScenarios.tsx    # Tableau comparatif des scénarios
+        ├── SectionHeritage.tsx     # Saisie des héritages attendus
         └── …                       # Graphiques, tableaux, drill-down, optimiseur
 ```
 
@@ -260,6 +274,10 @@ sur GitHub Pages (~1-2 min). Si un test échoue, le déploiement est bloqué (ga
 - Couple : rente de survivant RRQ avant 65 ans **approximée** ; max RRQ (plafond survivant) et règle
   d'attribution du REER de conjoint (3 ans) simplifiés.
 - Indexation uniforme à l'inflation IQPF (certains seuils réels s'indexent différemment).
+- **Report de déduction REER non modélisé** : une cotisation qu'on ne peut pas déduire l'année même
+  est reportable indéfiniment dans la réalité. Le moteur ne le suit pas, et borne donc les versements
+  REER issus d'un héritage ou d'une vente à la déduction utilisable immédiatement — choix
+  conservateur, qui ne surestime jamais l'avantage fiscal.
 - Rendements **déterministes** (pas encore de Monte Carlo).
 
 Conséquence : les montants sont de bonnes **estimations de planification**, pas une déclaration au dollar près.
