@@ -75,9 +75,21 @@ export function BlocCeliapp({ p, onChange }: Props) {
   );
 }
 
-/** Droits de cotisation CELI — visible dès qu'une épargne peut y aboutir (CELI ou débordement CELIAPP). */
+/**
+ * Droits de cotisation CELI.
+ *
+ * Visible dès que quelque chose peut aboutir au CELI — et pas seulement en cas d'épargne CELI
+ * planifiée : un héritage, un produit de vente ou un simple surplus de retraite y sont versés en
+ * priorité. Masquer le champ dans ces cas laissait croire que les droits n'étaient pas pris en
+ * compte, alors qu'une valeur par défaut (109 000 $ − solde actuel) s'appliquait en silence.
+ */
 export function BlocDroitsCeli({ p, onChange }: Props) {
-  if ((p.epargneAnnuelle.CELI ?? 0) <= 0 && (p.epargneAnnuelle.CELIAPP ?? 0) <= 0) return null;
+  const peutRecevoir =
+    (p.epargneAnnuelle.CELI ?? 0) > 0 ||
+    (p.epargneAnnuelle.CELIAPP ?? 0) > 0 ||
+    (p.heritages ?? []).some((h) => h.montant > 0) ||
+    p.comptes.some((c) => c.type === 'CELI' && c.solde > 0);
+  if (!peutRecevoir) return null;
   return (
     <div className="encadre-ciel">
       <ChampMonetaire

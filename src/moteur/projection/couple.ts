@@ -655,14 +655,35 @@ export function projeterCouple(h: HypothesesCouple, options: { trace?: boolean }
         revenuDisponible = res.disponible;
         let e1Courant = res.e1;
         let e2Courant = res.e2;
-        // Surplus (revenu de travail à la retraite ou revenus fixes dépassant la cible) :
-        // CELI → REER (≤ 71) → non-enr, placé chez le conjoint le plus imposé (déduction REER la plus utile).
+        // Surplus (revenu de travail à la retraite, produit de vente, revenus dépassant la cible).
         if (res.disponible > cible + 1) {
-          const surplus = res.disponible - cible;
+          let surplus = res.disponible - cible;
           const cibleId: 1 | 2 = niveauImposable(e1Courant) >= niveauImposable(e2Courant) ? 1 : 2;
           const etatCible = cibleId === 1 ? etat1 : etat2;
+          const etatAutre = cibleId === 1 ? etat2 : etat1;
           const ctxCible = cibleId === 1 ? ctx1 : ctx2;
           const entreeCible = cibleId === 1 ? e1Courant : e2Courant;
+
+          // Le CELI d'abord, chez les DEUX conjoints. Un dollar au CELI rapporte autant chez l'un
+          // que chez l'autre : réserver tout le surplus au conjoint le plus imposé (ce qui se
+          // justifie pour le REER, dont la déduction vaut le taux marginal) laissait dormir les
+          // droits du second — jusqu'à 109 000 $ envoyés au non-enregistré pour rien.
+          let celiPartage = 0;
+          for (const etat of [etatCible, etatAutre]) {
+            const montant = Math.min(surplus, Math.max(0, etat.droitsCeli));
+            if (montant <= 0) continue;
+            trouverOuCreer(etat.comptes, 'CELI', etat.profilDefaut).solde += montant;
+            etat.droitsCeli -= montant;
+            surplus -= montant;
+            celiPartage += montant;
+          }
+          if (surplus <= 0.5) {
+            traceVentil = { celi: celiPartage, reer: 0, nonEnr: 0 };
+          } else {
+
+          // Le reste suit la chaîne chez le conjoint le plus imposé : son CELI étant désormais
+          // plein, `placerSurplusRetraite` enchaîne sur le REER (déduction la plus utile) puis le
+          // non-enregistré.
           const droits = { droitsCeli: etatCible.droitsCeli, droitsReer: etatCible.droitsReer };
           const pose = placerSurplusRetraite(
             etatCible.comptes, etatCible.profilDefaut, droits, surplus, ctxCible.age, entreeCible, impotAnnee,
@@ -678,9 +699,10 @@ export function projeterCouple(h: HypothesesCouple, options: { trace?: boolean }
           etatCible.droitsCeli = droits.droitsCeli;
           etatCible.droitsReer = droits.droitsReer;
           impotAnnee = pose.impot;
-          traceVentil = pose.ventilation;
+          traceVentil = { ...pose.ventilation, celi: pose.ventilation.celi + celiPartage };
           if (cibleId === 1) e1Courant = pose.entree;
           else e2Courant = pose.entree;
+          }
           revenuDisponible = cible;
         } else if (res.disponible < cible - 1 && anneeEpuisement === null) {
           anneeEpuisement = annee;

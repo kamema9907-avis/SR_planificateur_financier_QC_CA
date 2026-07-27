@@ -314,3 +314,48 @@ describe('début de la retraite du ménage', () => {
     expect(tard.anneeEpuisement).toBe(tot.anneeEpuisement);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Répartition du surplus entre les deux conjoints
+// ---------------------------------------------------------------------------
+
+describe('placement du surplus dans le couple', () => {
+  it('remplit le CELI des DEUX conjoints avant le non-enregistré', () => {
+    // Vente d'un immeuble commun : le surplus dépasse largement les droits d'un seul conjoint.
+    const r = projeterCouple(
+      couple(
+        { ageActuel: 59, ageRetraite: 60, ageDeces: 93, revenuEmploi: 0, droitsCeliDisponibles: 100_000 },
+        { ageActuel: 58, ageRetraite: 62, ageDeces: 93, revenuEmploi: 0, droitsCeliDisponibles: 100_000 },
+        {
+          depensesRetraite: 50_000, inflation: 0, fraisGestion: 0,
+          immeubles: [immeuble({ type: 'revenu', valeur: 350_000, coutBase: 80_000, ageVente: 60, proprietaire: 'commun' })],
+        },
+      ),
+      { trace: true },
+    );
+    const a = r.annees.find((x) => x.age1 === 60)!;
+    // Les deux CELI doivent servir : réserver le surplus au conjoint le plus imposé laissait
+    // dormir jusqu'à 109 000 $ de droits chez l'autre.
+    expect(a.soldes1.CELI).toBeGreaterThan(50_000);
+    expect(a.soldes2.CELI).toBeGreaterThan(50_000);
+  });
+
+  it('n’invente pas de droits : le surplus au-delà des deux CELI va ailleurs', () => {
+    const r = projeterCouple(
+      couple(
+        { ageActuel: 59, ageRetraite: 60, ageDeces: 93, revenuEmploi: 0, droitsCeliDisponibles: 10_000 },
+        { ageActuel: 58, ageRetraite: 62, ageDeces: 93, revenuEmploi: 0, droitsCeliDisponibles: 10_000 },
+        {
+          depensesRetraite: 50_000, inflation: 0, fraisGestion: 0,
+          immeubles: [immeuble({ type: 'revenu', valeur: 350_000, coutBase: 80_000, ageVente: 60, proprietaire: 'commun' })],
+        },
+      ),
+      { trace: true },
+    );
+    const a = r.annees.find((x) => x.age1 === 60)!;
+    // 10 000 $ saisis + une année de droits accumulés (~7 000 $) : chaque CELI est plein, pas plus.
+    expect(a.soldes1.CELI).toBeCloseTo(17_000, 0);
+    expect(a.soldes2.CELI).toBeCloseTo(17_000, 0);
+    expect(a.soldes1.NON_ENREGISTRE + a.soldes2.NON_ENREGISTRE).toBeGreaterThan(150_000);
+  });
+});

@@ -108,7 +108,7 @@ Deux conjoints entièrement modélisés (colonnes côte à côte), un ménage à
   tableau (avec le montant fractionné).
 
 ### Qualité / validation
-- **238 cas-tests automatisés** (moteur fiscal, cotisations, plafonds CELIAPP/CELI/REER, fonds de travailleurs, indexation, comptes, projection, décaissement, couple, immobilier dont terrain, optimiseur).
+- **240 cas-tests automatisés** (moteur fiscal, cotisations, plafonds CELIAPP/CELI/REER, fonds de travailleurs, indexation, comptes, projection, décaissement, couple, immobilier dont terrain, optimiseur).
 - Propriété clé du couple : le **fractionnement ne hausse jamais** l'impôt combiné (testé).
 - **Validation croisée** contre les taux marginaux combinés **publiés** du Québec 2026 :
   sommet **53,31 %**, 140 000 $ → **47,46 %**, 60 000 $ → **36,12 %**.
@@ -235,7 +235,7 @@ L'interface est en cours de refonte (« l'Atelier ») — voir [`PLAN_REFONTE_UI
 ```bash
 npm install      # installer les dépendances
 npm run dev      # développement (http://localhost:5173)
-npm test         # les 238 cas-tests
+npm test         # les 240 cas-tests
 npm run build    # version de production (dossier dist/, à héberger)
 npm run preview  # prévisualiser la version de production
 ```
@@ -294,6 +294,22 @@ options d'employé, analyse de sensibilité / Monte Carlo, autres provinces.
 ---
 
 ## 📓 Journal des modifications
+
+### 2026-07-26 — Couple : les droits CELI du second conjoint dormaient
+- **Signalé par l'utilisateur** : « j'avais 109 000 $ de droits CELI par conjoint, mais l'argent est
+  allé au non-enregistré ».
+- **Cause** : tout le surplus de retraite était placé chez **un seul** conjoint, celui dont le revenu
+  imposable est le plus élevé (`niveauImposable(e1) >= niveauImposable(e2)`). Ce choix se justifie
+  pour le REER, dont la déduction vaut le taux marginal — mais **pas pour le CELI** : un dollar y
+  rapporte autant chez l'un que chez l'autre, et les droits du second partaient à la poubelle.
+- **Correction** : le CELI des **deux** conjoints est rempli d'abord ; le reste suit la chaîne chez
+  le plus imposé (son CELI étant alors plein, `placerSurplusRetraite` enchaîne sur le REER puis le
+  non-enregistré). Sur le cas signalé : **CELI 116 000 → 232 000 $** pour le ménage et
+  non-enregistré **164 462 → 48 462 $**. Le rendement de 116 000 $ cesse d'être imposé chaque année.
+- **Champ « Droits CELI disponibles » désormais visible** dès qu'un héritage est prévu ou qu'un
+  solde CELI existe, et plus seulement en cas d'épargne CELI planifiée. Il s'appliquait déjà en
+  silence (défaut 109 000 $ − solde), mais rien ne le montrait ni ne permettait de l'ajuster.
+- **240 cas-tests verts** (+2 : les deux CELI servent ; aucun droit n'est inventé).
 
 ### 2026-07-26 — Couple : la retraite du premier conjoint était ignorée
 - **Signalé par l'utilisateur** sur une simulation réelle : conjoint 1 retraité à 60 ans, conjoint 2
