@@ -217,8 +217,8 @@ export function VueCouple() {
 
           <div className="carte p-5">
             <div className="mb-3 flex items-center justify-between">
-              <h3 className="font-semibold text-slate-800">Patrimoine du ménage</h3>
-              <label className="sansimpression flex items-center gap-2 text-xs text-slate-500">
+              <h3 className="font-semibold text-titre">Patrimoine du ménage</h3>
+              <label className="sansimpression flex items-center gap-2 text-xs text-doux">
                 <span>Dollars d'aujourd'hui</span>
                 <Interrupteur label="" valeur={!reel} onChange={(v) => setReel(!v)} />
                 <span>Nominaux</span>
@@ -228,8 +228,8 @@ export function VueCouple() {
           </div>
 
           <div className="carte p-5">
-            <h3 className="mb-1 font-semibold text-slate-800">Détail année par année — ménage</h3>
-            <p className="mb-3 text-xs text-slate-500">
+            <h3 className="mb-1 font-semibold text-titre">Détail année par année — ménage</h3>
+            <p className="mb-3 text-xs text-doux">
               Le fractionnement du revenu de pension est optimisé automatiquement chaque année. Cliquez un montant souligné pour voir son calcul.
             </p>
             <DetailAnneesCouple annees={resultat.annees} reel={reel} anneeEpuisement={resultat.anneeEpuisement} />

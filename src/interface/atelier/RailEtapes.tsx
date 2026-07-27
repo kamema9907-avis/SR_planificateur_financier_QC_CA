@@ -11,11 +11,12 @@ interface Props {
 /** Pastille d'état : numéro, ✓ si l'étape porte des données, contour pointillé si facultative. */
 function Pastille({ numero, rempli, actif, optionnel }: { numero: number; rempli: boolean; actif: boolean; optionnel: boolean }) {
   const base = 'flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold transition';
-  // `marque-700` et non `500` : le numéro est en blanc, sur 11 px gras — il lui faut 4,5:1.
-  if (actif) return <span className={`${base} bg-marque-700 text-white`}>{numero}</span>;
-  if (rempli) return <span className={`${base} bg-marque-50 text-marque-700 ring-1 ring-marque-500/30`}>✓</span>;
-  if (optionnel) return <span className={`${base} text-slate-500 ring-1 ring-dashed ring-slate-300`}>{numero}</span>;
-  return <span className={`${base} text-slate-500 ring-1 ring-slate-200`}>{numero}</span>;
+  // `text-sur-marque` et non `text-white` : le fond de marque est sombre en thème clair mais CLAIR
+  // en thème sombre — du blanc dessus tomberait alors à 1,9:1. Le jeton suit le fond.
+  if (actif) return <span className={`${base} bg-marque-plein text-sur-marque`}>{numero}</span>;
+  if (rempli) return <span className={`${base} bg-marque-fond text-marque ring-1 ring-marque/30`}>✓</span>;
+  if (optionnel) return <span className={`${base} text-doux ring-1 ring-dashed ring-bordure`}>{numero}</span>;
+  return <span className={`${base} text-doux ring-1 ring-bordure`}>{numero}</span>;
 }
 
 /** Point d'alerte : une étape dont les données sont incohérentes se repère sans l'ouvrir. */
@@ -87,10 +88,10 @@ export function RailEtapes({ etapes, actif, onChoisir }: Props) {
               onClick={() => onChoisir(e.id)}
               onKeyDown={(ev) => auClavier(ev, i)}
               className={`flex w-full shrink-0 items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm transition
-                focus-visible:ring-2 focus-visible:ring-marque-500 focus-visible:outline-none lg:shrink ${
+                focus-visible:ring-2 focus-visible:ring-marque focus-visible:outline-none lg:shrink ${
                   estActif
-                    ? 'bg-white font-semibold text-slate-900 ring-1 ring-slate-200 shadow-sm'
-                    : 'text-slate-600 hover:bg-white/60 hover:text-slate-800'
+                    ? 'bg-carte font-semibold text-titre ring-1 ring-bordure shadow-sm'
+                    : 'text-corps hover:bg-carte/60 hover:text-titre'
                 }`}
             >
               <Pastille numero={i + 1} rempli={e.rempli} actif={estActif} optionnel={e.optionnel ?? false} />
@@ -102,13 +103,13 @@ export function RailEtapes({ etapes, actif, onChoisir }: Props) {
       </div>
 
       <div className="mt-3 hidden px-2.5 lg:block">
-        <div className="h-1 overflow-hidden rounded-full bg-slate-200">
+        <div className="h-1 overflow-hidden rounded-full bg-bordure">
           <div
-            className="h-full rounded-full bg-marque-600 transition-all duration-500"
+            className="h-full rounded-full bg-vif transition-all duration-500"
             style={{ width: `${total === 0 ? 0 : (faites / total) * 100}%` }}
           />
         </div>
-        <p className="mt-1.5 text-xs text-slate-500">
+        <p className="mt-1.5 text-xs text-doux">
           <span className="chiffres">{faites}</span> / {total} essentielles
         </p>
       </div>

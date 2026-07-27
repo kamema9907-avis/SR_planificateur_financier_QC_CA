@@ -50,7 +50,7 @@ colonnes de formulaires.
 | **3 — Résultats** | Verdict en grand, jauge d'autonomie, graphique avec curseur et infobulle riche, « ce qui change » | ✅ **fait** (2026-07-25) |
 | **4 — Puissance** | Scénarios A/B/C, export/import JSON, impression PDF, optimiseur en Web Worker, `useDeferredValue` | ✅ **fait** (2026-07-26) |
 | **5 — Finitions** | Responsive mobile, accessibilité, routing partageable | ✅ **fait** (2026-07-27) |
-| **5b — Mode sombre** | Jetons de couleur sémantiques, puis palette foncée | à faire |
+| **5b — Mode sombre** | Jetons de couleur sémantiques, puis palette foncée | ✅ **fait** (2026-07-27) |
 
 ---
 
@@ -345,9 +345,47 @@ Le rail devient un vrai jeu d'onglets (`tablist`/`tab`/`tabpanel`) : flèches, D
 seule** étape dans l'ordre de tabulation — atteindre le formulaire ne demande plus de traverser les
 neuf étapes. Le verdict devient une zone `aria-live="polite"`.
 
-### Ce qui reste : le mode sombre
+---
 
-Zéro occurrence de `dark:` aujourd'hui, et les couleurs sont écrites en dur partout. Le faire
-proprement veut dire introduire des **jetons sémantiques** (`--couleur-surface`, `--couleur-texte`,
-`--couleur-bordure`), remplacer les couleurs littérales, puis redéfinir les jetons dans un bloc
-sombre. C'est un refactor de palette, pas une finition — d'où le lot séparé.
+## Lot 5b — Mode sombre ✅
+
+Le travail n'a pas été « ajouter des couleurs foncées » mais **retirer les couleurs des composants**.
+
+### Le calcul qui a décidé de l'approche
+
+371 classes de couleur littérales, 76 valeurs distinctes, 31 fichiers. Deux voies :
+
+| | Doubler en `dark:` | Jetons sémantiques |
+|---|---|---|
+| Travail initial | mécanique | réécriture des 371 classes |
+| Après coup | **742 classes à maintenir en double** | une seule table de correspondance |
+| Troisième thème | tout refaire | 20 lignes de CSS |
+| Risque de dérive | élevé (un oubli = un thème cassé) | nul par construction |
+
+La seconde. Un composant ne nomme plus `text-slate-500` mais `text-doux` ; c'est `index.css` qui
+décide ce que « doux » veut dire dans chaque thème.
+
+### Ce que le thème sombre n'est pas
+
+L'inverse mécanique du clair. Trois contre-exemples qui ont demandé une décision :
+
+- **Texte secondaire** : ardoise 500 → ardoise **400**. Garder le 500 l'aurait laissé à 3,7:1, sous
+  la norme.
+- **Bouton de confirmation** : émeraude 700 + blanc → émeraude **400 + ardoise 900**. Le fond ET le
+  texte s'inversent, parce qu'un bouton doit ressortir du fond, pas s'y fondre.
+- **Bouton principal** : l'ardoise 900 disparaîtrait sur une page ardoise 950 ; il devient clair à
+  texte sombre.
+
+### Trois défauts trouvés en mesurant
+
+1. La pastille d'étape active gardait `text-white` sur un fond devenu clair : **1,9:1**.
+2. Les graphiques avaient des couleurs en dur — le halo blanc de l'étiquette « retraite 60 »
+   dessinait un pavé lumineux au milieu du graphique sombre.
+3. **Ma propre sonde de contraste était fausse en sombre** : fond de repli codé en dur sur la couleur
+   claire, d'où 42 faux échecs. Corrigée, puis étendue aux textes SVG (peints par `fill`, jamais
+   audités jusque-là).
+
+### Vérifié
+
+0 échec de contraste dans les **deux** thèmes sur les trois vues · classe posée avant le premier
+rendu · suivi du système en direct sans rechargement · aucun débordement à 390 px en sombre.

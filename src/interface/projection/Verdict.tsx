@@ -64,11 +64,11 @@ export function Verdict({ v }: { v: DonneesVerdict }) {
   if (!v.evaluable) {
     return (
       <ZoneAnnonce className="carte p-5">
-        <p className="text-xs font-medium tracking-wide text-slate-500 uppercase">En attente de vos chiffres</p>
-        <p className="mt-1 text-lg leading-snug font-semibold text-slate-700">
+        <p className="text-xs font-medium tracking-wide text-doux uppercase">En attente de vos chiffres</p>
+        <p className="mt-1 text-lg leading-snug font-semibold text-corps">
           Indiquez vos comptes et votre cible de dépenses
         </p>
-        <p className="mt-2 text-xs leading-relaxed text-slate-500">
+        <p className="mt-2 text-xs leading-relaxed text-doux">
           Le verdict s'affichera ici : combien d'années vos dépenses sont financées, ce qu'il reste au
           décès, et l'impôt payé sur toute la vie. Les étapes signalées par un point dans le rail
           attendent une valeur.
@@ -83,7 +83,7 @@ export function Verdict({ v }: { v: DonneesVerdict }) {
 
   return (
     <ZoneAnnonce
-      className={`carte overflow-hidden ${v.suffisant ? '' : 'ring-2 ring-rose-500/30'}`}
+      className={`carte overflow-hidden ${v.suffisant ? '' : 'ring-2 ring-alerte/30'}`}
     >
       {/*
         Dégradés assombris d'un cran : le blanc sur émeraude 500 ne donnait que 2,5:1, et sur rose
@@ -129,20 +129,20 @@ export function Verdict({ v }: { v: DonneesVerdict }) {
       {/* Jauge : quelle part de la retraite le capital finance-t-il ? */}
       <div className="p-4">
         <div
-          className="h-2 overflow-hidden rounded-full bg-slate-200"
+          className="h-2 overflow-hidden rounded-full bg-bordure"
           role="img"
           aria-label={`Retraite financée à ${Math.round(fraction * 100)} %`}
         >
           <div
-            className={`h-full rounded-full transition-all duration-500 ${v.suffisant ? 'bg-marque-600' : 'bg-rose-600'}`}
+            className={`h-full rounded-full transition-all duration-500 ${v.suffisant ? 'bg-vif' : 'bg-rose-600'}`}
             style={{ width: `${fraction * 100}%` }}
           />
         </div>
-        <div className="mt-1.5 flex justify-between text-[11px] text-slate-500">
+        <div className="mt-1.5 flex justify-between text-[11px] text-doux">
           <span>
             retraite <span className="chiffres">{v.ageRetraite}</span>
           </span>
-          <span className="chiffres font-medium text-slate-600">
+          <span className="chiffres font-medium text-corps">
             {Math.round(fraction * 100)} % de la retraite financée
           </span>
           <span className="chiffres">{v.ageDeces}</span>
@@ -150,9 +150,9 @@ export function Verdict({ v }: { v: DonneesVerdict }) {
 
         {/* Lève la contradiction apparente entre « non financé » et une valeur nette élevée. */}
         {patrimoineImmobilise && (
-          <p className="mt-3 border-t border-slate-100 pt-2.5 text-[11px] leading-relaxed text-slate-500">
+          <p className="mt-3 border-t border-filet pt-2.5 text-[11px] leading-relaxed text-doux">
             Un patrimoine de{' '}
-            <span className="chiffres font-medium text-slate-700">{formatDollars(v.valeurNetteFinale)}</span>{' '}
+            <span className="chiffres font-medium text-corps">{formatDollars(v.valeurNetteFinale)}</span>{' '}
             subsiste malgré tout au décès : il est <strong>immobilisé</strong> — un bien non vendu ne paie
             pas les dépenses courantes. Planifier une vente ou un downsizing peut combler l'écart.
           </p>

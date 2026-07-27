@@ -34,12 +34,12 @@ export function ComparaisonOptimisation({ t }: { t: Trajectoires }) {
 
   return (
     <div>
-      <p className="mb-1.5 text-sm font-medium text-slate-700">Trajectoire du patrimoine</p>
+      <p className="mb-1.5 text-sm font-medium text-corps">Trajectoire du patrimoine</p>
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="Comparaison des trajectoires">
         <polyline points={chemin(t.base, maxY)} fill="none" stroke="#94a3b8" strokeWidth={1.6} strokeDasharray="4 3" />
         <polyline points={chemin(t.optimisee, maxY)} fill="none" stroke="#059669" strokeWidth={2} />
       </svg>
-      <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-500">
+      <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-doux">
         <span className="flex items-center gap-1.5">
           {/* Un SVG plutôt qu'une bordure CSS : le pointillé doit être identique à celui de la courbe. */}
           <svg width="18" height="4" aria-hidden="true">

@@ -68,7 +68,7 @@ export function BlocCeliapp({ p, onChange }: Props) {
         onChange={(v) => onChange({ celiappDejaCotise: Math.min(v, CELIAPP_PLAFOND_VIE) })}
         indice="Total déjà versé à votre CELIAPP, distinct du solde (qui inclut la croissance)."
       />
-      <p className="mt-2 text-xs text-slate-500">
+      <p className="mt-2 text-xs text-doux">
         {avertissementCeliapp(p.celiappDejaCotise ?? 0, p.epargneAnnuelle.CELIAPP ?? 0)}
       </p>
     </div>
@@ -98,7 +98,7 @@ export function BlocDroitsCeli({ p, onChange }: Props) {
         onChange={(v) => onChange({ droitsCeliDisponibles: v })}
         indice="Chiffre exact dans « Mon dossier » (ARC). Pré-rempli : 109 000 $ − votre solde CELI actuel."
       />
-      <p className="mt-2 text-xs text-slate-500">
+      <p className="mt-2 text-xs text-doux">
         Les droits croissent de ~7 000 $/an (indexé) et un retrait les redonne l'année suivante.
         L'épargne au-delà des droits ira au non-enregistré.
       </p>
@@ -138,7 +138,7 @@ export function BlocDroitsReer({ p, onChange }: Props) {
           )}
         </div>
       </div>
-      <p className="mt-2 text-xs text-slate-500">
+      <p className="mt-2 text-xs text-doux">
         Nouveaux droits ≈ 18 % du salaire − facteur d'équivalence (max {formatDollars(REER_PLAFOND_DOLLAR_2026)}).
         Un régime à PD (RREGOP) réduit fortement les droits (~600 $/an). L'excédent ira au CELI, puis au
         non-enregistré.

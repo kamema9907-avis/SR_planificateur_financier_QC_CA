@@ -37,10 +37,10 @@ export function Aide({ titre, children }: { titre: string; children: ReactNode }
         aria-controls={id}
         aria-label={`Aide : ${titre}`}
         className={`flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold transition
-          focus-visible:ring-2 focus-visible:ring-marque-500 focus-visible:outline-none ${
+          focus-visible:ring-2 focus-visible:ring-marque focus-visible:outline-none ${
             ouvert
-              ? 'bg-marque-700 text-white'
-              : 'bg-slate-100 text-slate-600 ring-1 ring-slate-200 hover:bg-slate-200 hover:text-slate-800'
+              ? 'bg-marque-plein text-sur-marque'
+              : 'bg-panneau text-corps ring-1 ring-bordure hover:bg-bordure hover:text-titre'
           }`}
       >
         ?
@@ -50,10 +50,10 @@ export function Aide({ titre, children }: { titre: string; children: ReactNode }
         <span
           id={id}
           role="tooltip"
-          className="absolute top-7 left-0 z-30 block w-72 rounded-xl bg-white p-3.5 text-xs
-            leading-relaxed font-normal text-slate-600 shadow-lg ring-1 ring-slate-200"
+          className="absolute top-7 left-0 z-30 block w-72 rounded-xl bg-carte p-3.5 text-xs
+            leading-relaxed font-normal text-corps shadow-lg ring-1 ring-bordure"
         >
-          <span className="mb-1 block text-sm font-semibold text-slate-800">{titre}</span>
+          <span className="mb-1 block text-sm font-semibold text-titre">{titre}</span>
           {children}
         </span>
       )}

@@ -1,6 +1,7 @@
 import { useRoute, type Onglet } from './interface/routage';
 import { VueImpotAnnuel } from './interface/VueImpotAnnuel';
 import { VueProjection } from './interface/projection/VueProjection';
+import { BasculeTheme } from './interface/ui/BasculeTheme';
 import { BoutonsDossier } from './interface/ui/BoutonsDossier';
 import { IconeCadenas, IconeCourbe } from './interface/ui/icones';
 import { BoutonImprimer, ImpressionProvider } from './interface/ui/Impression';
@@ -19,23 +20,24 @@ export function App() {
     <ModeDetailProvider>
     <ImpressionProvider>
     <div className="min-h-screen">
-      <header className="border-b border-slate-200/70 bg-white/60 backdrop-blur-md">
+      <header className="border-b border-bordure/70 bg-carte/60 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-marque-500 to-sky-500 text-white shadow-sm">
               <IconeCourbe />
             </div>
             <div>
-              <h1 className="text-lg font-bold tracking-tight text-slate-900">
-                Planificateur Financier <span className="text-marque-700">2026</span>
+              <h1 className="text-lg font-bold tracking-tight text-titre">
+                Planificateur Financier <span className="text-marque">2026</span>
               </h1>
-              <p className="text-xs text-slate-500">Québec + fédéral</p>
+              <p className="text-xs text-doux">Québec + fédéral</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-3">
+            <BasculeTheme />
             <BoutonsDossier />
             <BoutonImprimer />
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-marque-50 px-3 py-1.5 text-xs font-medium text-marque-700 ring-1 ring-marque-500/20">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-marque-fond px-3 py-1.5 text-xs font-medium text-marque ring-1 ring-marque/20">
               <IconeCadenas />
               100 % local — vos données restent sur votre appareil
             </span>
@@ -55,12 +57,12 @@ export function App() {
                   aria-current={actif ? 'page' : undefined}
                   className={`-mb-px flex items-baseline gap-1.5 border-b-2 px-4 py-2.5 text-sm font-medium transition ${
                     actif
-                      ? 'border-marque-500 text-marque-700'
-                      : 'border-transparent text-slate-500 hover:text-slate-700'
+                      ? 'border-marque text-marque'
+                      : 'border-transparent text-doux hover:text-corps'
                   }`}
                 >
                   {o.label}
-                  <span className="text-xs font-normal text-slate-500">{o.sous}</span>
+                  <span className="text-xs font-normal text-doux">{o.sous}</span>
                 </button>
               );
             })}
@@ -71,7 +73,7 @@ export function App() {
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
         {onglet === 'impot' ? <VueImpotAnnuel /> : <VueProjection />}
 
-        <p className="mx-auto mt-10 max-w-3xl text-center text-xs leading-relaxed text-slate-500">
+        <p className="mx-auto mt-10 max-w-3xl text-center text-xs leading-relaxed text-doux">
           Outil de calcul et de simulation à des fins de planification personnelle. Les montants sont
           des estimations (fidélité « planification ») calibrées sur les barèmes fédéraux et québécois
           2026 et les Normes d'hypothèses de projection IQPF ; certains crédits mineurs, cotisations

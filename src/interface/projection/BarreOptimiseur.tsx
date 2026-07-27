@@ -25,7 +25,7 @@ export function BarreOptimiseur({ label, aide, calcul, onLancer, onAnnuler, acti
     <div className="flex flex-wrap items-center gap-3">
       {calcul && onAnnuler ? (
         <button type="button" onClick={onAnnuler} className="bouton-secondaire">
-          <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-slate-400 border-t-transparent" />
+          <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-doux border-t-transparent" />
           Optimisation… annuler
         </button>
       ) : (
@@ -34,7 +34,7 @@ export function BarreOptimiseur({ label, aide, calcul, onLancer, onAnnuler, acti
           {calcul ? 'Optimisation…' : label}
         </button>
       )}
-      <span className="text-xs text-slate-500">{aide}</span>
+      <span className="text-xs text-doux">{aide}</span>
       {actions && <div className="ml-auto">{actions}</div>}
     </div>
   );

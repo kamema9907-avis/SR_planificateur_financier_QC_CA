@@ -33,17 +33,17 @@ export function DrawerDetail({ vue, reel, onClose }: { vue: VueDrawer | null; re
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end" role="dialog" aria-modal="true">
-      <div className="absolute inset-0 bg-slate-900/20 backdrop-blur-[1px]" onClick={onClose} />
-      <div className="relative flex h-full w-full max-w-md flex-col bg-white shadow-2xl">
-        <div className="flex items-center justify-between border-b border-slate-100 p-4">
+      <div className="absolute inset-0 bg-voile backdrop-blur-[1px]" onClick={onClose} />
+      <div className="relative flex h-full w-full max-w-md flex-col bg-carte shadow-2xl">
+        <div className="flex items-center justify-between border-b border-filet p-4">
           <div className="flex flex-wrap items-center gap-1.5">
             {pile.map((v, i) => (
               <span key={i} className="flex items-center gap-1.5">
-                {i > 0 && <span className="text-slate-500">›</span>}
+                {i > 0 && <span className="text-doux">›</span>}
                 <button
                   type="button"
                   onClick={() => setPile((p) => p.slice(0, i + 1))}
-                  className={`text-sm ${i === pile.length - 1 ? 'font-semibold text-slate-800' : 'text-slate-500 hover:text-slate-600'}`}
+                  className={`text-sm ${i === pile.length - 1 ? 'font-semibold text-titre' : 'text-doux hover:text-corps'}`}
                 >
                   {TITRES[v.agregat]}
                 </button>
@@ -54,13 +54,13 @@ export function DrawerDetail({ vue, reel, onClose }: { vue: VueDrawer | null; re
             type="button"
             onClick={onClose}
             aria-label="Fermer"
-            className="flex h-7 w-7 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-slate-600"
+            className="flex h-7 w-7 items-center justify-center rounded-full text-doux transition hover:bg-panneau hover:text-corps"
           >
             ✕
           </button>
         </div>
 
-        <div className="border-b border-slate-100 px-4 py-2 text-xs text-slate-500">
+        <div className="border-b border-filet px-4 py-2 text-xs text-doux">
           {courante.annee.age} ans · {courante.annee.annee} · {reel ? "dollars d'aujourd'hui" : 'dollars nominaux'}
         </div>
 

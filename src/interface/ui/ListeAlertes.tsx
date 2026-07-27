@@ -15,8 +15,8 @@ export function ListeAlertes({ alertes }: { alertes?: readonly AlerteAffichable[
           key={i}
           className={`flex gap-2 rounded-xl px-3.5 py-2.5 text-xs leading-relaxed ring-1 ${
             a.niveau === 'erreur'
-              ? 'bg-rose-50/70 text-rose-800 ring-rose-500/20'
-              : 'bg-amber-50/70 text-amber-800 ring-amber-500/20'
+              ? 'bg-alerte-fond/70 text-alerte ring-alerte/20'
+              : 'bg-avert-fond/70 text-avert ring-avert/20'
           }`}
         >
           <span aria-hidden="true">{a.niveau === 'erreur' ? '⛔' : '⚠️'}</span>

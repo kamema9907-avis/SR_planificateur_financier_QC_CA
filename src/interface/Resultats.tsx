@@ -16,7 +16,7 @@ function Ligne({
   return (
     <div
       className={`flex items-baseline justify-between gap-4 py-1.5 ${
-        gras ? 'font-semibold text-slate-900' : sourdine ? 'text-slate-500' : 'text-slate-700'
+        gras ? 'font-semibold text-titre' : sourdine ? 'text-doux' : 'text-corps'
       }`}
     >
       <span className="text-sm">{libelle}</span>
@@ -33,14 +33,14 @@ function BarreRepartition({ r }: { r: ResultatFiscal }) {
   const qc = Math.max(0, r.quebec.impotNet);
 
   const segments = [
-    { valeur: net, couleur: 'bg-marque-500', libelle: 'Revenu net' },
+    { valeur: net, couleur: 'bg-vif', libelle: 'Revenu net' },
     { valeur: fed, couleur: 'bg-rose-400', libelle: 'Impôt fédéral' },
     { valeur: qc, couleur: 'bg-amber-400', libelle: 'Impôt Québec' },
   ];
 
   return (
     <div>
-      <div className="flex h-4 w-full overflow-hidden rounded-full ring-1 ring-slate-200">
+      <div className="flex h-4 w-full overflow-hidden rounded-full ring-1 ring-bordure">
         {segments.map(
           (s) =>
             s.valeur > 0 && (
@@ -57,9 +57,9 @@ function BarreRepartition({ r }: { r: ResultatFiscal }) {
         {segments.map((s) => (
           <div key={s.libelle} className="flex items-center gap-1.5">
             <span className={`h-2.5 w-2.5 rounded-full ${s.couleur}`} />
-            <span className="text-xs text-slate-600">
+            <span className="text-xs text-corps">
               {s.libelle}{' '}
-              <span className="chiffres font-medium text-slate-800">
+              <span className="chiffres font-medium text-titre">
                 {formatPourcent(s.valeur / total)}
               </span>
             </span>
@@ -78,10 +78,10 @@ function Retenues({ r }: { r: ResultatFiscal }) {
   return (
     <div className="carte p-5">
       <div className="mb-2 flex items-center justify-between">
-        <h3 className="font-semibold text-slate-800">Retenues sur la paie & net en poche</h3>
-        <span className="h-2.5 w-2.5 rounded-full bg-slate-400" />
+        <h3 className="font-semibold text-titre">Retenues sur la paie & net en poche</h3>
+        <span className="h-2.5 w-2.5 rounded-full bg-doux" />
       </div>
-      <div className="divide-y divide-slate-100">
+      <div className="divide-y divide-filet">
         {rrq > 0 && <Ligne libelle="RRQ (base + bonifié)" montant={`− ${formatDollarsCents(rrq)}`} sourdine />}
         {c.ae > 0 && <Ligne libelle="Assurance-emploi (AE)" montant={`− ${formatDollarsCents(c.ae)}`} sourdine />}
         {c.rqap > 0 && <Ligne libelle="RQAP" montant={`− ${formatDollarsCents(c.rqap)}`} sourdine />}
@@ -94,7 +94,7 @@ function Retenues({ r }: { r: ResultatFiscal }) {
         <Ligne libelle="Revenu après impôt" montant={formatDollars(r.revenuApresImpot)} sourdine />
         <Ligne libelle="Revenu net en poche" montant={formatDollars(r.revenuNetEnPoche)} gras />
       </div>
-      <p className="mt-2 text-xs text-slate-500">
+      <p className="mt-2 text-xs text-doux">
         Après impôt <span className="font-medium">et</span> retenues. Le RRQ de base, l'AE et le RQAP donnent des
         crédits d'impôt ; la portion bonifiée du RRQ est déduite du revenu.
       </p>
@@ -106,9 +106,9 @@ function Retenues({ r }: { r: ResultatFiscal }) {
 function TuileTaux({ label, valeur, aide }: { label: string; valeur: string; aide: string }) {
   return (
     <div className="carte p-4">
-      <p className="text-xs font-medium tracking-wide text-slate-500 uppercase">{label}</p>
-      <p className="chiffres mt-1 text-2xl font-bold text-slate-900">{valeur}</p>
-      <p className="mt-0.5 text-xs text-slate-500">{aide}</p>
+      <p className="text-xs font-medium tracking-wide text-doux uppercase">{label}</p>
+      <p className="chiffres mt-1 text-2xl font-bold text-titre">{valeur}</p>
+      <p className="mt-0.5 text-xs text-doux">{aide}</p>
     </div>
   );
 }
@@ -164,10 +164,10 @@ export function Resultats({ r }: { r: ResultatFiscal }) {
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="carte p-5">
           <div className="mb-2 flex items-center justify-between">
-            <h3 className="font-semibold text-slate-800">Fédéral</h3>
+            <h3 className="font-semibold text-titre">Fédéral</h3>
             <span className="h-2.5 w-2.5 rounded-full bg-rose-400" />
           </div>
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y divide-filet">
             <Ligne libelle="Revenu imposable" montant={formatDollars(r.federal.revenuImposable)} sourdine />
             <Ligne libelle="Impôt selon les tranches" montant={formatDollarsCents(r.federal.impotParTranches)} sourdine />
             <Ligne libelle="Crédits non remboursables" montant={`− ${formatDollarsCents(r.federal.creditsNonRemboursables)}`} sourdine />
@@ -190,10 +190,10 @@ export function Resultats({ r }: { r: ResultatFiscal }) {
 
         <div className="carte p-5">
           <div className="mb-2 flex items-center justify-between">
-            <h3 className="font-semibold text-slate-800">Québec</h3>
+            <h3 className="font-semibold text-titre">Québec</h3>
             <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
           </div>
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y divide-filet">
             <Ligne libelle="Revenu imposable" montant={formatDollars(r.quebec.revenuImposable)} sourdine />
             <Ligne libelle="Impôt selon les tranches" montant={formatDollarsCents(r.quebec.impotParTranches)} sourdine />
             <Ligne libelle="Crédits non remboursables" montant={`− ${formatDollarsCents(r.quebec.creditsNonRemboursables)}`} sourdine />

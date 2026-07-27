@@ -18,7 +18,7 @@ export function ChampMonetaire({ label, valeur, onChange, indice }: ChampMonetai
         {label}
       </label>
       <div className="relative">
-        <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm font-medium text-slate-500">
+        <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm font-medium text-doux">
           $
         </span>
         <input
@@ -33,7 +33,7 @@ export function ChampMonetaire({ label, valeur, onChange, indice }: ChampMonetai
           onChange={(e) => onChange(Math.max(0, Number(e.target.value) || 0))}
         />
       </div>
-      {indice && <p className="mt-1 text-xs text-slate-500">{indice}</p>}
+      {indice && <p className="mt-1 text-xs text-doux">{indice}</p>}
     </div>
   );
 }
@@ -84,11 +84,11 @@ export function Interrupteur({ label, valeur, onChange }: InterrupteurProps) {
         aria-checked={valeur}
         onClick={() => onChange(!valeur)}
         className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
-          valeur ? 'bg-marque-500' : 'bg-slate-300'
+          valeur ? 'bg-vif' : 'bg-bordure'
         }`}
       >
         <span
-          className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+          className={`inline-block h-5 w-5 transform rounded-full bg-carte shadow transition-transform ${
             valeur ? 'translate-x-5' : 'translate-x-0.5'
           }`}
         />
@@ -115,7 +115,7 @@ export function ChampPourcent({ label, valeur, onChange, indice, pas = 0.1 }: Ch
         {label}
       </label>
       <div className="relative">
-        <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm font-medium text-slate-500">
+        <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm font-medium text-doux">
           %
         </span>
         <input
@@ -128,7 +128,7 @@ export function ChampPourcent({ label, valeur, onChange, indice, pas = 0.1 }: Ch
           onChange={(e) => onChange((Number(e.target.value) || 0) / 100)}
         />
       </div>
-      {indice && <p className="mt-1 text-xs text-slate-500">{indice}</p>}
+      {indice && <p className="mt-1 text-xs text-doux">{indice}</p>}
     </div>
   );
 }
@@ -189,10 +189,10 @@ export function BoutonReinitialiser({ onReset }: { onReset: () => void }) {
 export function TitreSection({ numero, titre, aide }: { numero: number; titre: string; aide?: ReactNode }) {
   return (
     <div className="mb-4 flex items-center gap-2.5">
-      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-marque-50 text-xs font-bold text-marque-700 ring-1 ring-marque-500/20">
+      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-marque-fond text-xs font-bold text-marque ring-1 ring-marque/20">
         {numero}
       </span>
-      <h3 className="text-sm font-semibold tracking-wide text-slate-700 uppercase">{titre}</h3>
+      <h3 className="text-sm font-semibold tracking-wide text-corps uppercase">{titre}</h3>
       {aide && <Aide titre={titre}>{aide}</Aide>}
     </div>
   );

@@ -130,7 +130,7 @@ export function VueProjection() {
   return (
     <div className="space-y-6">
       <div className="sansimpression flex items-center justify-between gap-3">
-        <div className="inline-flex rounded-xl bg-slate-100 p-1 ring-1 ring-slate-200">
+        <div className="inline-flex rounded-xl bg-panneau p-1 ring-1 ring-bordure">
           {(['solo', 'couple'] as const).map((m) => (
             <button
               key={m}
@@ -140,8 +140,8 @@ export function VueProjection() {
               onClick={() => naviguer({ mode: m, groupe: undefined, etape: undefined })}
               aria-pressed={mode === m}
               className={`rounded-lg px-4 py-1.5 text-sm font-medium transition focus-visible:ring-2
-                focus-visible:ring-marque-500 focus-visible:outline-none ${
-                  mode === m ? 'bg-white text-marque-700 shadow-sm' : 'text-slate-600 hover:text-slate-800'
+                focus-visible:ring-marque focus-visible:outline-none ${
+                  mode === m ? 'bg-carte text-marque shadow-sm' : 'text-corps hover:text-titre'
                 }`}
             >
               {m === 'solo' ? 'Une personne' : 'Couple'}
@@ -237,8 +237,8 @@ export function VueProjection() {
 
               <div className="carte p-5">
                 <div className="mb-3 flex items-center justify-between">
-                  <h3 className="font-semibold text-slate-800">Évolution du patrimoine</h3>
-                  <label className="sansimpression flex items-center gap-2 text-xs text-slate-500">
+                  <h3 className="font-semibold text-titre">Évolution du patrimoine</h3>
+                  <label className="sansimpression flex items-center gap-2 text-xs text-doux">
                     <span>Dollars d'aujourd'hui</span>
                     <Interrupteur label="" valeur={!reel} onChange={(v) => setReel(!v)} />
                     <span>Nominaux</span>
@@ -253,8 +253,8 @@ export function VueProjection() {
               </div>
 
               <div className="carte p-5">
-                <h3 className="mb-1 font-semibold text-slate-800">Détail année par année</h3>
-                <p className="mb-3 text-xs text-slate-500">
+                <h3 className="mb-1 font-semibold text-titre">Détail année par année</h3>
+                <p className="mb-3 text-xs text-doux">
                   Toute la traçabilité : revenus, impôt, comptes et patrimoine. Cliquez un montant souligné pour ouvrir son calcul.
                 </p>
                 <DetailAnnees annees={resultat.annees} reel={reel} ageEpuisement={resultat.ageEpuisement} />

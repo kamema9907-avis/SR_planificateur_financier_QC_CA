@@ -16,7 +16,7 @@ interface Props {
 function Mieux({ actif }: { actif: boolean }) {
   if (!actif) return null;
   return (
-    <span className="ml-1.5 rounded-full bg-marque-50 px-1.5 py-0.5 text-[10px] font-semibold text-marque-700 ring-1 ring-marque-500/25">
+    <span className="ml-1.5 rounded-full bg-marque-fond px-1.5 py-0.5 text-[10px] font-semibold text-marque ring-1 ring-marque/25">
       meilleur
     </span>
   );
@@ -36,8 +36,8 @@ export function PanneauScenarios({ lignes, onEnregistrer, onCharger, onSupprimer
 
   return (
     <div className="carte p-5">
-      <h3 className="font-semibold text-slate-800">Comparer des scénarios</h3>
-      <p className="mt-1 mb-4 text-xs leading-relaxed text-slate-500">
+      <h3 className="font-semibold text-titre">Comparer des scénarios</h3>
+      <p className="mt-1 mb-4 text-xs leading-relaxed text-doux">
         Enregistrez la simulation en cours sous un nom, modifiez vos hypothèses, enregistrez-en une
         autre : les chiffres se comparent ligne à ligne. Charger un scénario remplace la simulation
         en cours.
@@ -64,14 +64,14 @@ export function PanneauScenarios({ lignes, onEnregistrer, onCharger, onSupprimer
       </form>
 
       {enregistres.length === 0 ? (
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-doux">
           Aucun scénario enregistré. Le premier servira de point de comparaison.
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-xl ring-1 ring-slate-200">
+        <div className="overflow-x-auto rounded-xl ring-1 ring-bordure">
           <table className="w-full text-sm">
-            <thead className="text-xs text-slate-500">
-              <tr className="bg-slate-50">
+            <thead className="text-xs text-doux">
+              <tr className="bg-champ">
                 <th className="px-3 py-2 text-left font-medium">Scénario</th>
                 <th className="px-3 py-2 text-left font-medium whitespace-nowrap">Dépenses financées</th>
                 <th className="px-3 py-2 text-right font-medium whitespace-nowrap">Valeur nette au décès</th>
@@ -79,18 +79,18 @@ export function PanneauScenarios({ lignes, onEnregistrer, onCharger, onSupprimer
                 <th className="px-3 py-2 text-right font-medium">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-filet">
               {lignes.map((l) => (
-                <tr key={l.id} className={l.courant ? 'bg-marque-50/30' : ''}>
+                <tr key={l.id} className={l.courant ? 'bg-marque-fond/30' : ''}>
                   <td className="px-3 py-2">
                     {l.courant ? (
-                      <span className="font-medium text-slate-800">
+                      <span className="font-medium text-titre">
                         Simulation en cours
-                        <span className="ml-1.5 text-xs font-normal text-slate-500">non enregistrée</span>
+                        <span className="ml-1.5 text-xs font-normal text-doux">non enregistrée</span>
                       </span>
                     ) : (
                       <input
-                        className="w-full rounded-md bg-transparent px-1 py-0.5 text-slate-700 hover:bg-white focus:bg-white focus:ring-2 focus:ring-marque-500 focus:outline-none"
+                        className="w-full rounded-md bg-transparent px-1 py-0.5 text-corps hover:bg-carte focus:bg-carte focus:ring-2 focus:ring-marque focus:outline-none"
                         value={l.nom}
                         aria-label={`Nom du scénario ${l.nom}`}
                         onChange={(e) => onRenommer(l.id, e.target.value)}
@@ -99,20 +99,20 @@ export function PanneauScenarios({ lignes, onEnregistrer, onCharger, onSupprimer
                   </td>
                   <td className="px-3 py-2 whitespace-nowrap">
                     {l.suffisant ? (
-                      <span className="text-marque-700">jusqu'au bout</span>
+                      <span className="text-marque">jusqu'au bout</span>
                     ) : (
-                      <span className="text-rose-600">
+                      <span className="text-alerte">
                         jusqu'à <span className="chiffres">{l.ageEpuisement}</span> ans
                       </span>
                     )}
                     <Mieux actif={gagnants.autonomie.includes(l.id)} />
                   </td>
                   <td className="px-3 py-2 text-right whitespace-nowrap">
-                    <span className="chiffres text-slate-700">{formatDollars(l.valeurNette)}</span>
+                    <span className="chiffres text-corps">{formatDollars(l.valeurNette)}</span>
                     <Mieux actif={gagnants.patrimoine.includes(l.id)} />
                   </td>
                   <td className="px-3 py-2 text-right whitespace-nowrap">
-                    <span className="chiffres text-slate-700">{formatDollars(l.impotVie)}</span>
+                    <span className="chiffres text-corps">{formatDollars(l.impotVie)}</span>
                     <Mieux actif={gagnants.impot.includes(l.id)} />
                   </td>
                   <td className="sansimpression px-3 py-2 text-right whitespace-nowrap">
@@ -124,7 +124,7 @@ export function PanneauScenarios({ lignes, onEnregistrer, onCharger, onSupprimer
                             if (window.confirm(`Charger « ${l.nom} » ? La simulation en cours sera remplacée.`))
                               onCharger(l.id);
                           }}
-                          className="rounded-md px-2 py-1 text-xs font-medium text-slate-600 ring-1 ring-slate-200 transition hover:bg-slate-50"
+                          className="rounded-md px-2 py-1 text-xs font-medium text-corps ring-1 ring-bordure transition hover:bg-champ"
                         >
                           Charger
                         </button>
@@ -134,7 +134,7 @@ export function PanneauScenarios({ lignes, onEnregistrer, onCharger, onSupprimer
                             if (window.confirm(`Supprimer « ${l.nom} » ?`)) onSupprimer(l.id);
                           }}
                           aria-label={`Supprimer ${l.nom}`}
-                          className="rounded-md px-2 py-1 text-xs text-slate-500 transition hover:bg-rose-50 hover:text-rose-600"
+                          className="rounded-md px-2 py-1 text-xs text-doux transition hover:bg-alerte-fond hover:text-alerte"
                         >
                           ✕
                         </button>

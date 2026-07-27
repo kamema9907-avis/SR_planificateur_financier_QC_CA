@@ -42,29 +42,29 @@ function Badges({ a, anneeEpuisement }: { a: AnneeCouple; anneeEpuisement: numbe
 
 function Cellule({ a, col, reel, onOuvrir }: { a: AnneeCouple; col: Colonne; reel: boolean; onOuvrir: (v: VueDrawerCouple) => void }) {
   const val = col.v(a);
-  if (val == null || (col.format !== 'pourcent' && Math.abs(val) < 0.5)) return <span className="text-slate-500">—</span>;
+  if (val == null || (col.format !== 'pourcent' && Math.abs(val) < 0.5)) return <span className="text-doux">—</span>;
   const texte = col.format === 'pourcent' ? formatPourcent(val) : formatDollars((reel ? a.deflateurReel : 1) * val);
   if (col.agregat) {
     return (
       <button
         type="button"
         onClick={() => onOuvrir({ agregat: col.agregat!, annee: a })}
-        className="chiffres font-medium text-marque-700 underline decoration-marque-300 decoration-dotted underline-offset-2 transition hover:decoration-marque-600"
+        className="chiffres font-medium text-marque underline decoration-marque/50 decoration-dotted underline-offset-2 transition hover:decoration-marque"
       >
         {texte}
       </button>
     );
   }
-  return <span className={`chiffres ${col.accent ? 'font-semibold text-slate-900' : 'text-slate-600'}`}>{texte}</span>;
+  return <span className={`chiffres ${col.accent ? 'font-semibold text-titre' : 'text-corps'}`}>{texte}</span>;
 }
 
 function Tableau({ annees, colonnes, reel, anneeEpuisement, onOuvrir }: {
   annees: readonly AnneeCouple[]; colonnes: Colonne[]; reel: boolean; anneeEpuisement: number | null; onOuvrir: (v: VueDrawerCouple) => void;
 }) {
   return (
-    <div className="max-h-[30rem] overflow-auto rounded-xl ring-1 ring-slate-200">
+    <div className="max-h-[30rem] overflow-auto rounded-xl ring-1 ring-bordure">
       <table className="w-full text-sm">
-        <thead className="text-xs text-slate-500 [&_th]:sticky [&_th]:top-0 [&_th]:z-10 [&_th]:bg-slate-50">
+        <thead className="text-xs text-doux [&_th]:sticky [&_th]:top-0 [&_th]:z-10 [&_th]:bg-champ">
           <tr>
             <th className="px-3 py-2 text-left font-medium">Âges</th>
             {colonnes.map((c) => (
@@ -72,10 +72,10 @@ function Tableau({ annees, colonnes, reel, anneeEpuisement, onOuvrir }: {
             ))}
           </tr>
         </thead>
-        <tbody className="chiffres divide-y divide-slate-100">
+        <tbody className="chiffres divide-y divide-filet">
           {annees.map((a) => (
-            <tr key={a.annee} className={a.phase !== 'accumulation' ? 'bg-marque-50/30' : ''}>
-              <td className="px-3 py-1.5 text-left whitespace-nowrap text-slate-700">
+            <tr key={a.annee} className={a.phase !== 'accumulation' ? 'bg-marque-fond/30' : ''}>
+              <td className="px-3 py-1.5 text-left whitespace-nowrap text-corps">
                 {`${a.age1 ?? '—'} / ${a.age2 ?? '—'}`}
                 <Badges a={a} anneeEpuisement={anneeEpuisement} />
               </td>
@@ -95,8 +95,8 @@ function Tableau({ annees, colonnes, reel, anneeEpuisement, onOuvrir }: {
 function BlocTableau({ titre, aide, children }: { titre: string; aide: string; children: ReactNode }) {
   return (
     <div>
-      <h4 className="text-sm font-semibold text-slate-700">{titre}</h4>
-      <p className="mb-2 text-xs text-slate-500">{aide}</p>
+      <h4 className="text-sm font-semibold text-corps">{titre}</h4>
+      <p className="mb-2 text-xs text-doux">{aide}</p>
       {children}
     </div>
   );
@@ -125,13 +125,13 @@ export function DetailAnneesCouple({ annees, reel, anneeEpuisement }: Props) {
   const colsPatrimoine: Colonne[] = [...colsComptes, { titre: 'Valeur nette', v: (a) => a.valeurNette, agregat: 'valeurNette', accent: true }];
 
   const ong = (actif: boolean) =>
-    `rounded-md px-3 py-1 text-xs font-medium transition ${actif ? 'bg-white text-marque-700 shadow-sm' : 'text-slate-600 hover:text-slate-800'}`;
+    `rounded-md px-3 py-1 text-xs font-medium transition ${actif ? 'bg-carte text-marque shadow-sm' : 'text-corps hover:text-titre'}`;
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs text-slate-500">Cliquez un montant <span className="text-marque-700 underline decoration-dotted">souligné</span> pour ouvrir le détail (dont le fractionnement).</p>
-        <div className="sansimpression inline-flex rounded-lg bg-slate-100 p-0.5 ring-1 ring-slate-200">
+        <p className="text-xs text-doux">Cliquez un montant <span className="text-marque underline decoration-dotted">souligné</span> pour ouvrir le détail (dont le fractionnement).</p>
+        <div className="sansimpression inline-flex rounded-lg bg-panneau p-0.5 ring-1 ring-bordure">
           <button type="button" onClick={() => setModeComplet(false)} className={ong(!modeComplet)}>Par thème</button>
           <button type="button" onClick={() => setModeComplet(true)} className={ong(modeComplet)}>Tout voir</button>
         </div>

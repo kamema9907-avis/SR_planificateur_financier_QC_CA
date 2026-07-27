@@ -109,7 +109,7 @@ export function SectionRentesEmployeur({ rentes, ageRetraite, onChange }: Props)
         <button type="button" onClick={ajouterRREGOP} className="bouton-marque mt-3">
           + Ajouter le RREGOP calculé
         </button>
-        <p className="mt-2 text-xs text-slate-500">
+        <p className="mt-2 text-xs text-doux">
           Ajoute une rente de base viagère + un pont de coordination jusqu'à 65 ans (indexation partielle
           50 %). Réduction de coordination : 0,7 % × service × min(salaire, MGA).
         </p>

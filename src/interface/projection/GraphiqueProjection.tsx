@@ -116,14 +116,14 @@ export function GraphiqueProjection({ annees, reel, ageRetraite, ageEpuisement }
         <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="Évolution du patrimoine">
           {/* Bande de décaissement : la retraite se lit d'un coup d'œil */}
           {ageRetraite > ageDe && ageRetraite < ageA && (
-            <rect x={xAge(ageRetraite)} y={T} width={W - R - xAge(ageRetraite)} height={plotH} fill="#0f172a" fillOpacity={0.03} />
+            <rect x={xAge(ageRetraite)} y={T} width={W - R - xAge(ageRetraite)} height={plotH} className="fill-titre" fillOpacity={0.05} />
           )}
 
           {/* Graduations horizontales + libellés */}
           {graduations.map((g, i) => (
             <g key={i}>
-              <line x1={L} y1={y(g)} x2={W - R} y2={y(g)} stroke="#e2e8f0" strokeWidth={1} />
-              <text x={L - 8} y={y(g) + 4} textAnchor="end" className="fill-slate-400" fontSize={11}>
+              <line x1={L} y1={y(g)} x2={W - R} y2={y(g)} className="stroke-bordure" strokeWidth={1} />
+              <text x={L - 8} y={y(g) + 4} textAnchor="end" className="fill-doux" fontSize={11}>
                 {formatDollarsCompact(g)}
               </text>
             </g>
@@ -137,8 +137,8 @@ export function GraphiqueProjection({ annees, reel, ageRetraite, ageEpuisement }
           {/* Marqueur : retraite */}
           {ageRetraite >= ageDe && ageRetraite <= ageA && (
             <g>
-              <line x1={xAge(ageRetraite)} y1={T} x2={xAge(ageRetraite)} y2={T + plotH} stroke="#475569" strokeWidth={1} strokeDasharray="4 3" />
-              <text x={xAge(ageRetraite) + 4} y={T + 12} className="fill-slate-500" fontSize={11}>
+              <line x1={xAge(ageRetraite)} y1={T} x2={xAge(ageRetraite)} y2={T + plotH} className="stroke-doux" strokeWidth={1} strokeDasharray="4 3" />
+              <text x={xAge(ageRetraite) + 4} y={T + 12} className="fill-doux" fontSize={11}>
                 retraite {ageRetraite}
               </text>
             </g>
@@ -152,14 +152,14 @@ export function GraphiqueProjection({ annees, reel, ageRetraite, ageEpuisement }
           {/* Curseur de survol */}
           {survol != null && (
             <g>
-              <line x1={x(survol)} y1={T} x2={x(survol)} y2={T + plotH} stroke="#0f172a" strokeWidth={1} strokeOpacity={0.35} />
-              <circle cx={x(survol)} cy={y(totaux[survol])} r={3.5} fill="#0f172a" />
+              <line x1={x(survol)} y1={T} x2={x(survol)} y2={T + plotH} className="stroke-titre" strokeWidth={1} strokeOpacity={0.35} />
+              <circle cx={x(survol)} cy={y(totaux[survol])} r={3.5} className="fill-titre" />
             </g>
           )}
 
           {/* Étiquettes d'âge */}
           {etiquettesAge.map((age) => (
-            <text key={age} x={xAge(age)} y={H - 10} textAnchor="middle" className="fill-slate-400" fontSize={11}>
+            <text key={age} x={xAge(age)} y={H - 10} textAnchor="middle" className="fill-doux" fontSize={11}>
               {age}
             </text>
           ))}
@@ -168,13 +168,13 @@ export function GraphiqueProjection({ annees, reel, ageRetraite, ageEpuisement }
         {/* Infobulle : ventilation de l'année survolée */}
         {a && (
           <div
-            className="pointer-events-none absolute top-2 z-10 w-56 rounded-xl bg-white/95 p-3 text-xs shadow-lg ring-1 ring-slate-200 backdrop-blur-sm"
+            className="pointer-events-none absolute top-2 z-10 w-56 rounded-xl bg-carte/95 p-3 text-xs shadow-lg ring-1 ring-bordure backdrop-blur-sm"
             style={fractionX > 0.62 ? { right: `${(1 - fractionX) * 100 + 2}%` } : { left: `${fractionX * 100 + 2}%` }}
           >
-            <p className="mb-1.5 font-semibold text-slate-800">
+            <p className="mb-1.5 font-semibold text-titre">
               <span className="chiffres">{a.age}</span> ans
               {ageEpuisement != null && a.age >= ageEpuisement && (
-                <span className="ml-1.5 font-normal text-rose-600">dépenses non financées</span>
+                <span className="ml-1.5 font-normal text-alerte">dépenses non financées</span>
               )}
             </p>
             <ul className="space-y-0.5">
@@ -185,14 +185,14 @@ export function GraphiqueProjection({ annees, reel, ageRetraite, ageEpuisement }
                   <li key={s.label} className="flex items-center justify-between gap-3">
                     <span className="flex min-w-0 items-center gap-1.5">
                       <span className="h-2 w-2 shrink-0 rounded-sm" style={{ backgroundColor: s.couleur }} />
-                      <span className="truncate text-slate-500">{s.label.split(' (')[0]}</span>
+                      <span className="truncate text-doux">{s.label.split(' (')[0]}</span>
                     </span>
-                    <span className="chiffres shrink-0 text-slate-700">{formatDollarsCompact(v)}</span>
+                    <span className="chiffres shrink-0 text-corps">{formatDollarsCompact(v)}</span>
                   </li>
                 );
               })}
             </ul>
-            <p className="mt-1.5 flex justify-between border-t border-slate-100 pt-1.5 font-semibold text-slate-900">
+            <p className="mt-1.5 flex justify-between border-t border-filet pt-1.5 font-semibold text-titre">
               <span>Valeur nette</span>
               <span className="chiffres">{formatDollars(totaux[survol!])}</span>
             </p>
@@ -205,10 +205,10 @@ export function GraphiqueProjection({ annees, reel, ageRetraite, ageEpuisement }
         {SERIES.map((s) => (
           <div key={s.label} className="flex items-center gap-1.5">
             <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: s.couleur }} />
-            <span className="text-xs text-slate-600">{s.label}</span>
+            <span className="text-xs text-corps">{s.label}</span>
           </div>
         ))}
-        <span className="ml-auto text-xs text-slate-500">La zone grisée est la phase de décaissement.</span>
+        <span className="ml-auto text-xs text-doux">La zone grisée est la phase de décaissement.</span>
       </div>
     </div>
   );

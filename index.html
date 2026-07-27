@@ -8,7 +8,27 @@
       name="description"
       content="Planificateur financier Québec/Canada — calcul et optimisation fiscale fédéral + provincial. 100 % local, vos données ne quittent jamais votre appareil."
     />
+    <meta name="color-scheme" content="light dark" />
     <title>Planificateur Financier 2026 — Québec</title>
+    <!--
+      Thème appliqué AVANT le premier rendu. Ce script doit rester ici, en ligne et synchrone :
+      s'il attendait le bundle JavaScript, un utilisateur en mode sombre verrait une page blanche
+      pendant une fraction de seconde à chaque chargement. C'est le seul endroit du projet qui
+      duplique une logique (celle de `interface/theme.ts`) ; on la garde donc minuscule.
+    -->
+    <script>
+      (function () {
+        try {
+          var choix = localStorage.getItem('pf2026:theme') || 'systeme';
+          var sombre =
+            choix === 'sombre' ||
+            (choix === 'systeme' && matchMedia('(prefers-color-scheme: dark)').matches);
+          if (sombre) document.documentElement.classList.add('sombre');
+        } catch (e) {
+          /* stockage refusé : la page s'ouvre en clair, le composant corrigera au montage */
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

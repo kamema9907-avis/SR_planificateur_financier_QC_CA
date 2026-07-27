@@ -3,7 +3,9 @@
 > **Document vivant** : synthèse de tout ce que le projet fait à ce jour. À mettre à jour au fil des
 > phases. Voir le [journal des modifications](#-journal-des-modifications) à la fin pour l'historique.
 >
-> Dernière mise à jour : **2026-07-27** — **lot 5, première moitié** : l'application tient enfin sur
+> Dernière mise à jour : **2026-07-27** — **lot 5 terminé** : **mode sombre** complet (Système /
+> Clair / Sombre), bâti sur une couche de **jetons sémantiques** — aucun composant ne nomme plus une
+> couleur. Plus tôt le même jour : l'application tient sur
 > un téléphone (elle débordait de 968 px), l'adresse est **partageable** (`#/projection/couple/...`,
 > rechargement et bouton Retour fonctionnels), et **tout le texte respecte le contraste WCAG AA**,
 > avec navigation au clavier dans le rail et annonce vocale du verdict.
@@ -120,17 +122,21 @@ Deux conjoints entièrement modélisés (colonnes côte à côte), un ménage à
   1600 px sur les trois vues.
 - **Adresse partageable** : `#/impot`, `#/projection/couple/menage/depenses`… Le rechargement garde
   la position, le bouton **Retour** revient à l'étape précédente, et un lien s'envoie tel quel.
-- **Contraste WCAG AA vérifié par mesure** sur tous les textes des trois vues, fonds en dégradé
-  compris (rapport ≥ 4,5:1, ou ≥ 3:1 pour les grands titres).
+- **Mode sombre** : bascule **Système / Clair / Sombre** dans l'en-tête. « Système » suit le réglage
+  de l'appareil *en direct*, sans rechargement. Le choix survit au redémarrage et s'applique avant le
+  premier rendu (pas d'éclair blanc à l'ouverture).
+- **Contraste WCAG AA vérifié par mesure** sur tous les textes des trois vues, **dans les deux
+  thèmes**, fonds en dégradé et étiquettes SVG compris (rapport ≥ 4,5:1, ou ≥ 3:1 pour les grands
+  titres).
 - **Clavier** : le rail d'étapes est un jeu d'onglets (flèches, Début, Fin) ; une seule étape occupe
   l'ordre de tabulation, pour atteindre le formulaire sans traverser les neuf étapes.
 - **Lecteur d'écran** : le verdict est une zone `aria-live` — la réponse à « est-ce que ça tient ? »
   est annoncée quand elle change.
 
 ### Qualité / validation
-- **250 cas-tests automatisés** — 183 moteur (fiscalité, cotisations, plafonds CELIAPP/CELI/REER,
+- **252 cas-tests automatisés** — 183 moteur (fiscalité, cotisations, plafonds CELIAPP/CELI/REER,
   fonds de travailleurs, indexation, comptes, projection, décaissement, couple, immobilier dont
-  terrain, optimiseur) + 67 interface (validations, verdict, fichier, scénarios, routage).
+  terrain, optimiseur) + 69 interface (validations, verdict, fichier, scénarios, routage, thème).
 - Propriété clé du couple : le **fractionnement ne hausse jamais** l'impôt combiné (testé).
 - **Validation croisée** contre les taux marginaux combinés **publiés** du Québec 2026 :
   sommet **53,31 %**, 140 000 $ → **47,46 %**, 60 000 $ → **36,12 %**.
@@ -204,6 +210,7 @@ src/
     ├── Champ.tsx                   # Champs de saisie réutilisables
     ├── format.ts                   # Formatage $ / % (fr-CA)
     ├── routage.ts                  # Adresse partageable (#/projection/couple/…), Retour, F5
+    ├── theme.ts                    # Thème Système / Clair / Sombre (jetons de `index.css`)
     ├── useDossier.ts               # Persistance locale, affichage réel/nominal, optimiseur
     ├── Resultats.tsx               # Résultats de l'onglet Impôt
     ├── VueImpotAnnuel.tsx          # Onglet « Impôt (1 année) »
@@ -273,7 +280,7 @@ L'interface est en cours de refonte (« l'Atelier ») — voir [`PLAN_REFONTE_UI
 ```bash
 npm install      # installer les dépendances
 npm run dev      # développement (http://localhost:5173)
-npm test         # les 250 cas-tests
+npm test         # les 252 cas-tests
 npm run build    # version de production (dossier dist/, à héberger)
 npm run preview  # prévisualiser la version de production
 ```
@@ -326,9 +333,10 @@ Conséquence : les montants sont de bonnes **estimations de planification**, pas
    - ✅ **lot 2.5** — mise à niveau de l'onglet Impôt
    - ✅ **lot 3** — verdict, graphique enrichi, comparaison avant/après
    - ✅ **lot 4** — sauvegarde en fichier, scénarios comparables, Web Worker, impression PDF
-   - **lot 5** — ✅ responsive mobile, ✅ accessibilité (contraste, clavier, `aria-live`),
-     ✅ routing partageable · **reste : mode sombre** (refonte de palette en jetons sémantiques,
-     le seul chantier qui touche presque tous les fichiers d'interface)
+   - ✅ **lot 5** — responsive mobile, accessibilité (contraste, clavier, `aria-live`), routing
+     partageable, **mode sombre** (jetons sémantiques)
+
+   **La Phase 5 est terminée.**
 
    (**Hébergement : ✅ fait** — GitHub Pages, déploiement automatique à chaque `git push`.)
 
@@ -338,6 +346,48 @@ options d'employé, analyse de sensibilité / Monte Carlo, autres provinces.
 ---
 
 ## 📓 Journal des modifications
+
+### 2026-07-27 — Lot 5 (2/2) : mode sombre, par jetons sémantiques
+Le chantier n'était pas « ajouter des couleurs foncées » mais **retirer les couleurs des composants**.
+
+**Le problème de départ.** 371 classes de couleur littérales (`text-slate-500`, `bg-white`,
+`ring-slate-200`…) réparties dans 31 fichiers. La solution paresseuse — doubler chacune d'une
+variante `dark:` — aurait laissé 742 classes à maintenir en double, avec la certitude qu'elles
+divergent au premier oubli.
+
+**La solution.** Une couche de **jetons sémantiques** dans [`index.css`](src/index.css) : aucun
+composant ne nomme plus une couleur, il nomme un **rôle** — `bg-carte`, `text-doux`, `ring-bordure`,
+`bg-marque-plein`. Un seul bloc `:root` / `:root.sombre` donne à chaque rôle sa valeur selon le
+thème. Ajouter un troisième thème ne demanderait plus de toucher un seul composant.
+
+Détail technique qui compte : `@theme inline`. Sans `inline`, la valeur serait figée au niveau de
+`:root` et le basculement ne descendrait pas dans l'arbre ; avec, les utilitaires référencent
+directement `var(--pf-…)`, résolu sur l'élément qui l'utilise.
+
+**Les valeurs sombres ne sont pas l'inverse mécanique des claires.** Trois exemples :
+- Le texte secondaire passe d'ardoise **500** à ardoise **400** : conserver le 500 l'aurait laissé à
+  3,7:1 sur fond sombre, sous la norme.
+- Le bouton de confirmation inverse son fond ET son texte (émeraude 700 + blanc → émeraude 400 +
+  ardoise 900) : un bouton doit **ressortir** du fond, pas s'y fondre.
+- Le bouton d'action principale, ardoise 900 sur fond clair, deviendrait invisible sur une page
+  ardoise 950 : il passe en ardoise clair avec texte sombre.
+
+**Trois défauts trouvés en mesurant, pas à l'œil :**
+1. La pastille d'étape active gardait `text-white` sur un fond de marque devenu **clair** en thème
+   sombre : 1,9:1. Corrigé par le jeton `text-sur-marque`, qui suit son fond.
+2. Les graphiques avaient des couleurs en dur. Le halo blanc autour de l'étiquette « retraite 60 »
+   dessinait un pavé lumineux au milieu du graphique sombre ; il prend maintenant la couleur de la
+   carte. Idem pour les graduations, le curseur de survol et la bande de décaissement.
+3. **Ma sonde de contraste était fausse en thème sombre** : son fond de repli était codé en dur sur
+   la couleur claire, ce qui faisait échouer 42 styles parfaitement valides. Elle lit désormais le
+   fond réel du document. Elle a aussi été étendue aux textes SVG, peints par `fill` et non par
+   `color` — les étiquettes des graphiques échappaient à tous les audits précédents.
+
+**Vérifié** : 0 échec de contraste dans les **deux** thèmes sur les trois vues ; classe appliquée
+avant le premier rendu (script en ligne dans `<head>`, avant le bundle) ; suivi du système en direct,
+sans rechargement ; aucun débordement à 390 px en sombre.
+
+- **252 cas-tests verts** (+2), build OK.
 
 ### 2026-07-27 — Lot 5 (1/2) : mobile, adresse partageable, accessibilité
 Trois chantiers indépendants, **aucune ligne du moteur touchée**. Chacun a été mesuré avant et après,

@@ -17,7 +17,7 @@ export function PanneauOptimisation({ gainPatrimoine, gainImpot, details, trajec
   const aucunGain = gainPatrimoine < 1 && gainImpot < 1;
 
   return (
-    <div className="carte overflow-hidden ring-2 ring-marque-500/40">
+    <div className="carte overflow-hidden ring-2 ring-marque/40">
       <div className="bg-gradient-to-br from-marque-800 to-sky-700 p-5 text-white">
         <div className="flex items-center gap-2">
           <IconeEtincelleDouble classe="h-5 w-5" />
@@ -41,22 +41,22 @@ export function PanneauOptimisation({ gainPatrimoine, gainImpot, details, trajec
 
       <div className="p-5">
         {aucunGain ? (
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-doux">
             L'optimiseur n'a pas trouvé de meilleure combinaison que votre stratégie actuelle.
           </p>
         ) : (
           <>
-            <p className="mb-2 text-sm font-medium text-slate-700">Stratégie recommandée</p>
-            <div className="divide-y divide-slate-100">
+            <p className="mb-2 text-sm font-medium text-corps">Stratégie recommandée</p>
+            <div className="divide-y divide-filet">
               {details.map((d) => (
                 <div key={d.label} className="flex items-baseline justify-between gap-4 py-1.5 text-sm">
-                  <span className="text-slate-500">{d.label}</span>
-                  <span className="chiffres font-medium text-slate-800">{d.valeur}</span>
+                  <span className="text-doux">{d.label}</span>
+                  <span className="chiffres font-medium text-titre">{d.valeur}</span>
                 </div>
               ))}
             </div>
             {trajectoires && (
-              <div className="mt-4 border-t border-slate-100 pt-3">
+              <div className="mt-4 border-t border-filet pt-3">
                 <ComparaisonOptimisation t={trajectoires} />
               </div>
             )}

@@ -68,7 +68,7 @@ export function PanneauSynthese({
       />
 
       {optimiseur.erreur && (
-        <p role="alert" className="rounded-xl bg-rose-50/70 px-3.5 py-2.5 text-xs text-rose-800 ring-1 ring-rose-500/20">
+        <p role="alert" className="rounded-xl bg-alerte-fond/70 px-3.5 py-2.5 text-xs text-alerte ring-1 ring-alerte/20">
           {optimiseur.erreur}
         </p>
       )}
@@ -83,8 +83,8 @@ export function PanneauSynthese({
 
       <div className="carte p-4">
         <div className="mb-2 flex items-center justify-between gap-2">
-          <h3 className="text-sm font-semibold text-slate-800">Valeur nette</h3>
-          <label className="sansimpression flex items-center gap-1.5 text-[11px] text-slate-500">
+          <h3 className="text-sm font-semibold text-titre">Valeur nette</h3>
+          <label className="sansimpression flex items-center gap-1.5 text-[11px] text-doux">
             <span>$ d'aujourd'hui</span>
             <Interrupteur label="" valeur={!reel} onChange={(v) => onReel(!v)} />
             <span>Nominaux</span>

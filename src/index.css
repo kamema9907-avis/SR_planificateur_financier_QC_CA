@@ -17,17 +17,141 @@
   --color-marque-900: #064e3b;
 }
 
+/* ---------------------------------------------------------------------------
+   Jetons sémantiques — la couche qui rend le mode sombre possible.
+
+   Le principe : **aucun composant ne nomme une couleur**. Il nomme un RÔLE
+   (« la surface d'une carte », « le texte secondaire », « une bordure »), et
+   c'est ici, à un seul endroit, que chaque rôle reçoit sa valeur selon le
+   thème. Sans cette indirection, il aurait fallu doubler les 371 classes de
+   couleur du projet avec des variantes `dark:` — et les maintenir en double
+   pour toujours.
+
+   `@theme inline` importe : les utilitaires produits (`bg-carte`, `text-doux`…)
+   référencent alors directement `var(--pf-…)`, qui se résout sur l'élément qui
+   l'utilise. Sans `inline`, la valeur serait figée au niveau de `:root` et le
+   basculement ne descendrait pas dans l'arbre.
+
+   Les valeurs sombres ne sont pas l'inverse mécanique des claires : le texte
+   secondaire passe d'ardoise 500 à ardoise **400**, sinon il tomberait à 3,7:1
+   sur fond sombre, sous la norme WCAG AA.
+   --------------------------------------------------------------------------- */
+
+:root {
+  color-scheme: light;
+
+  --pf-fond: #f8fafc;              /* ardoise 50  — la page                       */
+  --pf-carte: #ffffff;             /* blanc       — surface d'une carte           */
+  --pf-panneau: #f1f5f9;           /* ardoise 100 — bascules, en-têtes de tableau */
+  --pf-champ: #f8fafc;             /* ardoise 50  — fond des champs de saisie     */
+
+  --pf-titre: #0f172a;             /* ardoise 900 — titres et montants            */
+  --pf-corps: #334155;             /* ardoise 700 — texte courant                 */
+  --pf-doux: #64748b;              /* ardoise 500 — libellés, aides, légendes     */
+
+  --pf-bordure: #e2e8f0;           /* ardoise 200 — contours de cartes et champs  */
+  --pf-filet: #f1f5f9;             /* ardoise 100 — séparateurs de tableau        */
+
+  --pf-marque: #047857;            /* émeraude 700 — texte et icônes de marque    */
+  --pf-marque-fond: #ecfdf5;       /* émeraude 50  — encadrés teintés             */
+  --pf-marque-plein: #047857;      /* fond des boutons de confirmation            */
+  --pf-sur-marque: #ffffff;        /* texte posé sur ce fond                      */
+  --pf-vif: #059669;               /* jauges et barres : lisible sur la surface   */
+
+  --pf-accent-plein: #0f172a;      /* fond du bouton d'action principale          */
+  --pf-sur-accent: #ffffff;
+
+  --pf-alerte: #9f1239;            /* rose 800  — texte d'erreur                  */
+  --pf-alerte-fond: #fff1f2;       /* rose 50   — encadré d'erreur                */
+  --pf-avert: #92400e;             /* ambre 800 — texte d'avertissement           */
+  --pf-avert-fond: #fffbeb;        /* ambre 50  — encadré d'avertissement         */
+  --pf-info: #0369a1;              /* ciel 700  — encadré explicatif              */
+  --pf-info-fond: #f0f9ff;         /* ciel 50                                     */
+
+  --pf-voile: rgb(15 23 42 / 0.2); /* fond derrière un tiroir                     */
+  --pf-halo-a: rgb(16 185 129 / 0.08);
+  --pf-halo-b: rgb(14 165 233 / 0.08);
+}
+
+:root.sombre {
+  color-scheme: dark;
+
+  --pf-fond: #020617;              /* ardoise 950 */
+  --pf-carte: #0f172a;             /* ardoise 900 */
+  --pf-panneau: #1e293b;           /* ardoise 800 */
+  --pf-champ: #1e293b;
+
+  --pf-titre: #f8fafc;             /* ardoise 50  — 17:1 sur la carte  */
+  --pf-corps: #cbd5e1;             /* ardoise 300 — 11:1               */
+  --pf-doux: #94a3b8;              /* ardoise 400 — 7:1 (le 500 échouerait à 3,7:1) */
+
+  --pf-bordure: #334155;           /* ardoise 700 */
+  --pf-filet: #1e293b;             /* ardoise 800 */
+
+  --pf-marque: #6ee7b7;            /* émeraude 300 — 10:1 sur la carte */
+  --pf-marque-fond: #052e26;       /* émeraude très sombre, teinte d'encadré */
+  --pf-marque-plein: #34d399;      /* émeraude 400 : un bouton doit RESSORTIR du fond */
+  --pf-sur-marque: #0f172a;        /* texte sombre dessus — 9,3:1 */
+  --pf-vif: #34d399;
+
+  --pf-accent-plein: #e2e8f0;      /* l'ardoise 900 disparaîtrait sur la page sombre */
+  --pf-sur-accent: #0f172a;
+
+  --pf-alerte: #fda4af;            /* rose 300  */
+  --pf-alerte-fond: #4c0519;       /* rose 950  */
+  --pf-avert: #fcd34d;             /* ambre 300 */
+  --pf-avert-fond: #451a03;        /* ambre 950 */
+  --pf-info: #7dd3fc;              /* ciel 300  */
+  --pf-info-fond: #082f49;         /* ciel 950  */
+
+  --pf-voile: rgb(2 6 23 / 0.6);
+  --pf-halo-a: rgb(16 185 129 / 0.07);
+  --pf-halo-b: rgb(14 165 233 / 0.07);
+}
+
+@theme inline {
+  --color-fond: var(--pf-fond);
+  --color-carte: var(--pf-carte);
+  --color-panneau: var(--pf-panneau);
+  --color-champ: var(--pf-champ);
+
+  --color-titre: var(--pf-titre);
+  --color-corps: var(--pf-corps);
+  --color-doux: var(--pf-doux);
+
+  --color-bordure: var(--pf-bordure);
+  --color-filet: var(--pf-filet);
+
+  --color-marque: var(--pf-marque);
+  --color-marque-fond: var(--pf-marque-fond);
+  --color-marque-plein: var(--pf-marque-plein);
+  --color-sur-marque: var(--pf-sur-marque);
+  --color-vif: var(--pf-vif);
+
+  --color-accent-plein: var(--pf-accent-plein);
+  --color-sur-accent: var(--pf-sur-accent);
+
+  --color-alerte: var(--pf-alerte);
+  --color-alerte-fond: var(--pf-alerte-fond);
+  --color-avert: var(--pf-avert);
+  --color-avert-fond: var(--pf-avert-fond);
+  --color-info: var(--pf-info);
+  --color-info-fond: var(--pf-info-fond);
+
+  --color-voile: var(--pf-voile);
+}
+
 @layer base {
   html {
     scroll-behavior: smooth;
   }
 
   body {
-    @apply bg-slate-50 text-slate-800 antialiased;
+    @apply bg-fond text-corps antialiased;
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
     background-image:
-      radial-gradient(60rem 60rem at 110% -10%, rgba(16, 185, 129, 0.08), transparent 60%),
-      radial-gradient(50rem 50rem at -10% 0%, rgba(14, 165, 233, 0.08), transparent 55%);
+      radial-gradient(60rem 60rem at 110% -10%, var(--pf-halo-a), transparent 60%),
+      radial-gradient(50rem 50rem at -10% 0%, var(--pf-halo-b), transparent 55%);
     background-attachment: fixed;
   }
 
@@ -40,24 +164,24 @@
 
 @layer components {
   .carte {
-    @apply rounded-2xl bg-white/80 ring-1 ring-slate-200/80 shadow-sm backdrop-blur-sm;
+    @apply rounded-2xl bg-carte/80 ring-1 ring-bordure/80 shadow-sm backdrop-blur-sm;
   }
 
   /* Élément d'une liste éditable (un immeuble, une rente, une période de travail) */
   .carte-liste {
-    @apply relative rounded-xl p-4 ring-1 ring-slate-200;
+    @apply relative rounded-xl p-4 ring-1 ring-bordure;
   }
 
   .etiquette {
-    @apply block text-sm font-medium text-slate-600;
+    @apply block text-sm font-medium text-corps;
   }
 
   /* Champ de saisie monétaire / numérique */
   .saisie {
-    @apply w-full rounded-xl border-0 bg-slate-50 py-2.5 pr-3 text-right text-[15px] font-semibold
-      text-slate-900 ring-1 ring-inset ring-slate-200 transition
-      placeholder:font-normal placeholder:text-slate-500
-      focus:bg-white focus:ring-2 focus:ring-marque-500 focus:outline-none;
+    @apply w-full rounded-xl border-0 bg-champ py-2.5 pr-3 text-right text-[15px] font-semibold
+      text-titre ring-1 ring-inset ring-bordure transition
+      placeholder:font-normal placeholder:text-doux
+      focus:bg-carte focus:ring-2 focus:ring-marque focus:outline-none;
     font-variant-numeric: tabular-nums;
   }
 
@@ -75,62 +199,64 @@
      Chaque variante est autonome (pas de composition entre classes de
      composants : `@apply` ne s'applique qu'aux utilitaires Tailwind). */
 
-  /* Action principale d'une vue (« Optimiser la stratégie ») */
+  /* Action principale d'une vue (« Optimiser la stratégie »). En clair : ardoise très sombre sur
+     texte blanc ; en sombre, l'inverse — une ardoise 900 disparaîtrait sur une page ardoise 950. */
   .bouton-primaire {
-    @apply inline-flex shrink-0 items-center justify-center whitespace-nowrap gap-2 rounded-xl bg-slate-900 px-4 py-2.5
-      text-sm font-semibold text-white transition hover:bg-slate-800
-      focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2
+    @apply inline-flex shrink-0 items-center justify-center whitespace-nowrap gap-2 rounded-xl bg-accent-plein px-4 py-2.5
+      text-sm font-semibold text-sur-accent transition hover:opacity-90
+      focus-visible:ring-2 focus-visible:ring-accent-plein focus-visible:ring-offset-2
       focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60;
   }
 
   /* Action de confirmation, teintée marque (« Appliquer cette stratégie »).
-     Le fond est en `marque-700` et non `marque-500` : blanc sur émeraude 500 ne donne que 2,5:1,
-     sous la norme WCAG AA (4,5:1). Le 700 monte à 5,5:1 sans quitter la couleur de marque. */
+     En clair le fond est émeraude 700 et le texte blanc : sur émeraude 500 le contraste ne serait
+     que de 2,5:1, sous la norme WCAG AA. En sombre c'est l'inverse — émeraude 400 avec un texte
+     ardoise 900 (9,3:1), car un bouton doit ressortir de la page et non s'y fondre. */
   .bouton-marque {
-    @apply inline-flex shrink-0 items-center justify-center whitespace-nowrap gap-2 rounded-xl bg-marque-700 px-4 py-2
-      text-sm font-medium text-white transition hover:bg-marque-800
-      focus-visible:ring-2 focus-visible:ring-marque-700 focus-visible:ring-offset-2
+    @apply inline-flex shrink-0 items-center justify-center whitespace-nowrap gap-2 rounded-xl bg-marque-plein px-4 py-2
+      text-sm font-medium text-sur-marque transition hover:opacity-90
+      focus-visible:ring-2 focus-visible:ring-marque-plein focus-visible:ring-offset-2
       focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60;
   }
 
   /* Action secondaire (« Fermer ») */
   .bouton-secondaire {
-    @apply inline-flex shrink-0 items-center justify-center whitespace-nowrap gap-2 rounded-xl bg-slate-100 px-4 py-2
-      text-sm font-medium text-slate-600 ring-1 ring-slate-200 transition hover:bg-slate-200
-      focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:outline-none;
+    @apply inline-flex shrink-0 items-center justify-center whitespace-nowrap gap-2 rounded-xl bg-panneau px-4 py-2
+      text-sm font-medium text-corps ring-1 ring-bordure transition hover:brightness-95
+      focus-visible:ring-2 focus-visible:ring-doux focus-visible:outline-none;
   }
 
   /* Action discrète, petite (« Réinitialiser ») */
   .bouton-fantome {
     @apply inline-flex shrink-0 items-center justify-center whitespace-nowrap gap-1.5 rounded-lg px-3 py-1.5 text-xs
-      font-medium text-slate-500 ring-1 ring-slate-200 transition hover:bg-slate-50
-      hover:text-slate-700 focus-visible:ring-2 focus-visible:ring-slate-400
+      font-medium text-doux ring-1 ring-bordure transition hover:bg-champ
+      hover:text-corps focus-visible:ring-2 focus-visible:ring-doux
       focus-visible:outline-none;
   }
 
   /* Ajout d'un élément à une liste (« + Rente de base », « + Chalet ») */
   .bouton-ajout {
-    @apply inline-flex shrink-0 items-center justify-center whitespace-nowrap gap-1.5 rounded-lg bg-slate-100 px-3 py-1.5
-      text-sm font-medium text-slate-700 ring-1 ring-slate-200 transition hover:bg-slate-200
-      focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:outline-none;
+    @apply inline-flex shrink-0 items-center justify-center whitespace-nowrap gap-1.5 rounded-lg bg-panneau px-3 py-1.5
+      text-sm font-medium text-corps ring-1 ring-bordure transition hover:brightness-95
+      focus-visible:ring-2 focus-visible:ring-doux focus-visible:outline-none;
   }
 
   /* Retrait d'un élément de liste (croix en coin de carte) */
   .bouton-suppr {
     @apply absolute top-2.5 right-2.5 flex h-6 w-6 items-center justify-center rounded-full
-      text-slate-500 transition hover:bg-rose-50 hover:text-rose-500
-      focus-visible:ring-2 focus-visible:ring-rose-400 focus-visible:outline-none;
+      text-doux transition hover:bg-alerte-fond hover:text-alerte
+      focus-visible:ring-2 focus-visible:ring-alerte focus-visible:outline-none;
   }
 
   /* --- Encadrés d'aide contextuelle --------------------------------------- */
   .encadre-marque {
-    @apply mt-4 rounded-xl bg-marque-50/60 p-4 ring-1 ring-marque-500/15;
+    @apply mt-4 rounded-xl bg-marque-fond/60 p-4 ring-1 ring-marque/15;
   }
   .encadre-ciel {
-    @apply mt-4 rounded-xl bg-sky-50/60 p-4 ring-1 ring-sky-500/15;
+    @apply mt-4 rounded-xl bg-info-fond/60 p-4 ring-1 ring-info/20;
   }
   .encadre-ambre {
-    @apply mt-4 rounded-xl bg-amber-50/70 p-4 ring-1 ring-amber-500/20;
+    @apply mt-4 rounded-xl bg-avert-fond/70 p-4 ring-1 ring-avert/20;
   }
 }
 

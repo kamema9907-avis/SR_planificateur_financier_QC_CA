@@ -82,7 +82,7 @@ export function SectionImmobilier({ immeubles, onChange, couple = false }: Props
               )}
               {b.type === 'terrain' && (
                 <div className="col-span-2">
-                  <p className="rounded-lg bg-amber-50/70 px-3 py-2 text-xs text-amber-800 ring-1 ring-amber-500/20">
+                  <p className="rounded-lg bg-avert-fond/70 px-3 py-2 text-xs text-avert ring-1 ring-avert/20">
                     <strong>Terrain vacant</strong> : gain en capital <strong>toujours imposable</strong> (aucune
                     exemption pour résidence principale). Les frais de possession (taxes foncières, intérêts) ne
                     sont ni déductibles ni ajoutés au coût de base — un coût sans avantage fiscal.

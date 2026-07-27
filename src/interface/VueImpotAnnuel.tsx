@@ -33,7 +33,7 @@ export function VueImpotAnnuel() {
             <BasculeAvance />
             <BoutonReinitialiser onReset={reinitialiser} />
           </div>
-          <p className="min-w-0 flex-1 text-right text-xs text-slate-500">
+          <p className="min-w-0 flex-1 text-right text-xs text-doux">
             Vos données restent sur votre appareil.
           </p>
         </div>
@@ -120,8 +120,8 @@ export function VueImpotAnnuel() {
               </div>
             )}
           </Avance>
-          <p className="mt-4 text-xs text-slate-500">
-            Les cotisations <span className="font-medium text-slate-500">RRQ, assurance-emploi et RQAP</span> sont
+          <p className="mt-4 text-xs text-doux">
+            Les cotisations <span className="font-medium text-doux">RRQ, assurance-emploi et RQAP</span> sont
             calculées automatiquement à partir de votre salaire et détaillées dans les résultats (crédits + déduction
             de la portion bonifiée du RRQ).
           </p>

@@ -70,15 +70,15 @@ export function Atelier({ groupes, resultat, dessous, actions }: Props) {
       {(ongletsGroupes || actions) && (
         <div className="sansimpression flex flex-wrap items-center justify-between gap-3">
           {ongletsGroupes ? (
-            <div className="inline-flex flex-wrap rounded-xl bg-slate-100 p-1 ring-1 ring-slate-200">
+            <div className="inline-flex flex-wrap rounded-xl bg-panneau p-1 ring-1 ring-bordure">
               {groupes.map((g) => (
                 <button
                   key={g.id}
                   type="button"
                   onClick={() => changerGroupe(g.id)}
                   className={`rounded-lg px-4 py-1.5 text-sm font-medium transition focus-visible:ring-2
-                    focus-visible:ring-marque-500 focus-visible:outline-none ${
-                      g.id === groupe.id ? 'bg-white text-marque-700 shadow-sm' : 'text-slate-600 hover:text-slate-800'
+                    focus-visible:ring-marque focus-visible:outline-none ${
+                      g.id === groupe.id ? 'bg-carte text-marque shadow-sm' : 'text-corps hover:text-titre'
                     }`}
                 >
                   {g.label}
@@ -120,15 +120,15 @@ export function Atelier({ groupes, resultat, dessous, actions }: Props) {
               hidden={!impression && e.id !== etape.id}
             >
               <header className="mb-4">
-                <p className="text-xs font-medium tracking-wide text-slate-500 uppercase">
+                <p className="text-xs font-medium tracking-wide text-doux uppercase">
                   Étape {i + 1} sur {etapes.length}
                   {e.optionnel && ' · facultative'}
                 </p>
                 <div className="flex items-center gap-2">
-                  <h3 className="text-lg font-semibold text-slate-900">{e.titre}</h3>
+                  <h3 className="text-lg font-semibold text-titre">{e.titre}</h3>
                   {e.aide && <Aide titre={e.titre}>{e.aide}</Aide>}
                 </div>
-                {e.description && <p className="mt-1 text-xs leading-relaxed text-slate-500">{e.description}</p>}
+                {e.description && <p className="mt-1 text-xs leading-relaxed text-doux">{e.description}</p>}
               </header>
               <ListeAlertes alertes={e.alertes} />
               {e.contenu}

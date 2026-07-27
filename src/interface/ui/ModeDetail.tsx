@@ -52,7 +52,7 @@ export function Avance({ children }: { children: ReactNode }) {
 export function BasculeAvance() {
   const { avance, setAvance } = useModeDetail();
   return (
-    <div className="inline-flex rounded-lg bg-slate-100 p-0.5 ring-1 ring-slate-200">
+    <div className="inline-flex rounded-lg bg-panneau p-0.5 ring-1 ring-bordure">
       {[
         { v: false, label: 'Essentiel' },
         { v: true, label: 'Avancé' },
@@ -68,10 +68,10 @@ export function BasculeAvance() {
               : 'Masque les réglages experts, qui gardent leur valeur par défaut'
           }
           className={`rounded-md px-2.5 py-1 text-xs font-medium transition focus-visible:ring-2
-            focus-visible:ring-marque-500 focus-visible:outline-none ${
+            focus-visible:ring-marque focus-visible:outline-none ${
               // `slate-600` et non `500` : le fond de la bascule est `slate-100`, sur lequel le
               // slate-500 tombe à 4,35:1, juste sous la norme.
-              avance === o.v ? 'bg-white text-marque-700 shadow-sm' : 'text-slate-600 hover:text-slate-800'
+              avance === o.v ? 'bg-carte text-marque shadow-sm' : 'text-corps hover:text-titre'
             }`}
         >
           {o.label}

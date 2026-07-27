@@ -11,14 +11,14 @@ export function LignePoste({ poste, facteur, onLien }: { poste: Poste; facteur: 
       disabled={!cliquable}
       onClick={onLien}
       className={`flex w-full items-center justify-between py-1.5 text-left ${
-        cliquable ? '-mx-2 cursor-pointer rounded-md px-2 hover:bg-marque-50' : 'cursor-default'
+        cliquable ? '-mx-2 cursor-pointer rounded-md px-2 hover:bg-marque-fond' : 'cursor-default'
       }`}
     >
-      <span className="text-sm text-slate-600">
+      <span className="text-sm text-corps">
         {poste.libelle}
-        {cliquable && <span className="ml-1.5 text-xs font-medium text-marque-500">détailler ›</span>}
+        {cliquable && <span className="ml-1.5 text-xs font-medium text-marque">détailler ›</span>}
       </span>
-      <span className={`chiffres text-sm tabular-nums ${poste.montant < 0 ? 'text-rose-600' : 'text-slate-800'}`}>
+      <span className={`chiffres text-sm tabular-nums ${poste.montant < 0 ? 'text-alerte' : 'text-titre'}`}>
         {formatDollars(poste.montant * facteur)}
       </span>
     </button>
@@ -30,8 +30,8 @@ export function Section({ titre, postes, facteur, onLienImpot }: { titre: string
   if (postes.length === 0) return null;
   return (
     <div className="mb-4">
-      <p className="mb-1 text-xs font-semibold tracking-wide text-slate-500 uppercase">{titre}</p>
-      <div className="divide-y divide-slate-50">
+      <p className="mb-1 text-xs font-semibold tracking-wide text-doux uppercase">{titre}</p>
+      <div className="divide-y divide-filet">
         {postes.map((p, i) => (
           <LignePoste key={i} poste={p} facteur={facteur} onLien={p.lien === 'impot' ? onLienImpot : undefined} />
         ))}
@@ -43,9 +43,9 @@ export function Section({ titre, postes, facteur, onLienImpot }: { titre: string
 /** Une ligne « total » mise en évidence. */
 export function LigneTotal({ libelle, montant, facteur, accent }: { libelle: string; montant: number; facteur: number; accent?: boolean }) {
   return (
-    <div className={`mb-3 flex items-center justify-between rounded-lg px-3 py-2 ${accent ? 'bg-marque-50 ring-1 ring-marque-500/15' : 'bg-slate-50'}`}>
-      <span className={`text-sm font-semibold ${accent ? 'text-marque-700' : 'text-slate-700'}`}>{libelle}</span>
-      <span className={`chiffres text-sm font-bold tabular-nums ${accent ? 'text-marque-700' : 'text-slate-900'}`}>
+    <div className={`mb-3 flex items-center justify-between rounded-lg px-3 py-2 ${accent ? 'bg-marque-fond ring-1 ring-marque/15' : 'bg-champ'}`}>
+      <span className={`text-sm font-semibold ${accent ? 'text-marque' : 'text-corps'}`}>{libelle}</span>
+      <span className={`chiffres text-sm font-bold tabular-nums ${accent ? 'text-marque' : 'text-titre'}`}>
         {formatDollars(montant * facteur)}
       </span>
     </div>
@@ -74,7 +74,7 @@ export function BlocDisponible({ d, facteur, onImpot }: { d: DetailDisponible; f
 export function BlocImpotFiscal({ t, facteur, titre }: { t: DetailImpotAnnee; facteur: number; titre?: string }) {
   return (
     <>
-      {titre && <p className="mb-2 text-sm font-semibold text-slate-700">{titre}</p>}
+      {titre && <p className="mb-2 text-sm font-semibold text-corps">{titre}</p>}
       <Section titre="Revenu imposable (par source)" postes={t.revenuImposable} facteur={facteur} />
       <Section titre="Impôt fédéral" postes={t.federal} facteur={facteur} />
       <Section titre="Impôt du Québec" postes={t.quebec} facteur={facteur} />
@@ -85,9 +85,9 @@ export function BlocImpotFiscal({ t, facteur, titre }: { t: DetailImpotAnnee; fa
           <LigneTotal libelle="Impôt au décès" montant={t.impotDeces} facteur={facteur} accent />
         </>
       )}
-      <div className="mt-2 mb-4 flex gap-4 border-t border-slate-100 pt-3 text-xs text-slate-500">
-        <span>Taux moyen : <strong className="text-slate-700">{formatPourcent(t.tauxMoyen)}</strong></span>
-        <span>Taux marginal : <strong className="text-slate-700">{formatPourcent(t.tauxMarginal)}</strong></span>
+      <div className="mt-2 mb-4 flex gap-4 border-t border-filet pt-3 text-xs text-doux">
+        <span>Taux moyen : <strong className="text-corps">{formatPourcent(t.tauxMoyen)}</strong></span>
+        <span>Taux marginal : <strong className="text-corps">{formatPourcent(t.tauxMarginal)}</strong></span>
       </div>
     </>
   );

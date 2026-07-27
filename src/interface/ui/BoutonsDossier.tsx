@@ -87,7 +87,7 @@ export function BoutonsDossier() {
         <div
           role="alert"
           className={`absolute top-9 right-0 z-40 w-72 rounded-xl p-3 text-xs leading-relaxed shadow-lg ring-1 ${
-            message.erreur ? 'bg-rose-50 text-rose-800 ring-rose-500/20' : 'bg-marque-50 text-marque-800 ring-marque-500/20'
+            message.erreur ? 'bg-alerte-fond text-alerte ring-alerte/20' : 'bg-marque-fond text-marque ring-marque/20'
           }`}
         >
           <p>{message.texte}</p>

@@ -32,7 +32,7 @@ export function GraphiqueCompact({ annees, reel, ageRetraite, ageEpuisement }: P
   const sommet = Math.max(0, ...valeurs);
   if (sommet < 1) {
     return (
-      <p className="py-6 text-center text-xs text-slate-500">
+      <p className="py-6 text-center text-xs text-doux">
         Renseignez vos comptes et vos dépenses : la courbe de votre patrimoine apparaîtra ici.
       </p>
     );
@@ -62,20 +62,23 @@ export function GraphiqueCompact({ annees, reel, ageRetraite, ageEpuisement }: P
           </linearGradient>
         </defs>
 
-        <line x1={0} y1={plotH} x2={W} y2={plotH} stroke="#e2e8f0" strokeWidth={1} />
+        <line x1={0} y1={plotH} x2={W} y2={plotH} className="stroke-bordure" strokeWidth={1} />
         <path d={aire} fill={`url(#${idDegrade})`} />
-        <polyline points={ligne} fill="none" stroke="#059669" strokeWidth={1.8} strokeLinejoin="round" />
+        <polyline points={ligne} fill="none" className="stroke-vif" strokeWidth={1.8} strokeLinejoin="round" />
 
         {ageRetraite > ageDe && ageRetraite < ageA && (
           <>
-            <line x1={xAge(ageRetraite)} y1={0} x2={xAge(ageRetraite)} y2={plotH} stroke="#94a3b8" strokeWidth={1} strokeDasharray="3 3" />
-            {/* Halo blanc : l'étiquette reste lisible même là où la courbe passe dessous. */}
+            <line x1={xAge(ageRetraite)} y1={0} x2={xAge(ageRetraite)} y2={plotH} className="stroke-doux" strokeWidth={1} strokeDasharray="3 3" />
+            {/*
+              Halo autour de l'étiquette : elle reste lisible là où la courbe passe dessous. Il doit
+              prendre la couleur de la CARTE et non du blanc — en thème sombre, un halo blanc
+              dessinait un pavé lumineux au milieu du graphique.
+            */}
             <text
               x={xAge(ageRetraite) + 3}
               y={9}
-              className="fill-slate-500"
+              className="fill-doux stroke-carte"
               fontSize={9}
-              stroke="#ffffff"
               strokeWidth={2.5}
               paintOrder="stroke"
             >
@@ -88,15 +91,15 @@ export function GraphiqueCompact({ annees, reel, ageRetraite, ageEpuisement }: P
           <line x1={xAge(ageEpuisement)} y1={0} x2={xAge(ageEpuisement)} y2={plotH} stroke="#ef4444" strokeWidth={1.5} />
         )}
 
-        <text x={0} y={H - 3} className="fill-slate-400" fontSize={9}>
+        <text x={0} y={H - 3} className="fill-doux" fontSize={9}>
           {ageDe} ans
         </text>
-        <text x={W} y={H - 3} textAnchor="end" className="fill-slate-400" fontSize={9}>
+        <text x={W} y={H - 3} textAnchor="end" className="fill-doux" fontSize={9}>
           {ageA} ans
         </text>
       </svg>
-      <p className="mt-1 text-xs text-slate-500">
-        Sommet du patrimoine : <span className="chiffres font-medium text-slate-600">{formatDollarsCompact(maxY)}</span>
+      <p className="mt-1 text-xs text-doux">
+        Sommet du patrimoine : <span className="chiffres font-medium text-corps">{formatDollarsCompact(maxY)}</span>
       </p>
     </div>
   );
