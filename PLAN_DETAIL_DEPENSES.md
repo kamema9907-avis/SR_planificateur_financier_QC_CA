@@ -96,7 +96,7 @@ colonne rendue cliquable. À faire **deux fois** : `DetailAnnees` / `DrawerDetai
 | Lot | Contenu | Vérifiable par |
 |---|---|---|
 | **A** | ✅ Décomposition dans la trace + hypothèque déplacée | 12 nouveaux cas-tests |
-| **B** | Tiroir et colonne cliquable, solo | capture aux deux thèmes, audit de contraste |
+| **B** | ✅ Tiroir et colonne cliquable, solo | captures aux deux thèmes, audit de contraste |
 | **C** | Idem couple, avec la ligne du survivant | dossier d'essai franchissant le premier décès |
 
 ---

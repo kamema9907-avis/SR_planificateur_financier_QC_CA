@@ -387,7 +387,25 @@ recalculé des composantes, pour garantir l'invariant de somme au bit près.
    absente ; le corriger serait un changement de sortie du moteur, hors périmètre. Les deux tests
    d'invariance existants encodent l'écart explicitement au lieu de l'ignorer.
 
-- **278 cas-tests verts** (+12), typecheck et build OK. Lots B et C (interface) à venir.
+- **278 cas-tests verts** (+12), typecheck et build OK.
+
+**Lot B — le tiroir, côté solo.** « Dépenses » est désormais cliquable comme sa voisine, et ouvre une
+chaîne de construction qui **part toujours de la cible telle qu'elle a été saisie**, en dollars
+d'aujourd'hui : on commence par le chiffre qu'on reconnaît, et l'on voit ce que le temps en fait. En
+mode nominal une étape applique l'inflation ; en dollars d'aujourd'hui elle n'aurait aucun effet et
+n'apparaît pas.
+
+Les étapes somment **exactement** au montant de la cellule cliquée — vérifié à l'écran : 45 000 $ +
+35 525 $ d'inflation cumulée (× 1,79) = 80 525 $, identique à la cellule.
+
+Le tiroir signale aussi que le versement hypothécaire n'y est **pas** compris, avec un lien qui
+descend vers le revenu disponible où il figure — c'est là que se réglait la confusion de départ.
+
+Détail corrigé en vérifiant : `toFixed` affichait « × 1.79 » avec un point décimal ; en fr-CA c'est
+une virgule.
+
+Contraste WCAG AA tiroir ouvert : 0 échec dans les deux thèmes. Aucun débordement à 390 px.
+Reste le lot C (couple).
 
 ### 2026-07-28 — Dépense de retraite recommandée (lot A : le moteur)
 L'étape « Décaissement » demandait un montant net d'impôt que **l'utilisateur devait deviner**, alors

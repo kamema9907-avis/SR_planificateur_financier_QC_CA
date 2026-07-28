@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import type { AnneeProjection } from '../../moteur';
-import { BlocDisponible, BlocImpotFiscal, BlocValeurNette } from './detailBriques';
+import { BlocDepenses, BlocDisponible, BlocImpotFiscal, BlocValeurNette } from './detailBriques';
 
 /** Agrégat décomposable au clic. */
-export type AgregatDrawer = 'disponible' | 'impot' | 'valeurNette';
+export type AgregatDrawer = 'disponible' | 'impot' | 'valeurNette' | 'depenses';
 
 /** Une vue du drawer : quel agrégat, pour quelle année. */
 export interface VueDrawer {
@@ -15,6 +15,7 @@ const TITRES: Record<AgregatDrawer, string> = {
   disponible: 'Revenu disponible',
   impot: 'Impôt',
   valeurNette: 'Valeur nette',
+  depenses: 'Dépenses',
 };
 
 /** Panneau latéral de drill-down, récursif (fil d'Ariane). `vue` = null → fermé. */
@@ -68,6 +69,9 @@ export function DrawerDetail({ vue, reel, onClose }: { vue: VueDrawer | null; re
           {courante.agregat === 'disponible' && <BlocDisponible d={d.disponible} facteur={facteur} onImpot={() => pousser('impot')} />}
           {courante.agregat === 'impot' && <BlocImpotFiscal t={d.impot} facteur={facteur} />}
           {courante.agregat === 'valeurNette' && <BlocValeurNette v={d.valeurNette} total={courante.annee.valeurNette} facteur={facteur} />}
+          {courante.agregat === 'depenses' && (
+            <BlocDepenses d={d.disponible} facteur={facteur} reel={reel} onRevenusNets={() => pousser('disponible')} />
+          )}
         </div>
       </div>
     </div>

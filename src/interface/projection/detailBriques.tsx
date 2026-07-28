@@ -52,6 +52,80 @@ export function LigneTotal({ libelle, montant, facteur, accent }: { libelle: str
   );
 }
 
+/**
+ * D'où vient le montant de « Dépenses ».
+ *
+ * La colonne affichait un produit de facteurs invisibles : le nombre grossissait chaque année
+ * (inflation), chutait d'un tiers au premier décès (part du survivant) et dépassait la cible saisie
+ * (versement hypothécaire ajouté par-dessus). Ce dernier est désormais une ligne de sortie ; les
+ * deux autres facteurs s'expliquent ici.
+ *
+ * **La chaîne part toujours de la cible telle qu'elle a été saisie**, en dollars d'aujourd'hui : on
+ * commence par le chiffre que l'utilisateur reconnaît, et l'on voit ce que le temps en fait. En
+ * mode nominal une étape supplémentaire applique l'inflation ; en dollars d'aujourd'hui elle
+ * n'aurait aucun effet et n'apparaît donc pas.
+ *
+ * Les étapes somment **exactement** au total, qui est celui de la cellule cliquée.
+ */
+export function BlocDepenses({
+  d, facteur, reel, onRevenusNets,
+}: {
+  d: DetailDisponible;
+  facteur: number;
+  reel: boolean;
+  onRevenusNets?: () => void;
+}) {
+  const c = d.detailDepenses;
+  const trainDeVieReel = c.cibleSaisie * c.fractionSurvivant;
+
+  const etapes: Poste[] = [{ libelle: 'Cible annuelle saisie', montant: c.cibleSaisie }];
+  if (c.fractionSurvivant < 1) {
+    etapes.push({
+      libelle: `Part conservée par le survivant (${Math.round(c.fractionSurvivant * 100)} %)`,
+      montant: -(c.cibleSaisie * (1 - c.fractionSurvivant)),
+    });
+  }
+  if (!reel && c.facteurInflation > 1.0001) {
+    etapes.push({
+      // `toFixed` donne un point décimal : en fr-CA c'est une virgule.
+      libelle: `Inflation cumulée (× ${c.facteurInflation.toLocaleString('fr-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`,
+      montant: trainDeVieReel * (c.facteurInflation - 1),
+    });
+  }
+
+  const hypotheque = -(d.sorties.find((p) => p.libelle === 'Paiement hypothécaire')?.montant ?? 0);
+
+  return (
+    <>
+      {/* facteur = 1 : les étapes sont déjà exprimées dans l'unité du total. */}
+      <Section titre="Comment ce montant se construit" postes={etapes} facteur={1} />
+      <LigneTotal libelle="= Dépenses de l'année" montant={d.depenses} facteur={facteur} accent />
+
+      {hypotheque > 0.5 && (
+        <p className="mb-3 rounded-lg bg-champ p-3 text-xs leading-relaxed text-doux">
+          Le versement hypothécaire de{' '}
+          <span className="chiffres font-medium text-corps">{formatDollars(hypotheque * facteur)}</span>{' '}
+          n'est <strong>pas</strong> compris ici : il figure parmi les sorties du{' '}
+          {onRevenusNets ? (
+            <button type="button" onClick={onRevenusNets} className="font-medium text-marque underline decoration-dotted">
+              revenu disponible
+            </button>
+          ) : (
+            'revenu disponible'
+          )}
+          , au même titre que l'impôt.
+        </p>
+      )}
+
+      <p className="text-xs leading-relaxed text-doux">
+        {reel
+          ? "Montants en dollars d'aujourd'hui : la cible saisie garde donc son pouvoir d'achat d'une année à l'autre."
+          : "Montants en dollars de l'année : la cible saisie est indexée à l'inflation pour conserver le même pouvoir d'achat."}
+      </p>
+    </>
+  );
+}
+
 /** Cascade du revenu disponible : entrées − sorties = nets, puis dépenses / surplus / destination. */
 export function BlocDisponible({ d, facteur, onImpot }: { d: DetailDisponible; facteur: number; onImpot: () => void }) {
   return (
