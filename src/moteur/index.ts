@@ -52,6 +52,12 @@ export { renteEmployeurNominale, totalRentesEmployeur, calculerRREGOP, MGA_2026 
 export { revenuTravailNominal, totalRevenuTravail } from './projection/periodesTravail';
 export { heritageNominal, totalHeritage } from './projection/heritage';
 export { placerCapital } from './projection/placementSurplus';
+export {
+  depenseMaximale,
+  depenseRecommandee,
+  FRACTION_CONSOMMEE_DEFAUT,
+  type OptionsDepenseMaximale,
+} from './projection/depenseSoutenable';
 export type {
   Poste,
   LienDetail,

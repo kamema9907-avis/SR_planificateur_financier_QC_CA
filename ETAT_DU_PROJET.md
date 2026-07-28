@@ -3,7 +3,10 @@
 > **Document vivant** : synthèse de tout ce que le projet fait à ce jour. À mettre à jour au fil des
 > phases. Voir le [journal des modifications](#-journal-des-modifications) à la fin pour l'historique.
 >
-> Dernière mise à jour : **2026-07-27** — **lot 5 terminé** : **mode sombre** complet (Système /
+> Dernière mise à jour : **2026-07-28** — **dépense de retraite recommandée**, côté moteur : le
+> planificateur calcule par dichotomie le montant maximal que le capital finance jusqu'au décès, et
+> en recommande 85 %. L'utilisateur n'a plus à deviner la donnée qui commande tout le verdict.
+> Auparavant, le **lot 5 terminé** : **mode sombre** complet (Système /
 > Clair / Sombre), bâti sur une couche de **jetons sémantiques** — aucun composant ne nomme plus une
 > couleur. Plus tôt le même jour : l'application tient sur
 > un téléphone (elle débordait de 968 px), l'adresse est **partageable** (`#/projection/couple/...`,
@@ -134,9 +137,10 @@ Deux conjoints entièrement modélisés (colonnes côte à côte), un ménage à
   est annoncée quand elle change.
 
 ### Qualité / validation
-- **252 cas-tests automatisés** — 183 moteur (fiscalité, cotisations, plafonds CELIAPP/CELI/REER,
+- **266 cas-tests automatisés** — 197 moteur (fiscalité, cotisations, plafonds CELIAPP/CELI/REER,
   fonds de travailleurs, indexation, comptes, projection, décaissement, couple, immobilier dont
-  terrain, optimiseur) + 69 interface (validations, verdict, fichier, scénarios, routage, thème).
+  terrain, optimiseur, dépense soutenable) + 69 interface (validations, verdict, fichier, scénarios,
+  routage, thème).
 - Propriété clé du couple : le **fractionnement ne hausse jamais** l'impôt combiné (testé).
 - **Validation croisée** contre les taux marginaux combinés **publiés** du Québec 2026 :
   sommet **53,31 %**, 140 000 $ → **47,46 %**, 60 000 $ → **36,12 %**.
@@ -201,11 +205,12 @@ src/
 │   │   ├── periodesTravail.ts      # Travail poursuivi à la retraite
 │   │   ├── heritage.ts             # Héritage : indexation du montant reçu
 │   │   ├── placementSurplus.ts     # placerCapital / placerSurplusRetraite (CELI → REER → non-enr.)
+│   │   ├── depenseSoutenable.ts    # Dépense de retraite maximale et recommandée (dichotomie)
 │   │   ├── immobilier.ts           # Biens, hypothèque, vente, exemption résidence
 │   │   ├── couple.ts               # Boucle du ménage (fractionnement, survie)
 │   │   └── projection.ts           # Boucle année par année (cycle de vie)
 │   ├── index.ts                    # API publique du moteur
-│   └── *.test.ts                   # 183 cas-tests (moteur)
+│   └── *.test.ts                   # 197 cas-tests (moteur)
 └── interface/                      # UI React (habillage)
     ├── Champ.tsx                   # Champs de saisie réutilisables
     ├── format.ts                   # Formatage $ / % (fr-CA)
@@ -280,7 +285,7 @@ L'interface est en cours de refonte (« l'Atelier ») — voir [`PLAN_REFONTE_UI
 ```bash
 npm install      # installer les dépendances
 npm run dev      # développement (http://localhost:5173)
-npm test         # les 252 cas-tests
+npm test         # les 266 cas-tests
 npm run build    # version de production (dossier dist/, à héberger)
 npm run preview  # prévisualiser la version de production
 ```
@@ -346,6 +351,43 @@ options d'employé, analyse de sensibilité / Monte Carlo, autres provinces.
 ---
 
 ## 📓 Journal des modifications
+
+### 2026-07-28 — Dépense de retraite recommandée (lot A : le moteur)
+L'étape « Décaissement » demandait un montant net d'impôt que **l'utilisateur devait deviner**, alors
+que c'est la donnée qui commande tout le verdict. Le moteur sait désormais le calculer.
+
+**`depenseSoutenable.ts`** — deux fonctions pures :
+- `depenseMaximale` : la plus grande dépense annuelle que la stratégie finance jusqu'au décès,
+  trouvée par dichotomie. Générique sur solo / couple, comme la descente de l'optimiseur.
+- `depenseRecommandee` : la fraction du maximum qu'on accepte de consommer (85 % par défaut).
+
+**Ce que « soutenable » veut dire** : rien de neuf, c'est le `suffisant` déjà défini par le moteur.
+Deux conséquences héritées et assumées — un bien sans âge de vente n'est jamais consommé, et le
+paiement hypothécaire s'ajoute par-dessus la cible (le montant est donc un budget de vie *hors*
+versements hypothécaires).
+
+**La monotonie a été vérifiée avant d'être supposée.** Toute la dichotomie repose sur l'idée que la
+soutenabilité décroît quand la dépense monte, ce qui n'a rien d'évident avec un moteur fiscal non
+linéaire (un saut de tranche pourrait créer une inversion étroite). Balayage fin — pas de 250 $ en
+solo, 500 $ en couple — dans les deux modes : aucun re-succès après un échec. Le balayage est resté
+dans la suite de tests, et la fonction revérifie malgré tout le montant qu'elle retourne.
+
+**Coût mesuré** : 13 projections et 11,6 ms en solo, 15 projections et 54,9 ms en couple. L'estimation
+de la conception (~40 ms en couple) était optimiste : une projection de couple coûte 3,7 ms, pas 1,9.
+Reste très en deçà de l'optimiseur (320 ms). Contrôle croisé rassurant : la dichotomie retrouve
+exactement le maximum du balayage exhaustif (49 500 $).
+
+**Résultat contre-intuitif à retenir pour l'interface** : sur un dossier de 650 000 $ de comptes
+**et** une maison de 420 000 $ jamais vendue, le maximum tombe à 49 500 $ par an. La maison
+n'augmente pas le maximum d'un dollar tant qu'aucune vente n'est planifiée. Un test le fige
+explicitement ; le lot D devra l'expliquer à l'écran, sans quoi le chiffre paraîtra faux.
+
+**Défaut corrigé dans l'outillage de documentation** : la commande de vérification de l'arborescence
+utilisait `git ls-files`, qui ne liste que les fichiers **déjà suivis** — elle ignorait donc les
+fichiers neufs, précisément ceux qu'on oublie de documenter. Elle prend maintenant `--others`, et a
+immédiatement signalé `depenseSoutenable.ts`.
+
+- **266 cas-tests verts** (+14), typecheck et build OK. Lots B, C et D (interface) à venir.
 
 ### 2026-07-27 — Lot 5 (2/2) : mode sombre, par jetons sémantiques
 Le chantier n'était pas « ajouter des couleurs foncées » mais **retirer les couleurs des composants**.
@@ -808,8 +850,10 @@ Vérification rapide de l'arborescence. Le **moteur** est documenté fichier par
 la justesse fiscale se joue ; l'**interface**, qui compte plus de trente fichiers, l'est par dossier.
 
 ```bash
-# Fichiers du moteur absents de ce document (doit ne rien afficher)
-for f in $(git ls-files 'src/moteur/**/*.ts' | grep -v test | xargs -n1 basename | sort -u); do
+# Fichiers du moteur absents de ce document (doit ne rien afficher).
+# `--others` est indispensable : sans lui, `git ls-files` ne voit que les fichiers DÉJÀ suivis,
+# donc la commande ignore les fichiers neufs — précisément ceux qu'on oublie de documenter.
+for f in $(git ls-files --cached --others --exclude-standard 'src/moteur/**/*.ts'            | grep -v test | xargs -n1 basename | sort -u); do
   grep -q "$f" ETAT_DU_PROJET.md || echo "absent de la doc : $f"
 done
 ```

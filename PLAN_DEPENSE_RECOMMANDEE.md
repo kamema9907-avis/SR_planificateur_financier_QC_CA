@@ -60,9 +60,20 @@ un **test de monotonie** dans la suite, et une **revérification finale** du mon
 4. Vérification: si le montant retourné échoue, on redescend d'un cran
 ```
 
-**Coût mesuré** : une projection sans trace vaut 0,94 ms. Amorçage + dichotomie ≈ 20 projections,
-soit **~19 ms en solo**, ~40 ms en couple. Cent fois moins cher que l'optimiseur (320 ms) : on peut
-donc l'afficher **en continu**, sans bouton de déclenchement.
+**Coût mesuré sur l'implémentation réelle** (lot A) :
+
+| Mode | Projections | Temps |
+|---|---|---|
+| Solo | 13 | **11,6 ms** |
+| Couple | 15 | **54,9 ms** |
+
+L'estimation initiale (~19 ms solo, ~40 ms couple) était optimiste côté couple : une projection de
+couple coûte 3,7 ms, pas 1,9. Reste très en deçà de l'optimiseur (320 ms), donc l'affichage continu
+tient — à condition de mémoïser en excluant `depensesRetraite`, sans quoi on paierait 55 ms à chaque
+frappe dans le champ pour un résultat identique.
+
+Contrôle croisé : la dichotomie retrouve exactement le maximum obtenu par balayage exhaustif
+(49 500 $ en solo).
 
 ### Signature proposée
 
