@@ -45,6 +45,7 @@ import {
   type DetailValeurNette,
   type Poste,
 } from './trace';
+import { detaillerVentes } from './trace';
 import {
   clonerImmeubles,
   determinerBienAbrite,
@@ -53,6 +54,7 @@ import {
   traiterImmeublesAnnee,
   type AgregatImmo,
   type EtatImmeuble,
+  type VenteRealisee,
 } from './immobilier';
 import type { Compte, TypeCompte } from './types';
 import type { AnneeCouple, HypothesesCouple, PersonneProjection, ResultatCouple } from './typesCouple';
@@ -245,8 +247,9 @@ function poserCapital(etat: EtatPersonne, ctx: Contexte, annee: number, deductio
   const vide = { celi: 0, reer: 0, nonEnr: 0, deductible: 0, place: 0, provision: 0 };
 
   // Impôt attribuable au gain de la vente : le produit ne peut être placé que NET de cet impôt,
-  // sinon le même argent servirait deux fois. Mesuré par personne (sans fractionnement) — une
-  // approximation de second ordre que le reliquat calculé plus loin corrige en grande partie.
+  // sinon le même argent servirait deux fois. Mesuré par personne, donc avant fractionnement — une
+  // approximation de second ordre. Contrairement au mode solo, le couple ne restitue PAS de
+  // reliquat : la provision non consommée reste simplement dans le revenu disponible de l'année.
   let provision = 0;
   if (ctx.cashVente > 0 && ctx.gainVente > 0) {
     const avec = { ...ctx.entree, deductionReer: deductionDejaPrevue };
@@ -266,6 +269,16 @@ function poserCapital(etat: EtatPersonne, ctx: Contexte, annee: number, deductio
   etat.droitsCeli = droits.droitsCeli;
   etat.droitsReer = droits.droitsReer;
   return { ...pose, place: aPlacer, provision };
+}
+
+/**
+ * Impôt attribuable au gain d'une vente, par la convention « impôt avec le gain, moins impôt sans ».
+ * Sert la traçabilité : il n'existe pas d'impôt « par bien », l'impôt porte sur le revenu total.
+ */
+function impotDuGainVente(entree: EntreeFiscale, gainVente: number, annee: number): number {
+  if (gainVente <= 0.5) return 0;
+  const sans = { ...entree, gainsCapital: Math.max(0, entree.gainsCapital - gainVente) };
+  return Math.max(0, impotTotalPour(entree, annee) - impotTotalPour(sans, annee));
 }
 
 /** Applique les cotisations d'une personne (dont le REER de conjoint versé à l'autre). */
@@ -482,6 +495,10 @@ interface CompMenage {
   retenues: number;
   cotisations: number;
   paiementImmo: number;
+  /** Détail bien par bien des ventes de l'année. */
+  ventesRealisees: readonly VenteRealisee[];
+  /** Impôt réellement supporté à cause des gains de vente. */
+  impotSupporteVente: number;
   /** Cible TOTALE à financer = train de vie indexé + paiement hypothécaire. */
   cible: number;
   /** Cible du ménage telle que saisie, en dollars d'aujourd'hui. */
@@ -558,6 +575,8 @@ function construireDetailCouple(
       fractionSurvivant: comp.fractionSurvivant,
       facteurInflation: comp.facteurInflation,
     },
+    ventes: detaillerVentes(comp.ventesRealisees, comp.impotSupporteVente),
+    ventesSeuleSourceDeCapital: comp.heritage <= 0.5,
     surplus,
     destinationSurplus: postesSignificatifs([
       { libelle: 'CELI', montant: comp.ventilSurplus.celi },
@@ -640,7 +659,8 @@ export function projeterCouple(h: HypothesesCouple, options: { trace?: boolean }
     // Immobilier : amortissement, loyers, ventes, appréciation (par propriétaire).
     const ageProprio = (p: 1 | 2 | 'commun'): number | null =>
       p === 2 ? (vivant2 ? age2 : null) : p === 1 ? (vivant1 ? age1 : null) : vivant1 ? age1 : vivant2 ? age2 : null;
-    const aggImmo = traiterImmeublesAnnee(etatsImmo, i, h.inflation, ageProprio, bienAbrite);
+    const anneeImmo = traiterImmeublesAnnee(etatsImmo, i, h.inflation, ageProprio, bienAbrite);
+    const aggImmo = anneeImmo.parProprietaire;
     const paiementImmo = aggImmo[1].paiement + aggImmo[2].paiement;
     const equiteImmo = aggImmo[1].equite + aggImmo[2].equite;
 
@@ -756,6 +776,10 @@ export function projeterCouple(h: HypothesesCouple, options: { trace?: boolean }
               retenues: ctx1.retenuesPaie + ctx2.retenuesPaie,
               cotisations: 0,
               paiementImmo,
+              ventesRealisees: anneeImmo.ventes,
+              impotSupporteVente:
+                impotDuGainVente(e1Courant ?? ctx1.entree, ctx1.gainVente, annee) +
+                impotDuGainVente(e2Courant ?? ctx2.entree, ctx2.gainVente, annee),
               cible,
               cibleSaisie: h.depensesRetraite,
               fractionSurvivant: 1,
@@ -807,6 +831,10 @@ export function projeterCouple(h: HypothesesCouple, options: { trace?: boolean }
               retenues: ctx1.retenuesPaie + ctx2.retenuesPaie,
               cotisations: cot1.cotisations + cot2.cotisations,
               paiementImmo,
+              ventesRealisees: anneeImmo.ventes,
+              // En accumulation, c'est la PROVISION qui a été retenue sur le placement : l'utiliser
+              // garantit « produit brut − impôt supporté = ce qui a été placé ».
+              impotSupporteVente: her1.provision + her2.provision,
               cible: 0,
               cibleSaisie: h.depensesRetraite,
               fractionSurvivant: 1,
@@ -863,6 +891,8 @@ export function projeterCouple(h: HypothesesCouple, options: { trace?: boolean }
               retenues: ctx.retenuesPaie,
               cotisations: cot.cotisations,
               paiementImmo,
+              ventesRealisees: anneeImmo.ventes,
+              impotSupporteVente: impotDuGainVente(e, ctx.gainVente, annee),
               cible: 0,
               cibleSaisie: h.depensesRetraite,
               fractionSurvivant: h.fractionSurvivant,
@@ -923,6 +953,8 @@ export function projeterCouple(h: HypothesesCouple, options: { trace?: boolean }
               retenues: ctx.retenuesPaie,
               cotisations: 0,
               paiementImmo,
+              ventesRealisees: anneeImmo.ventes,
+              impotSupporteVente: impotDuGainVente(entreeCourante, ctx.gainVente, annee),
               cible,
               cibleSaisie: h.depensesRetraite,
               fractionSurvivant: h.fractionSurvivant,

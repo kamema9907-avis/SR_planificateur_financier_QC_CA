@@ -10,6 +10,7 @@
  */
 import { calculerImpot, construireBase } from '../moteurFiscal';
 import type { EntreeFiscale } from '../types';
+import type { VenteRealisee } from './immobilier';
 
 /** Agrégat lui-même re-décomposable (drill-down récursif). */
 export type LienDetail = 'impot';
@@ -42,6 +43,44 @@ export interface DetailDepenses {
   readonly facteurInflation: number;
 }
 
+/**
+ * Anatomie d'une vente immobilière.
+ *
+ * Le produit d'une vente était un nombre sans origine : le remboursement de l'hypothèque, soustrait
+ * à l'intérieur du calcul, n'apparaissait jamais. On ne pouvait que le déduire de la disparition du
+ * versement et de la chute de l'équité à zéro.
+ *
+ * `impotSupporte` est l'impôt **réellement** attribuable au gain : la provision retenue à la vente,
+ * MOINS le reliquat restitué lorsqu'une déduction REER l'a absorbée. C'est cette valeur, et non la
+ * provision brute, qui fait que `produitBrut − impotSupporte = netPlace`. C'est une **convention
+ * d'attribution** (impôt de l'année avec le gain, moins impôt sans lui), pas une ligne de
+ * déclaration. Quand plusieurs biens sont vendus la même année, elle se répartit au prorata du gain.
+ */
+export interface DetailVente {
+  readonly nom: string;
+  /** Valeur du bien au moment de la vente, après l'amortissement de l'année. */
+  readonly valeurVente: number;
+  /** Solde hypothécaire épongé par la vente. */
+  readonly soldeRembourse: number;
+  /** < 1 pour un downsizing partiel. */
+  readonly fractionVendue: number;
+  /** (valeurVente − soldeRembourse) × fractionVendue. */
+  readonly produitBrut: number;
+  /** Gain en capital retenu comme imposable (0 si résidence exemptée). */
+  readonly gainImposable: number;
+  /** Gain avant exemption, pour expliquer un gain imposable nul. */
+  readonly gainBrutAvantExemption: number;
+  readonly exempte: boolean;
+  /** Impôt réellement supporté à cause du gain (provision − reliquat). */
+  readonly impotSupporte: number;
+  /**
+   * Ce qui reste du produit une fois l'impôt du gain supporté : `produitBrut − impotSupporte`.
+   * En accumulation, ce montant est intégralement **placé** ; en décaissement il finance d'abord
+   * les dépenses, le surplus étant réinvesti. L'interface nomme donc la ligne selon la phase.
+   */
+  readonly netApresImpot: number;
+}
+
 /** Décomposition du revenu disponible d'une année. */
 export interface DetailDisponible {
   /** Entrées de liquidités (revenus, retraits, loyers, ventes). */
@@ -58,6 +97,13 @@ export interface DetailDisponible {
   readonly depenses: number;
   /** D'où vient ce montant. */
   readonly detailDepenses: DetailDepenses;
+  /** Ventes immobilières de l'année, bien par bien (vide la plupart des années). */
+  readonly ventes: readonly DetailVente[];
+  /**
+   * Le produit des ventes est-il le SEUL capital placé cette année ? Sinon la ventilation
+   * CELI/REER/non-enregistré mélange vente et héritage, et ne peut pas être attribuée à la vente.
+   */
+  readonly ventesSeuleSourceDeCapital: boolean;
   /** Surplus = revenus nets − dépenses (≥ 0 ; 0 s'il n'y a pas de surplus). */
   readonly surplus: number;
   /** Destination du surplus réinvesti (CELI / REER / non-enregistré). */
@@ -125,6 +171,36 @@ export interface DetailCouple {
   readonly fractionnement: DetailFractionnement;
   /** Valeur nette du ménage (comptes des deux conjoints + immobilier). */
   readonly valeurNette: DetailValeurNette;
+}
+
+/**
+ * Attribue à chaque vente sa part de l'impôt supporté, **au prorata du gain imposable**.
+ *
+ * C'est la seule clé défendable : l'impôt est calculé sur le gain TOTAL de l'année, il n'existe pas
+ * d'impôt « par bien ». Une vente exemptée (gain nul) ne s'en voit donc attribuer aucun. Quand une
+ * seule vente a lieu — le cas courant — la répartition est l'identité.
+ */
+export function detaillerVentes(
+  ventes: readonly VenteRealisee[],
+  impotSupporteTotal: number,
+): DetailVente[] {
+  const gainTotal = ventes.reduce((s, v) => s + v.gainImposable, 0);
+  return ventes.map((v) => {
+    const part = gainTotal > 0 ? v.gainImposable / gainTotal : 0;
+    const impotSupporte = impotSupporteTotal * part;
+    return {
+      nom: v.nom,
+      valeurVente: v.valeurVente,
+      soldeRembourse: v.soldeRembourse,
+      fractionVendue: v.fractionVendue,
+      produitBrut: v.produitBrut,
+      gainImposable: v.gainImposable,
+      gainBrutAvantExemption: v.gainBrutAvantExemption,
+      exempte: v.exempte,
+      impotSupporte,
+      netApresImpot: v.produitBrut - impotSupporte,
+    };
+  });
 }
 
 /** Ne garde que les postes non négligeables (|montant| > 0,5 $). */

@@ -124,6 +124,39 @@ export interface Vente {
   gainBrutImposable: number;
   /** Produit net (liquide) libéré par la vente. */
   cashLibere: number;
+  /** Valeur du bien au moment de la vente (après l'amortissement de l'année). */
+  valeurVente: number;
+  /** Solde hypothécaire épongé par la vente. Un downsizing éteint TOUTE l'hypothèque. */
+  soldeRembourse: number;
+  /** Gain brut avant exemption (utile pour expliquer un gain nul). */
+  gainBrutAvantExemption: number;
+  /** Le bien était-il la résidence principale abritée ? */
+  exempte: boolean;
+}
+
+/**
+ * Une vente réalisée dans l'année, gardée bien par bien pour la traçabilité.
+ *
+ * `traiterImmeublesAnnee` agrège tout par propriétaire : sans cet enregistrement, la trace ne
+ * saurait ni quel bien a été vendu, ni sa valeur, ni le solde remboursé. L'impôt n'y figure pas —
+ * il n'est connu qu'après le calcul de l'année, reliquat compris (voir `projection.ts`).
+ */
+export interface VenteRealisee {
+  readonly nom: string;
+  readonly valeurVente: number;
+  readonly soldeRembourse: number;
+  readonly fractionVendue: number;
+  readonly produitBrut: number;
+  /** Gain imposable retenu (0 si exempté). Sert de clé de répartition de l'impôt. */
+  readonly gainImposable: number;
+  readonly gainBrutAvantExemption: number;
+  readonly exempte: boolean;
+}
+
+/** Ce que produit une année d'immobilier : les agrégats par propriétaire, et les ventes du détail. */
+export interface AnneeImmobiliere {
+  readonly parProprietaire: Record<1 | 2, AgregatImmo>;
+  readonly ventes: readonly VenteRealisee[];
 }
 
 /**
@@ -135,6 +168,8 @@ export function vendre(etat: EtatImmeuble, abrite: boolean): Vente {
   const exempte = estExemptable(etat.bien.type) && abrite;
   const gainBrutImposable = exempte ? 0 : gainBrut;
 
+  const valeurVente = etat.valeur;
+  const soldeRembourse = Math.min(etat.hypotheque, etat.valeur);
   const equite = Math.max(0, etat.valeur - etat.hypotheque);
   const cashLibere = equite * etat.bien.fractionLiberee;
 
@@ -146,7 +181,7 @@ export function vendre(etat: EtatImmeuble, abrite: boolean): Vente {
     etat.coutBase = etat.valeur;
     etat.hypotheque = 0;
   }
-  return { gainBrutImposable, cashLibere };
+  return { gainBrutImposable, cashLibere, valeurVente, soldeRembourse, gainBrutAvantExemption: gainBrut, exempte };
 }
 
 /** Agrégat annuel de l'immobilier, par propriétaire. */
@@ -171,7 +206,8 @@ function agregatVide(): AgregatImmo {
 
 /**
  * Traite tous les biens pour une année : amortissement, loyers, ventes planifiées, appréciation.
- * MUTE les états. Retourne les agrégats répartis par propriétaire (1 et 2 ; « commun » = 50-50).
+ * MUTE les états. Retourne les agrégats répartis par propriétaire (1 et 2 ; « commun » = 50-50),
+ * **et** le détail bien par bien des ventes réalisées, que l'agrégation perdrait sinon.
  *
  * @param ageProprietaire  Fonction donnant l'âge du propriétaire d'un bien (null si décédé).
  * @param bienAbrite       Bien désigné comme résidence principale exemptée (arbitrage).
@@ -182,8 +218,9 @@ export function traiterImmeublesAnnee(
   inflation: number,
   ageProprietaire: (p: Proprietaire) => number | null,
   bienAbrite: Immeuble | null,
-): Record<1 | 2, AgregatImmo> {
+): AnneeImmobiliere {
   const agg: Record<1 | 2, AgregatImmo> = { 1: agregatVide(), 2: agregatVide() };
+  const ventes: VenteRealisee[] = [];
   const facteurInflation = Math.pow(1 + inflation, i);
 
   for (const e of etats) {
@@ -208,6 +245,16 @@ export function traiterImmeublesAnnee(
       const v = vendre(e, b === bienAbrite);
       gainBrut = v.gainBrutImposable;
       cashVente = v.cashLibere;
+      ventes.push({
+        nom: b.nom,
+        valeurVente: v.valeurVente,
+        soldeRembourse: v.soldeRembourse,
+        fractionVendue: b.fractionLiberee,
+        produitBrut: v.cashLibere,
+        gainImposable: v.gainBrutImposable,
+        gainBrutAvantExemption: v.gainBrutAvantExemption,
+        exempte: v.exempte,
+      });
     }
 
     if (!e.vendu) e.valeur *= 1 + b.appreciation;
@@ -223,7 +270,7 @@ export function traiterImmeublesAnnee(
       agg[o].equite += equite * part;
     }
   }
-  return agg;
+  return { parProprietaire: agg, ventes };
 }
 
 /** Disposition présumée au décès (résidence exemptée) : gain brut imposable des biens d'un propriétaire. */

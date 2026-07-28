@@ -142,7 +142,7 @@ Deux conjoints entièrement modélisés (colonnes côte à côte), un ménage à
   est annoncée quand elle change.
 
 ### Qualité / validation
-- **279 cas-tests automatisés** — 210 moteur (fiscalité, cotisations, plafonds CELIAPP/CELI/REER,
+- **291 cas-tests automatisés** — 222 moteur (fiscalité, cotisations, plafonds CELIAPP/CELI/REER,
   fonds de travailleurs, indexation, comptes, projection, décaissement, couple, immobilier dont
   terrain, optimiseur, dépense soutenable) + 69 interface (validations, verdict, fichier, scénarios,
   routage, thème).
@@ -215,7 +215,7 @@ src/
 │   │   ├── couple.ts               # Boucle du ménage (fractionnement, survie)
 │   │   └── projection.ts           # Boucle année par année (cycle de vie)
 │   ├── index.ts                    # API publique du moteur
-│   └── *.test.ts                   # 210 cas-tests (moteur)
+│   └── *.test.ts                   # 222 cas-tests (moteur)
 └── interface/                      # UI React (habillage)
     ├── Champ.tsx                   # Champs de saisie réutilisables
     ├── format.ts                   # Formatage $ / % (fr-CA)
@@ -292,7 +292,7 @@ L'interface est en cours de refonte (« l'Atelier ») — voir [`PLAN_REFONTE_UI
 ```bash
 npm install      # installer les dépendances
 npm run dev      # développement (http://localhost:5173)
-npm test         # les 279 cas-tests
+npm test         # les 291 cas-tests
 npm run build    # version de production (dossier dist/, à héberger)
 npm run preview  # prévisualiser la version de production
 ```
@@ -358,6 +358,41 @@ options d'employé, analyse de sensibilité / Monte Carlo, autres provinces.
 ---
 
 ## 📓 Journal des modifications
+
+### 2026-07-28 — Ventes immobilières : le moteur les rend vérifiables (lot A)
+**Signalé par l'utilisateur** : « comment je vérifie les chiffres, et comment je sais que
+l'hypothèque a bien été remboursée ? ». Le produit d'une vente était un nombre sans origine. Le
+remboursement, soustrait **à l'intérieur** du calcul, n'apparaissait jamais : on ne pouvait que le
+déduire de la disparition du versement et de la chute de l'équité à zéro.
+
+La trace expose désormais, **bien par bien** : valeur au moment de la vente, solde remboursé,
+fraction vendue, produit brut, gain (imposable et avant exemption), impôt supporté, net après impôt.
+`traiterImmeublesAnnee` agrégeait tout par propriétaire et perdait ce détail ; elle retourne
+maintenant aussi les ventes réalisées.
+
+**Décision mesurée avant d'être prise.** La ligne d'impôt affiche l'impôt **réellement supporté** —
+la provision moins le reliquat — et non la provision brute. Sur un dossier avec 100 000 $ de droits
+REER, la déduction absorbe **toute** la provision : 307 627 $ sont placés au lieu de 281 625 $.
+Afficher la provision aurait donné une chaîne visiblement fausse. Un test fige les deux cas.
+
+**Conventions assumées** : l'impôt attribué à un gain est une convention (impôt de l'année avec le
+gain, moins impôt sans lui), pas une ligne de déclaration ; quand plusieurs biens sont vendus la même
+année, elle se répartit **au prorata du gain**, seule clé défendable puisque l'impôt porte sur le
+revenu total. Et la ventilation CELI/REER/non-enregistré n'est attribuée à la vente que si celle-ci
+est la **seule source de capital placé** de l'année — un héritage reçu en même temps se place dans le
+même bloc.
+
+**Deux défauts trouvés en chemin :**
+1. **Un commentaire faux dans `couple.ts`** affirmait qu'un reliquat corrigeait la provision. Le
+   couple n'en a pas : la provision non consommée reste simplement dans le revenu disponible.
+   Commentaire corrigé ; l'asymétrie avec le mode solo demeure, elle est désormais écrite.
+2. **`npx tsc --noEmit` ne vérifiait rien.** Le `tsconfig.json` racine est un fichier de références
+   avec `"files": []` : la commande réussit toujours, sans compiler une ligne. Les « typecheck OK »
+   des journées précédentes étaient donc vides de sens. Rien n'est passé au travers parce que
+   `npm run build` exécute `tsc -b`, lancé après chaque changement — mais la bonne commande est
+   `npm run typecheck`, qui existait déjà dans `package.json`.
+
+- **291 cas-tests verts** (+12), build OK. Lots B et C (interface) à venir.
 
 ### 2026-07-28 — Colonne « Dépenses » : le moteur (lot A)
 **Signalé par l'utilisateur** : « Revenus nets » est cliquable et explique ses chiffres, « Dépenses »

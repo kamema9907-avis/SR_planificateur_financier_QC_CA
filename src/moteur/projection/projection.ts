@@ -31,10 +31,11 @@ import { totalRentesEmployeur } from './rentesEmployeur';
 import { totalRevenuTravail } from './periodesTravail';
 import { totalHeritage } from './heritage';
 import { placerCapital, placerSurplusRetraite } from './placementSurplus';
-import { clonerImmeubles, determinerBienAbrite, gainAuDeces, traiterImmeublesAnnee, type AgregatImmo, type EtatImmeuble } from './immobilier';
+import { clonerImmeubles, determinerBienAbrite, gainAuDeces, traiterImmeublesAnnee, type AgregatImmo, type EtatImmeuble, type VenteRealisee } from './immobilier';
 import { fondreReer } from './fonteReer';
 import {
   construireDetailFiscal,
+  detaillerVentes,
   postesSignificatifs,
   sommePostes,
   type DetailAnnee,
@@ -94,6 +95,10 @@ interface ComposantesTrace {
   retraitLibre: number;
   loyers: number;
   ventes: number;
+  /** Détail bien par bien des ventes de l'année (vide la plupart du temps). */
+  ventesRealisees: readonly VenteRealisee[];
+  /** Impôt réellement supporté à cause du gain de vente (provision − reliquat). */
+  impotSupporteVente: number;
   /** Héritage encaissé cette année (non imposable). */
   heritage: number;
   /** Capital sorti du flux pour être placé dans les comptes (héritage + produit net de vente). */
@@ -192,6 +197,10 @@ function construireDetailAnnee(
       fractionSurvivant: 1, // pas de phase de survie en mode solo
       facteurInflation: c.facteurInflation,
     },
+    ventes: detaillerVentes(c.ventesRealisees, c.impotSupporteVente),
+    // Un héritage reçu la même année se place dans le MÊME bloc de capital : la ventilation ne
+    // pourrait alors pas être attribuée à la vente seule.
+    ventesSeuleSourceDeCapital: c.heritage <= 0.5,
     surplus,
     destinationSurplus: postesSignificatifs([
       { libelle: 'CELI', montant: c.ventilSurplus.celi },
@@ -271,7 +280,8 @@ export function projeter(h: HypothesesProjection, options: { trace?: boolean } =
     }
 
     // Immobilier : amortissement, loyers, ventes planifiées, appréciation.
-    const aggImmo = traiterImmeublesAnnee(etatsImmo, i, h.inflation, () => age, bienAbrite);
+    const anneeImmo = traiterImmeublesAnnee(etatsImmo, i, h.inflation, () => age, bienAbrite);
+    const aggImmo = anneeImmo.parProprietaire;
     const immo: AgregatImmo = {
       paiement: aggImmo[1].paiement + aggImmo[2].paiement,
       loyerCash: aggImmo[1].loyerCash + aggImmo[2].loyerCash,
@@ -297,6 +307,9 @@ export function projeter(h: HypothesesProjection, options: { trace?: boolean } =
     let traceVentil = { celi: 0, reer: 0, nonEnr: 0 };
     /** Capital sorti du flux pour être placé (héritage + produit net de vente). */
     let capitalPlace = 0;
+    /** Provision d'impôt retenue sur le gain de vente, et part restituée ensuite (voir plus bas). */
+    let impotSurGainVente = 0;
+    let reliquatVente = 0;
     let traceImpotDeces = 0;
     let traceDetailDeces: Poste[] = [];
 
@@ -413,7 +426,6 @@ export function projeter(h: HypothesesProjection, options: { trace?: boolean } =
         deductionReer: dedReer,
       });
 
-      let impotSurGainVente = 0;
       if (immo.cashVente > 0 && immo.gainBrut > 0) {
         // Mesuré AVANT tout versement REER issu de la vente : sinon le montant à placer dépendrait
         // de l'impôt, qui dépendrait du montant placé. On place donc un peu moins que le maximum
@@ -466,7 +478,6 @@ export function projeter(h: HypothesesProjection, options: { trace?: boolean } =
       // REER issu de cette même vente réduit l'impôt du gain. On replace l'écart au non-enregistré,
       // comme `placerSurplusRetraite` le fait du remboursement qu'il obtient. Une seule itération :
       // la rétroaction est volontairement bornée, comme ailleurs dans le moteur.
-      let reliquatVente = 0;
       if (impotSurGainVente > 0) {
         // Référence : l'impôt qu'aurait donné une année SANS la vente — donc sans son gain et sans
         // la cotisation REER qu'elle a permise. Comparer à l'impôt recalculé avec cette cotisation
@@ -597,6 +608,27 @@ export function projeter(h: HypothesesProjection, options: { trace?: boolean } =
       ];
     }
 
+    /**
+     * Impôt réellement supporté à cause du gain de vente. En accumulation, c'est la provision
+     * MOINS le reliquat déjà restitué ; en décaissement, aucune provision n'est retenue et on
+     * applique la même convention directement : impôt de l'année, moins ce qu'il aurait été sans
+     * le gain. Une seule évaluation supplémentaire, et seulement les années de vente.
+     */
+    let impotSupporteVente = 0;
+    if (immo.gainBrut > 0.5) {
+      impotSupporteVente =
+        phase === 'accumulation'
+          ? Math.max(0, impotSurGainVente - reliquatVente)
+          : Math.max(
+              0,
+              impotAnnee -
+                impotTotalPour(
+                  { ...entreeAnnee, gainsCapital: Math.max(0, entreeAnnee.gainsCapital - immo.gainBrut) },
+                  annee,
+                ),
+            );
+    }
+
     annees.push({
       annee,
       age,
@@ -630,6 +662,8 @@ export function projeter(h: HypothesesProjection, options: { trace?: boolean } =
               retraitLibre: retraitsLibresImpot,
               loyers: immo.loyerCash,
               ventes: immo.cashVente,
+              ventesRealisees: anneeImmo.ventes,
+              impotSupporteVente,
               heritage: heritageRecu,
               capitalPlace,
               paiementImmo: immo.paiement,
