@@ -8,13 +8,14 @@
  * Chaque étape porte UNE phrase de description ; le détail va derrière le bouton « ? » (`aide`).
  */
 import type { ReactNode } from 'react';
-import type { HypothesesCouple, HypothesesProjection, Immeuble, PersonneProjection } from '../../moteur';
+import { projeter, type HypothesesCouple, type HypothesesProjection, type Immeuble, type PersonneProjection } from '../../moteur';
 import { ChampMonetaire, ChampNombre, ChampPourcent, ChampSelect, Interrupteur } from '../Champ';
 import { Avance } from '../ui/ModeDetail';
 import type { Etape, Groupe } from '../atelier/types';
 import type { ChampsPersonne, PatchPersonne } from './champsPersonne';
 import { EditeurComptes } from './EditeurComptes';
 import { SectionHeritage } from './SectionHeritage';
+import { SuggestionDepense } from './SuggestionDepense';
 import { SectionImmobilier } from './SectionImmobilier';
 import { SectionRentesEmployeur } from './SectionRentesEmployeur';
 import { SectionTravailRetraite } from './SectionTravailRetraite';
@@ -28,6 +29,24 @@ const OPTIONS_SEXE = [
 
 /** Une personne a-t-elle déjà de l'épargne en cours ? */
 const epargneNonNulle = (p: ChampsPersonne) => Object.values(p.epargneAnnuelle).some((v) => (v ?? 0) > 0);
+
+/**
+ * Y a-t-il de quoi calculer une dépense soutenable ? Sans capital, sans rente et sans revenu, la
+ * suggestion vaudrait 0 $ et n'apprendrait rien : on préfère ne rien afficher.
+ */
+const aDesRessources = (p: ChampsPersonne) =>
+  p.comptes.some((c) => c.solde > 0) ||
+  p.rrqA65 > 0 ||
+  p.svA65 > 0 ||
+  p.rentesEmployeur.length > 0 ||
+  p.revenuEmploi > 0 ||
+  epargneNonNulle(p);
+
+/** Pose une dépense de retraite dans des hypothèses, sans toucher au reste. */
+const poserDepenseSolo = (h: HypothesesProjection, montant: number) => ({
+  ...h,
+  depensesRetraite: montant,
+});
 
 /** Rattache à chaque étape les alertes qui la concernent. */
 function avecAlertes(etapes: Etape[], alertes: readonly Alerte[]): Etape[] {
@@ -275,12 +294,21 @@ export function groupeSolo(h: HypothesesProjection, onChange: (h: HypothesesProj
       rempli: h.depensesRetraite > 0,
       contenu: (
         <div className="grid gap-4 sm:grid-cols-2">
-          <ChampMonetaire
-            label="Dépenses de retraite (net d'impôt)"
-            valeur={h.depensesRetraite}
-            onChange={(v) => maj('depensesRetraite', v)}
-            indice="Cible annuelle, en $ d'aujourd'hui"
-          />
+          <div>
+            <ChampMonetaire
+              label="Dépenses de retraite (net d'impôt)"
+              valeur={h.depensesRetraite}
+              onChange={(v) => maj('depensesRetraite', v)}
+              indice="Cible annuelle, en $ d'aujourd'hui"
+            />
+            <SuggestionDepense
+              hypotheses={h}
+              poserDepense={poserDepenseSolo}
+              evaluer={projeter}
+              aDesRessources={aDesRessources(h)}
+              onUtiliser={(v) => maj('depensesRetraite', v)}
+            />
+          </div>
           <div />
           <Avance>
             <ChampPourcent

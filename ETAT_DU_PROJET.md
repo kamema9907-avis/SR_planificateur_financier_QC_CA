@@ -3,9 +3,10 @@
 > **Document vivant** : synthèse de tout ce que le projet fait à ce jour. À mettre à jour au fil des
 > phases. Voir le [journal des modifications](#-journal-des-modifications) à la fin pour l'historique.
 >
-> Dernière mise à jour : **2026-07-28** — **dépense de retraite recommandée**, côté moteur : le
-> planificateur calcule par dichotomie le montant maximal que le capital finance jusqu'au décès, et
-> en recommande 85 %. L'utilisateur n'a plus à deviner la donnée qui commande tout le verdict.
+> Dernière mise à jour : **2026-07-28** — **dépense de retraite recommandée** : le planificateur
+> calcule par dichotomie le montant maximal que le capital finance jusqu'au décès et en recommande
+> 85 %, affiché sous le champ de l'étape « Décaissement » avec un bouton pour l'appliquer.
+> L'utilisateur n'a plus à deviner la donnée qui commande tout le verdict.
 > Auparavant, le **lot 5 terminé** : **mode sombre** complet (Système /
 > Clair / Sombre), bâti sur une couche de **jetons sémantiques** — aucun composant ne nomme plus une
 > couleur. Plus tôt le même jour : l'application tient sur
@@ -100,6 +101,9 @@ Projette le patrimoine et l'impôt **année par année**, de l'âge actuel jusqu
 - **Phase d'accumulation** (épargne + croissance) puis **décaissement** : un solveur retire dans l'ordre
   choisi pour financer une cible de dépenses **nette d'impôt**.
 - **Impôt au décès** (dispositions présumées des comptes enregistrés + gains latents).
+- **Dépense de retraite recommandée** : sous le champ « Décaissement », l'outil affiche le montant
+  maximal que le capital finance jusqu'au décès, et en recommande 85 % par prudence. Un bouton le
+  reporte dans le champ ; rien n'est jamais écrit sans un clic.
 - Sorties : **graphique** du patrimoine, **tableau** annuel, indicateurs clés (« le capital dure jusqu'à
   X ans », valeur nette au décès, **impôt total sur la vie**), interrupteur nominal/réel.
 
@@ -234,6 +238,7 @@ src/
         ├── Verdict.tsx             # « Vos dépenses sont financées jusqu'à… » + jauge
         ├── PanneauScenarios.tsx    # Tableau comparatif des scénarios
         ├── SectionHeritage.tsx     # Saisie des héritages attendus
+        ├── SuggestionDepense.tsx   # Dépense soutenable suggérée sous le champ de décaissement
         └── …                       # Graphiques, tableaux, drill-down, optimiseur
 ```
 
@@ -387,7 +392,27 @@ utilisait `git ls-files`, qui ne liste que les fichiers **déjà suivis** — el
 fichiers neufs, précisément ceux qu'on oublie de documenter. Elle prend maintenant `--others`, et a
 immédiatement signalé `depenseSoutenable.ts`.
 
-- **266 cas-tests verts** (+14), typecheck et build OK. Lots B, C et D (interface) à venir.
+- **266 cas-tests verts** (+14), typecheck et build OK.
+
+**Lot B — la suggestion à l'écran.** `SuggestionDepense.tsx`, écrit générique dès maintenant pour que
+le mode couple (lot C) le réutilise sans le réécrire. Sous le champ : le maximum, le montant
+recommandé, un bouton « Utiliser ». Vérifié dans le navigateur — suggestion stable pendant la frappe,
+bouton qui remplit le champ **et** fait passer le verdict au vert (la cohérence voulue par la
+décision n° 3), aucune suggestion sur dossier vierge, message explicite quand même 0 $ est
+infinançable. Contraste WCAG AA : 0 échec dans les deux thèmes. Aucun débordement à 390, 768 et
+1600 px.
+
+La mémoïsation exclut volontairement `depensesRetraite` de sa clé : le maximum ne dépend pas de la
+valeur saisie, et sans cette précaution chaque frappe relancerait une dichotomie complète (55 ms en
+couple) pour un résultat identique.
+
+**Deux artefacts d'outillage rencontrés en vérifiant** (aucun défaut applicatif) : le serveur de
+développement servait un CSS antérieur aux jetons sémantiques — `--pf-fond` était vide et `.carte`
+retombait sur `bg-white/80` — et le `dist/` datait d'avant le nouveau composant. Le CSS *bâti* était
+correct. Leçon : vérifier le thème sur `vite preview` plutôt que sur un serveur de développement
+resté ouvert des heures.
+
+Lots C (couple, réglage de la part consommée) et D (mention du patrimoine immobilisé) à venir.
 
 ### 2026-07-27 — Lot 5 (2/2) : mode sombre, par jetons sémantiques
 Le chantier n'était pas « ajouter des couleurs foncées » mais **retirer les couleurs des composants**.
