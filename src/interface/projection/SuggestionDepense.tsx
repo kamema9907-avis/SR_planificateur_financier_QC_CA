@@ -23,7 +23,37 @@ interface Props<H> {
   evaluer: (h: H) => { suffisant: boolean };
   /** Y a-t-il du capital, une rente ou un revenu ? Sinon il n'y a rien à suggérer. */
   aDesRessources: boolean;
+  /** Biens sans âge de vente : leur équité ne financera jamais une dépense. */
+  immobilise?: readonly { nom: string; equite: number }[];
   onUtiliser: (montant: number) => void;
+}
+
+/**
+ * Le montant recommandé peut sembler absurdement bas quand un bien important n'est jamais vendu :
+ * 650 000 $ de comptes et une maison de 420 000 $ donnent 49 500 $ par an, la maison n'ajoutant
+ * pas un dollar. Sans cette phrase, le chiffre passe pour un bogue.
+ *
+ * On ne signale que les biens **sans âge de vente**, le seul cas sans ambiguïté. Un âge de vente
+ * postérieur au décès n'est pas détecté : en mode couple, un bien roulé au survivant peut encore
+ * être vendu par lui, et comparer à l'âge de décès du propriétaire initial serait faux.
+ */
+function PatrimoineImmobilise({ biens }: { biens: readonly { nom: string; equite: number }[] }) {
+  const retenus = biens.filter((b) => b.equite > 1_000);
+  if (retenus.length === 0) return null;
+
+  const total = retenus.reduce((s, b) => s + b.equite, 0);
+  const sujet =
+    retenus.length === 1
+      ? `« ${retenus[0].nom} »`
+      : `${retenus.length} biens immobiliers`;
+
+  return (
+    <p className="mt-2 border-t border-filet pt-2 text-xs leading-relaxed text-doux">
+      {sujet} n'{retenus.length === 1 ? 'a' : 'ont'} pas d'âge de vente :{' '}
+      <span className="chiffres font-medium text-corps">{formatDollars(total)}</span> d'équité ne
+      financeront aucune dépense. Planifier une vente augmenterait ce montant.
+    </p>
+  );
 }
 
 export function SuggestionDepense<H>({
@@ -31,6 +61,7 @@ export function SuggestionDepense<H>({
   poserDepense,
   evaluer,
   aDesRessources,
+  immobilise = [],
   onUtiliser,
 }: Props<H>) {
   // Réglable en mode Avancé ; partagée par contexte pour que le curseur et la suggestion
@@ -60,10 +91,13 @@ export function SuggestionDepense<H>({
 
   if (maximum <= 0) {
     return (
-      <p className="mt-2 text-xs leading-relaxed text-alerte">
-        Même sans aucune dépense, le capital ne couvre pas les charges de la retraite (versements
-        hypothécaires compris). Revoyez les comptes, les rentes ou l'âge de la retraite.
-      </p>
+      <div className="mt-2">
+        <p className="text-xs leading-relaxed text-alerte">
+          Même sans aucune dépense, le capital ne couvre pas les charges de la retraite (versements
+          hypothécaires compris). Revoyez les comptes, les rentes ou l'âge de la retraite.
+        </p>
+        <PatrimoineImmobilise biens={immobilise} />
+      </div>
     );
   }
 
@@ -90,6 +124,7 @@ export function SuggestionDepense<H>({
       <p className="mt-1 text-xs text-doux">
         {Math.round(fraction * 100)} % du maximum, par prudence.
       </p>
+      <PatrimoineImmobilise biens={immobilise} />
     </div>
   );
 }

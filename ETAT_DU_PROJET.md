@@ -432,7 +432,21 @@ et survit au rechargement. Contraste WCAG AA : 0 échec dans les deux thèmes ; 
 préférence d'affichage au défaut sûr (85 %), pas une donnée financière — l'ajouter reste une ligne
 si l'usage montre le contraire.
 
-Reste le lot D (mention du patrimoine immobilisé).
+**Lot D — la mention du patrimoine immobilisé.** Une ligne, sous la recommandation : « "Résidence"
+n'a pas d'âge de vente : 380 000 $ d'équité ne financeront aucune dépense. Planifier une vente
+augmenterait ce montant. » Elle répond au résultat contre-intuitif figé au lot A, et fait écho à
+l'explication déjà présente dans le verdict.
+
+**Seuls les biens sans âge de vente sont signalés**, le seul cas sans ambiguïté. Un âge de vente
+postérieur au décès n'est **pas** détecté, et ce n'est pas un oubli : `ageVente` se compare à l'âge
+du *propriétaire*, or un bien roulé au survivant peut encore être vendu par lui. Comparer à l'âge de
+décès du propriétaire initial produirait une mention fausse en mode couple.
+
+Vérifié sur cinq dossiers : aucun bien (rien), un bien (380 000 $), deux biens (560 000 $, accord
+grammatical au pluriel), un bien **avec** âge de vente (rien), un bien sans équité réelle (rien,
+seuil à 1 000 $). Contraste et responsive : 0 échec.
+
+**La fonctionnalité est complète** (lots A à D).
 
 ### 2026-07-27 — Lot 5 (2/2) : mode sombre, par jetons sémantiques
 Le chantier n'était pas « ajouter des couleurs foncées » mais **retirer les couleurs des composants**.

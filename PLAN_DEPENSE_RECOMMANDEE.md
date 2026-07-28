@@ -193,9 +193,18 @@ Maximum d'essai mesuré : **95 500 $** pour le ménage.
 
 | Lot | Contenu | Vérifiable par |
 |---|---|---|
-| **A** | `depenseMaximale` + `depenseRecommandee`, fonctions pures | tests 1 à 7 |
-| **B** | Suggestion et bouton « Utiliser » dans l'étape Décaissement (solo) | capture aux deux thèmes, audit de contraste |
-| **C** | Même chose pour le ménage, plus le champ « Part consommée » en mode Avancé | test 8 |
-| **D** | Mention du patrimoine immobilisé | dossier d'essai avec bien non vendu |
+| **A** | ✅ `depenseMaximale` + `depenseRecommandee`, fonctions pures | tests 1 à 8 |
+| **B** | ✅ Suggestion et bouton « Utiliser » dans l'étape Décaissement (solo) | capture aux deux thèmes, audit de contraste |
+| **C** | ✅ Même chose pour le ménage, plus le champ « Part consommée » en mode Avancé | test 8 |
+| **D** | ✅ Mention du patrimoine immobilisé | cinq dossiers d'essai |
+
+**Livré en entier le 2026-07-28.** Deux écarts assumés par rapport à cette conception :
+
+- la **part consommée** n'est pas stockée dans les hypothèses mais dans son propre contexte : le
+  moteur ne s'en sert jamais, c'est une convention d'affichage. Elle n'est donc pas exportée avec le
+  dossier (défaut sûr à 85 %) ;
+- la mention du patrimoine immobilisé ne couvre que `ageVente == null`. Un âge de vente postérieur
+  au décès n'est pas signalé : `ageVente` se compare à l'âge du *propriétaire*, et un bien roulé au
+  survivant peut encore être vendu par lui.
 
 Le lot A ne touche que le moteur et se teste sans interface.

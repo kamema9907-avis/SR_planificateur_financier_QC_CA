@@ -43,6 +43,15 @@ const aDesRessources = (p: ChampsPersonne) =>
   p.revenuEmploi > 0 ||
   epargneNonNulle(p);
 
+/**
+ * Biens sans âge de vente : leur équité d'aujourd'hui ne financera jamais une dépense, puisque le
+ * solveur ne liquide un bien qu'à l'âge saisi.
+ */
+const immobilise = (immeubles: readonly Immeuble[]) =>
+  immeubles
+    .filter((b) => b.ageVente == null)
+    .map((b) => ({ nom: b.nom, equite: Math.max(0, b.valeur - b.hypotheque) }));
+
 /** Pose une dépense de retraite dans des hypothèses, sans toucher au reste. */
 const poserDepenseSolo = (h: HypothesesProjection, montant: number) => ({
   ...h,
@@ -311,6 +320,7 @@ export function groupeSolo(h: HypothesesProjection, onChange: (h: HypothesesProj
               poserDepense={poserDepenseSolo}
               evaluer={projeter}
               aDesRessources={aDesRessources(h)}
+              immobilise={immobilise(h.immeubles)}
               onUtiliser={(v) => maj('depensesRetraite', v)}
             />
           </div>
@@ -426,6 +436,7 @@ export function groupeMenage(h: HypothesesCouple, onChange: (h: HypothesesCouple
               poserDepense={poserDepenseCouple}
               evaluer={projeterCouple}
               aDesRessources={aDesRessources(h.personne1) || aDesRessources(h.personne2)}
+              immobilise={immobilise(h.immeubles)}
               onUtiliser={(v) => onChange({ ...h, depensesRetraite: v })}
             />
           </div>
