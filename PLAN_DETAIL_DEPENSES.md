@@ -95,11 +95,33 @@ colonne rendue cliquable. À faire **deux fois** : `DetailAnnees` / `DrawerDetai
 
 | Lot | Contenu | Vérifiable par |
 |---|---|---|
-| **A** | Décomposition dans la trace + hypothèque déplacée | tests d'invariance de trace existants, plus un test de somme |
+| **A** | ✅ Décomposition dans la trace + hypothèque déplacée | 12 nouveaux cas-tests |
 | **B** | Tiroir et colonne cliquable, solo | capture aux deux thèmes, audit de contraste |
 | **C** | Idem couple, avec la ligne du survivant | dossier d'essai franchissant le premier décès |
 
 ---
+
+## Ce que le lot A a révélé
+
+**Une régression que j'ai introduite et que les tests ont attrapée.** Le couple a **trois** phases —
+`accumulation`, `decaissement` et **`survie`**. Écrire `phase === 'decaissement'` mettait donc les
+dépenses à **zéro pendant toute la phase de survie**, vidant la colonne sur la fin de la projection.
+Le test porte désormais sur la **cible** et non sur la phase.
+
+**Un piège JavaScript dans mon propre test.** Après le décès, `age1` vaut `null`, et `null <= 80`
+est **vrai**. Mon discriminant « les deux vivent » englobait donc les années de survie, ce qui
+masquait la régression ci-dessus. Le test discrimine maintenant sur `phase === 'survie'`.
+
+**Une incohérence de phase dans le moteur, laissée en place.** Le champ `revenuDisponible` de
+`AnneeProjection` exclut le versement hypothécaire en accumulation mais l'inclut en décaissement —
+la même inconsistance que celle corrigée dans la trace. Il n'est utilisé que comme **repli** quand
+la trace est absente, et les tableaux tournent toujours avec la trace : le corriger serait un
+changement de sortie du moteur, hors du périmètre convenu. Les deux tests d'invariance existants
+encodent explicitement l'écart plutôt que de l'ignorer.
+
+**Point à trancher pour la suite** : pendant la phase de survie, le surplus affiché vaut toujours 0
+alors que la ventilation du réinvestissement, elle, est renseignée. Antérieur à ce correctif, hors
+périmètre, mais visible dans le tiroir.
 
 ## Points tranchés sans vous consulter
 

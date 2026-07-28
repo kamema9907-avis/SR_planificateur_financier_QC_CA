@@ -101,7 +101,11 @@ interface ComposantesTrace {
   paiementImmo: number;
   retenues: number;
   cotisations: number;
+  /** Cible TOTALE à financer = train de vie indexé + paiement hypothécaire. */
   cible: number;
+  /** Cible telle que saisie, en dollars d'aujourd'hui. */
+  cibleSaisie: number;
+  facteurInflation: number;
   ventilSurplus: { celi: number; reer: number; nonEnr: number };
 }
 
@@ -157,24 +161,36 @@ function construireDetailAnnee(
           { libelle: 'Cotisations (épargne)', montant: -c.cotisations },
           { libelle: 'Capital placé (héritage, vente)', montant: -c.capitalPlace },
           { libelle: 'Retenues sur la paie (RRQ/AE/RQAP)', montant: -c.retenues },
-          { libelle: 'Paiement hypothécaire', montant: -c.paiementImmo },
         ]
       : [
           { libelle: 'Impôt', montant: -impotCourant, lien: 'impot' },
           { libelle: 'Retenues sur la paie (RRQ/AE/RQAP)', montant: -c.retenues },
         ];
+  // Le versement hypothécaire est une sortie dans les DEUX phases. Il était auparavant fondu dans
+  // « Dépenses » pendant le décaissement : le même dollar changeait de place selon l'année, et la
+  // colonne dépassait la cible saisie sans explication.
+  sortiesBrut.push({ libelle: 'Paiement hypothécaire', montant: -c.paiementImmo });
 
   const entrees = postesSignificatifs(entreesBrut);
   const sorties = postesSignificatifs(sortiesBrut);
   const revenusNets = sommePostes(entrees) + sommePostes(sorties); // les sorties sont déjà négatives
+  // Train de vie visé, hypothèque exclue : elle vient d'être comptée dans les sorties. La
+  // soustraction (et non le produit des composantes) garantit que revenusNets − depenses redonne
+  // exactement le surplus d'avant ce changement.
+  const depenses = c.cible > 0 ? c.cible - c.paiementImmo : 0;
   // Le surplus (revenus au-delà de la cible, réinvesti) n'a de sens qu'en décaissement.
-  const surplus = phase === 'decaissement' ? Math.max(0, revenusNets - c.cible) : 0;
+  const surplus = phase === 'decaissement' ? Math.max(0, revenusNets - depenses) : 0;
 
   const disponible: DetailDisponible = {
     entrees,
     sorties,
     revenusNets,
-    depenses: c.cible,
+    depenses,
+    detailDepenses: {
+      cibleSaisie: c.cibleSaisie,
+      fractionSurvivant: 1, // pas de phase de survie en mode solo
+      facteurInflation: c.facteurInflation,
+    },
     surplus,
     destinationSurplus: postesSignificatifs([
       { libelle: 'CELI', montant: c.ventilSurplus.celi },
@@ -616,6 +632,8 @@ export function projeter(h: HypothesesProjection, options: { trace?: boolean } =
               heritage: heritageRecu,
               capitalPlace,
               paiementImmo: immo.paiement,
+              cibleSaisie: h.depensesRetraite,
+              facteurInflation,
               retenues: traceRetenues,
               cotisations,
               cible: traceCible,

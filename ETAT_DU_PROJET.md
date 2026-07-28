@@ -142,7 +142,7 @@ Deux conjoints entièrement modélisés (colonnes côte à côte), un ménage à
   est annoncée quand elle change.
 
 ### Qualité / validation
-- **266 cas-tests automatisés** — 197 moteur (fiscalité, cotisations, plafonds CELIAPP/CELI/REER,
+- **278 cas-tests automatisés** — 209 moteur (fiscalité, cotisations, plafonds CELIAPP/CELI/REER,
   fonds de travailleurs, indexation, comptes, projection, décaissement, couple, immobilier dont
   terrain, optimiseur, dépense soutenable) + 69 interface (validations, verdict, fichier, scénarios,
   routage, thème).
@@ -215,7 +215,7 @@ src/
 │   │   ├── couple.ts               # Boucle du ménage (fractionnement, survie)
 │   │   └── projection.ts           # Boucle année par année (cycle de vie)
 │   ├── index.ts                    # API publique du moteur
-│   └── *.test.ts                   # 197 cas-tests (moteur)
+│   └── *.test.ts                   # 209 cas-tests (moteur)
 └── interface/                      # UI React (habillage)
     ├── Champ.tsx                   # Champs de saisie réutilisables
     ├── format.ts                   # Formatage $ / % (fr-CA)
@@ -292,7 +292,7 @@ L'interface est en cours de refonte (« l'Atelier ») — voir [`PLAN_REFONTE_UI
 ```bash
 npm install      # installer les dépendances
 npm run dev      # développement (http://localhost:5173)
-npm test         # les 266 cas-tests
+npm test         # les 278 cas-tests
 npm run build    # version de production (dossier dist/, à héberger)
 npm run preview  # prévisualiser la version de production
 ```
@@ -358,6 +358,36 @@ options d'employé, analyse de sensibilité / Monte Carlo, autres provinces.
 ---
 
 ## 📓 Journal des modifications
+
+### 2026-07-28 — Colonne « Dépenses » : le moteur (lot A)
+**Signalé par l'utilisateur** : « Revenus nets » est cliquable et explique ses chiffres, « Dépenses »
+ne dit rien. En lisant le code, le défaut s'est révélé plus profond qu'un clic manquant — la colonne
+affichait un produit de **quatre facteurs dont trois invisibles** : cible saisie × part du survivant
+× inflation cumulée + versement hypothécaire.
+
+**Décision (entretien)** : l'hypothèque **sort** des dépenses et redevient une ligne de sortie dans
+les deux phases. Elle n'était une sortie qu'en accumulation ; en décaissement elle se fondait dans
+« Dépenses », si bien que le même dollar changeait de place selon l'année et que la colonne dépassait
+la cible saisie. Cela réconcilie aussi le tableau avec la suggestion de dépense livrée le matin même,
+dont le libellé annonce « hors versements hypothécaires ».
+
+**Le calcul ne change pas d'un cent** : seule la trace, qui ne sert qu'à l'affichage, est
+réorganisée. `depenses` vaut exactement `cible − paiementImmo` — la soustraction, et non le produit
+recalculé des composantes, pour garantir l'invariant de somme au bit près.
+
+**Trois découvertes en cours de route :**
+1. **Régression introduite puis attrapée par les tests.** Le couple a **trois** phases, dont
+   `survie`. Écrire `phase === 'decaissement'` mettait les dépenses à zéro sur toute la fin de la
+   projection. Le test porte désormais sur la cible, pas sur la phase.
+2. **Piège JavaScript dans mon propre test** : après le décès `age1` vaut `null`, et `null <= 80`
+   est **vrai**. Mon discriminant englobait donc les années de survie et masquait la régression
+   ci-dessus. Il discrimine maintenant sur `phase === 'survie'`.
+3. **Incohérence laissée en place, documentée** : le champ `revenuDisponible` du moteur porte la
+   même inconsistance de phase que la trace avait. Il ne sert que de repli quand la trace est
+   absente ; le corriger serait un changement de sortie du moteur, hors périmètre. Les deux tests
+   d'invariance existants encodent l'écart explicitement au lieu de l'ignorer.
+
+- **278 cas-tests verts** (+12), typecheck et build OK. Lots B et C (interface) à venir.
 
 ### 2026-07-28 — Dépense de retraite recommandée (lot A : le moteur)
 L'étape « Décaissement » demandait un montant net d'impôt que **l'utilisateur devait deviner**, alors

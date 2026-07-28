@@ -70,8 +70,15 @@ describe('traçabilité (trace)', () => {
       proche(sommePostes(d.valeurNette.comptes) + sommePostes(d.valeurNette.immobilier), a.valeurNette, 2);
       // Surplus : la destination réinvestie somme au surplus.
       proche(sommePostes(d.disponible.destinationSurplus), d.disponible.surplus);
-      // Revenus nets − surplus = revenu disponible affiché.
-      proche(d.disponible.revenusNets - d.disponible.surplus, a.revenuDisponible, 2);
+      // Revenus nets − surplus = revenu disponible, versement hypothécaire REMIS.
+      // Depuis que l'hypothèque est une ligne de sortie dans les deux phases (voir
+      // `PLAN_DETAIL_DEPENSES.md`), `revenusNets` l'exclut alors que `revenuDisponible`, champ
+      // du moteur laissé inchangé, l'inclut encore en décaissement. On rétablit donc le poste
+      // pour comparer les deux, plutôt que d'affaiblir l'assertion.
+      // En ACCUMULATION, `revenuDisponible` excluait déjà l'hypothèque : rien à ajuster.
+      const hypo = -(d.disponible.sorties.find((p) => p.libelle === 'Paiement hypothécaire')?.montant ?? 0);
+      const attendu = a.phase === 'accumulation' ? a.revenuDisponible : a.revenuDisponible - hypo;
+      proche(d.disponible.revenusNets - d.disponible.surplus, attendu, 2);
     }
   });
 

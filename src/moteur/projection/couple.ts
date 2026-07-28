@@ -482,7 +482,13 @@ interface CompMenage {
   retenues: number;
   cotisations: number;
   paiementImmo: number;
+  /** Cible TOTALE à financer = train de vie indexé + paiement hypothécaire. */
   cible: number;
+  /** Cible du ménage telle que saisie, en dollars d'aujourd'hui. */
+  cibleSaisie: number;
+  /** Part conservée par le survivant ; 1 tant que les deux conjoints vivent. */
+  fractionSurvivant: number;
+  facteurInflation: number;
   ventilSurplus: { celi: number; reer: number; nonEnr: number };
 }
 
@@ -522,22 +528,33 @@ function construireDetailCouple(
           { libelle: 'Cotisations (épargne)', montant: -comp.cotisations },
           { libelle: 'Capital placé (héritage, vente)', montant: -comp.capitalPlace },
           { libelle: 'Retenues sur la paie', montant: -comp.retenues },
-          { libelle: 'Paiement hypothécaire', montant: -comp.paiementImmo },
         ]
       : [
           { libelle: 'Impôt du ménage', montant: -impotMenage, lien: 'impot' },
           { libelle: 'Retenues sur la paie', montant: -comp.retenues },
         ];
+  // Sortie dans les DEUX phases : voir la note équivalente dans `projection.ts`.
+  sortiesBrut.push({ libelle: 'Paiement hypothécaire', montant: -comp.paiementImmo });
   const entrees = postesSignificatifs(entreesBrut);
   const sorties = postesSignificatifs(sortiesBrut);
   const revenusNets = sommePostes(entrees) + sommePostes(sorties);
-  const surplus = phase === 'decaissement' ? Math.max(0, revenusNets - comp.cible) : 0;
+  // Hypothèque exclue : elle vient d'être comptée dans les sorties.
+  // Le test porte sur la CIBLE et non sur la phase : le couple en a trois, et la phase « survie »
+  // décaisse elle aussi. Se fier à `phase === 'decaissement'` mettait les dépenses à zéro pendant
+  // toute la survie du conjoint restant.
+  const depenses = comp.cible > 0 ? comp.cible - comp.paiementImmo : 0;
+  const surplus = phase === 'decaissement' ? Math.max(0, revenusNets - depenses) : 0;
 
   const disponible: DetailDisponible = {
     entrees,
     sorties,
     revenusNets,
-    depenses: comp.cible,
+    depenses,
+    detailDepenses: {
+      cibleSaisie: comp.cibleSaisie,
+      fractionSurvivant: comp.fractionSurvivant,
+      facteurInflation: comp.facteurInflation,
+    },
     surplus,
     destinationSurplus: postesSignificatifs([
       { libelle: 'CELI', montant: comp.ventilSurplus.celi },
@@ -737,6 +754,9 @@ export function projeterCouple(h: HypothesesCouple, options: { trace?: boolean }
               cotisations: 0,
               paiementImmo,
               cible,
+              cibleSaisie: h.depensesRetraite,
+              fractionSurvivant: 1,
+              facteurInflation,
               ventilSurplus: traceVentil,
             },
             e1: e1Courant,
@@ -785,6 +805,9 @@ export function projeterCouple(h: HypothesesCouple, options: { trace?: boolean }
               cotisations: cot1.cotisations + cot2.cotisations,
               paiementImmo,
               cible: 0,
+              cibleSaisie: h.depensesRetraite,
+              fractionSurvivant: 1,
+              facteurInflation,
               ventilSurplus: {
                 celi: her1.celi + her2.celi,
                 reer: her1.reer + her2.reer,
@@ -838,6 +861,9 @@ export function projeterCouple(h: HypothesesCouple, options: { trace?: boolean }
               cotisations: cot.cotisations,
               paiementImmo,
               cible: 0,
+              cibleSaisie: h.depensesRetraite,
+              fractionSurvivant: h.fractionSurvivant,
+              facteurInflation,
               ventilSurplus: { celi: 0, reer: 0, nonEnr: 0 },
             },
             e1: idVivant === 1 ? e : null,
@@ -895,6 +921,9 @@ export function projeterCouple(h: HypothesesCouple, options: { trace?: boolean }
               cotisations: 0,
               paiementImmo,
               cible,
+              cibleSaisie: h.depensesRetraite,
+              fractionSurvivant: h.fractionSurvivant,
+              facteurInflation,
               ventilSurplus: traceVentil,
             },
             e1: idVivant === 1 ? entreeCourante : null,

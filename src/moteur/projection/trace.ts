@@ -22,6 +22,26 @@ export interface Poste {
   readonly lien?: LienDetail;
 }
 
+/**
+ * D'où vient le montant de « Dépenses ».
+ *
+ * La colonne affichait un produit de facteurs invisibles : le nombre grossissait chaque année
+ * (inflation), chutait d'un tiers au premier décès (part du survivant) et dépassait la cible
+ * saisie (versement hypothécaire ajouté par-dessus). Ces composantes existent pour que l'interface
+ * puisse montrer la chaîne au lieu du seul résultat.
+ *
+ * Le versement hypothécaire n'y figure pas : il est désormais une **ligne de sortie** dans les deux
+ * phases, au lieu d'être fondu ici en décaissement seulement. Voir `PLAN_DETAIL_DEPENSES.md`.
+ */
+export interface DetailDepenses {
+  /** Cible annuelle telle que saisie, en dollars d'aujourd'hui. */
+  readonly cibleSaisie: number;
+  /** Part conservée par le survivant ; vaut 1 hors phase de survie. */
+  readonly fractionSurvivant: number;
+  /** Inflation cumulée depuis l'année de départ. */
+  readonly facteurInflation: number;
+}
+
 /** Décomposition du revenu disponible d'une année. */
 export interface DetailDisponible {
   /** Entrées de liquidités (revenus, retraits, loyers, ventes). */
@@ -30,8 +50,14 @@ export interface DetailDisponible {
   readonly sorties: readonly Poste[];
   /** Revenus nets = Σ entrées − Σ sorties. */
   readonly revenusNets: number;
-  /** Cible de dépenses de l'année (0 en accumulation). */
+  /**
+   * Train de vie visé de l'année, **hors versement hypothécaire** (0 en accumulation).
+   * Vaut exactement `cible − paiementImmo` : c'est la soustraction, et non le produit recalculé
+   * des composantes, qui garantit l'invariant de somme au bit près.
+   */
   readonly depenses: number;
+  /** D'où vient ce montant. */
+  readonly detailDepenses: DetailDepenses;
   /** Surplus = revenus nets − dépenses (≥ 0 ; 0 s'il n'y a pas de surplus). */
   readonly surplus: number;
   /** Destination du surplus réinvesti (CELI / REER / non-enregistré). */
