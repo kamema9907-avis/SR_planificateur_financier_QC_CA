@@ -170,10 +170,11 @@ export function BlocVentes({
   return (
     <>
       {d.ventes.map((v: DetailVente, i) => {
-        const etapes: Poste[] = [
-          { libelle: 'Valeur au moment de la vente', montant: v.valeurVente },
-          { libelle: 'Solde hypothécaire remboursé', montant: -v.soldeRembourse },
-        ];
+        const etapes: Poste[] = [{ libelle: 'Valeur au moment de la vente', montant: v.valeurVente }];
+        // Un bien sans hypothèque n'a rien à rembourser : afficher « − 0 $ » serait du bruit.
+        if (v.soldeRembourse > 0.5) {
+          etapes.push({ libelle: 'Solde hypothécaire remboursé', montant: -v.soldeRembourse });
+        }
         return (
           <div key={i} className={i > 0 ? 'mt-6 border-t border-filet pt-4' : ''}>
             <p className="mb-2 text-sm font-semibold text-corps">{v.nom}</p>

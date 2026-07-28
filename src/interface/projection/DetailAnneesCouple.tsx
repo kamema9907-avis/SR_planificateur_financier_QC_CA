@@ -29,15 +29,47 @@ const COLS_REVENUS: Colonne[] = [
   { titre: 'Surplus →', v: (a) => a.detail?.disponible.surplus ?? null, agregat: 'disponible' },
 ];
 
-function Badges({ a, anneeEpuisement }: { a: AnneeCouple; anneeEpuisement: number | null }) {
-  const badges: { e: string; t: string }[] = [];
+/**
+ * Événements marquants d'une année. Le badge de vente **manquait** au tableau du ménage : une vente
+ * n'y était pas même signalée. Il est ici, et cliquable — c'est le seul repère qui la rende
+ * trouvable en balayant la colonne des âges.
+ */
+function Badges({ a, anneeEpuisement, onVente }: {
+  a: AnneeCouple;
+  anneeEpuisement: number | null;
+  onVente: () => void;
+}) {
+  const badges: { e: string; t: string; onClic?: () => void }[] = [];
   if (a.phase === 'survie') badges.push({ e: '🕊️', t: 'Phase de survie (un seul conjoint)' });
+  if (a.detail && a.detail.disponible.ventes.length > 0) {
+    const noms = a.detail.disponible.ventes.map((v) => v.nom).join(', ');
+    badges.push({ e: '🏠', t: `Vente : ${noms} — voir le détail`, onClic: onVente });
+  }
   const heritage = a.detail?.disponible.entrees.find((p) => p.libelle.startsWith('Héritage') && p.montant > 0.5);
   if (heritage) badges.push({ e: '🎁', t: 'Héritage reçu (non imposable)' });
   if (a.detail && a.detail.disponible.surplus > 0.5) badges.push({ e: '💰', t: 'Surplus réinvesti' });
   if (anneeEpuisement != null && a.annee === anneeEpuisement) badges.push({ e: '⚠️', t: 'Capital épuisé' });
   if (badges.length === 0) return null;
-  return <span className="ml-1 inline-flex gap-0.5">{badges.map((b, i) => <span key={i} title={b.t} className="text-xs">{b.e}</span>)}</span>;
+  return (
+    <span className="ml-1 inline-flex gap-0.5">
+      {badges.map((b, i) =>
+        b.onClic ? (
+          <button
+            key={i}
+            type="button"
+            onClick={b.onClic}
+            aria-label={b.t}
+            title={b.t}
+            className="rounded text-xs transition hover:scale-125 focus-visible:ring-2 focus-visible:ring-marque focus-visible:outline-none"
+          >
+            {b.e}
+          </button>
+        ) : (
+          <span key={i} title={b.t} className="text-xs">{b.e}</span>
+        ),
+      )}
+    </span>
+  );
 }
 
 function Cellule({ a, col, reel, onOuvrir }: { a: AnneeCouple; col: Colonne; reel: boolean; onOuvrir: (v: VueDrawerCouple) => void }) {
@@ -77,7 +109,7 @@ function Tableau({ annees, colonnes, reel, anneeEpuisement, onOuvrir }: {
             <tr key={a.annee} className={a.phase !== 'accumulation' ? 'bg-marque-fond/30' : ''}>
               <td className="px-3 py-1.5 text-left whitespace-nowrap text-corps">
                 {`${a.age1 ?? '—'} / ${a.age2 ?? '—'}`}
-                <Badges a={a} anneeEpuisement={anneeEpuisement} />
+                <Badges a={a} anneeEpuisement={anneeEpuisement} onVente={() => onOuvrir({ agregat: 'vente', annee: a })} />
               </td>
               {colonnes.map((c) => (
                 <td key={c.titre} className="px-3 py-1.5 text-right whitespace-nowrap">

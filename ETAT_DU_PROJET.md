@@ -409,7 +409,25 @@ ligne de déclaration. Cas couverts : résidence exemptée, downsizing partiel, 
 héritage la même année.
 
 Contraste WCAG AA tiroir ouvert : 0 échec dans les deux thèmes. Aucun débordement à 390 px.
-Reste le lot C (couple).
+
+**Lot C — le couple et les cas particuliers.** Le tableau du ménage n'avait **aucun badge de vente** :
+l'événement n'y était pas même signalé. Il est là, cliquable, comme en solo.
+
+Les quatre cas particuliers vérifiés à l'écran, chiffres additionnés à la main :
+
+| Cas | Ce que le tiroir montre |
+|---|---|
+| Couple | 356 910 − 79 645 = 277 265 ; −64 132 d'impôt = 213 133 placés, ventilation exacte |
+| Résidence exemptée | aucune ligne d'impôt, phrase explicite sur le gain non imposable |
+| Downsizing 60 % | équité 277 265, puis « vente partielle de 60 % » → produit 166 359 |
+| Deux ventes | deux blocs, impôt réparti 32 710 / 7 896 au prorata du gain |
+| Vente + héritage | la ventilation cède la place à la phrase d'avertissement |
+
+Détail corrigé en vérifiant : un bien sans hypothèque affichait « Solde hypothécaire remboursé
+− 0 $ ». La ligne est désormais omise.
+
+Contraste WCAG AA : 0 échec sur sept vues, dans les deux thèmes. Aucun débordement aux trois
+largeurs. **La fonctionnalité est complète** (lots A, B, C).
 
 ### 2026-07-28 — Colonne « Dépenses » : le moteur (lot A)
 **Signalé par l'utilisateur** : « Revenus nets » est cliquable et explique ses chiffres, « Dépenses »
