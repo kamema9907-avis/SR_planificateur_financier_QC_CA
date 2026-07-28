@@ -101,9 +101,10 @@ Projette le patrimoine et l'impôt **année par année**, de l'âge actuel jusqu
 - **Phase d'accumulation** (épargne + croissance) puis **décaissement** : un solveur retire dans l'ordre
   choisi pour financer une cible de dépenses **nette d'impôt**.
 - **Impôt au décès** (dispositions présumées des comptes enregistrés + gains latents).
-- **Dépense de retraite recommandée** : sous le champ « Décaissement », l'outil affiche le montant
-  maximal que le capital finance jusqu'au décès, et en recommande 85 % par prudence. Un bouton le
-  reporte dans le champ ; rien n'est jamais écrit sans un clic.
+- **Dépense de retraite recommandée** (solo **et** ménage) : sous le champ de dépenses, l'outil
+  affiche le montant maximal que le capital finance jusqu'au décès et en recommande 85 % par
+  prudence. Un bouton le reporte dans le champ ; rien n'est jamais écrit sans un clic. La part
+  consommée se règle en mode Avancé.
 - Sorties : **graphique** du patrimoine, **tableau** annuel, indicateurs clés (« le capital dure jusqu'à
   X ans », valeur nette au décès, **impôt total sur la vie**), interrupteur nominal/réel.
 
@@ -239,6 +240,7 @@ src/
         ├── PanneauScenarios.tsx    # Tableau comparatif des scénarios
         ├── SectionHeritage.tsx     # Saisie des héritages attendus
         ├── SuggestionDepense.tsx   # Dépense soutenable suggérée sous le champ de décaissement
+        ├── partConsommee.tsx       # Part du maximum consommée (contexte + réglage Avancé)
         └── …                       # Graphiques, tableaux, drill-down, optimiseur
 ```
 
@@ -412,7 +414,25 @@ retombait sur `bg-white/80` — et le `dist/` datait d'avant le nouveau composan
 correct. Leçon : vérifier le thème sur `vite preview` plutôt que sur un serveur de développement
 resté ouvert des heures.
 
-Lots C (couple, réglage de la part consommée) et D (mention du patrimoine immobilisé) à venir.
+**Lot C — le ménage et le réglage.** La suggestion est branchée sur l'étape « Dépenses du ménage »
+avec le même composant, écrit générique au lot B : aucune ligne d'affichage n'a été réécrite. Le
+maximum du ménage mesuré à l'écran (95 700 $) correspond exactement au test moteur.
+
+La **part consommée** vit dans son propre contexte et sa propre clé de stockage, **hors des
+hypothèses** : le moteur ne s'en sert jamais, elle ne change aucun calcul de projection. C'est une
+convention d'affichage, au même titre que le thème. Un contexte plutôt qu'un état local parce que le
+curseur et la suggestion sont dans deux composants distincts : deux `useState` séparés ne se
+verraient pas, et bouger le réglage ne changerait le montant qu'au prochain rechargement.
+
+Vérifié : le réglage à 95 % fait passer la recommandation de 81 300 $ à 90 900 $ **immédiatement**,
+et survit au rechargement. Contraste WCAG AA : 0 échec dans les deux thèmes ; aucun débordement à
+390, 768 et 1600 px.
+
+*Choix assumé* : la part consommée n'est **pas** incluse dans le fichier d'export. C'est une
+préférence d'affichage au défaut sûr (85 %), pas une donnée financière — l'ajouter reste une ligne
+si l'usage montre le contraire.
+
+Reste le lot D (mention du patrimoine immobilisé).
 
 ### 2026-07-27 — Lot 5 (2/2) : mode sombre, par jetons sémantiques
 Le chantier n'était pas « ajouter des couleurs foncées » mais **retirer les couleurs des composants**.

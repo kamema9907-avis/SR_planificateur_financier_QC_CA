@@ -6,6 +6,7 @@ import { BoutonsDossier } from './interface/ui/BoutonsDossier';
 import { IconeCadenas, IconeCourbe } from './interface/ui/icones';
 import { BoutonImprimer, ImpressionProvider } from './interface/ui/Impression';
 import { ModeDetailProvider } from './interface/ui/ModeDetail';
+import { PartConsommeeProvider } from './interface/projection/partConsommee';
 
 const ONGLETS: { id: Onglet; label: string; sous: string }[] = [
   { id: 'impot', label: 'Impôt', sous: '1 année' },
@@ -18,6 +19,7 @@ export function App() {
 
   return (
     <ModeDetailProvider>
+    <PartConsommeeProvider>
     <ImpressionProvider>
     <div className="min-h-screen">
       <header className="border-b border-bordure/70 bg-carte/60 backdrop-blur-md">
@@ -83,6 +85,7 @@ export function App() {
       </main>
     </div>
     </ImpressionProvider>
+    </PartConsommeeProvider>
     </ModeDetailProvider>
   );
 }

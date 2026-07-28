@@ -12,8 +12,9 @@
  * Générique sur les hypothèses : le mode couple s'en sert avec `projeterCouple`.
  */
 import { useMemo } from 'react';
-import { depenseMaximale, depenseRecommandee, FRACTION_CONSOMMEE_DEFAUT } from '../../moteur';
+import { depenseMaximale, depenseRecommandee } from '../../moteur';
 import { formatDollars } from '../format';
+import { usePartConsommee } from './partConsommee';
 
 interface Props<H> {
   /** Hypothèses complètes ; la dépense courante y figure mais n'influe pas sur le calcul. */
@@ -22,8 +23,6 @@ interface Props<H> {
   evaluer: (h: H) => { suffisant: boolean };
   /** Y a-t-il du capital, une rente ou un revenu ? Sinon il n'y a rien à suggérer. */
   aDesRessources: boolean;
-  /** Part du maximum qu'on accepte de consommer. Réglable en mode Avancé (lot C). */
-  fraction?: number;
   onUtiliser: (montant: number) => void;
 }
 
@@ -32,9 +31,11 @@ export function SuggestionDepense<H>({
   poserDepense,
   evaluer,
   aDesRessources,
-  fraction = FRACTION_CONSOMMEE_DEFAUT,
   onUtiliser,
 }: Props<H>) {
+  // Réglable en mode Avancé ; partagée par contexte pour que le curseur et la suggestion
+  // s'accordent immédiatement.
+  const { part: fraction } = usePartConsommee();
   /**
    * Clé de mémoïsation **excluant la dépense courante**.
    *

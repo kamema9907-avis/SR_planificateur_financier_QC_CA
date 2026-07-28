@@ -8,13 +8,14 @@
  * Chaque étape porte UNE phrase de description ; le détail va derrière le bouton « ? » (`aide`).
  */
 import type { ReactNode } from 'react';
-import { projeter, type HypothesesCouple, type HypothesesProjection, type Immeuble, type PersonneProjection } from '../../moteur';
+import { projeter, projeterCouple, type HypothesesCouple, type HypothesesProjection, type Immeuble, type PersonneProjection } from '../../moteur';
 import { ChampMonetaire, ChampNombre, ChampPourcent, ChampSelect, Interrupteur } from '../Champ';
 import { Avance } from '../ui/ModeDetail';
 import type { Etape, Groupe } from '../atelier/types';
 import type { ChampsPersonne, PatchPersonne } from './champsPersonne';
 import { EditeurComptes } from './EditeurComptes';
 import { SectionHeritage } from './SectionHeritage';
+import { ChampPartConsommee } from './partConsommee';
 import { SuggestionDepense } from './SuggestionDepense';
 import { SectionImmobilier } from './SectionImmobilier';
 import { SectionRentesEmployeur } from './SectionRentesEmployeur';
@@ -44,6 +45,10 @@ const aDesRessources = (p: ChampsPersonne) =>
 
 /** Pose une dépense de retraite dans des hypothèses, sans toucher au reste. */
 const poserDepenseSolo = (h: HypothesesProjection, montant: number) => ({
+  ...h,
+  depensesRetraite: montant,
+});
+const poserDepenseCouple = (h: HypothesesCouple, montant: number) => ({
   ...h,
   depensesRetraite: montant,
 });
@@ -323,6 +328,7 @@ export function groupeSolo(h: HypothesesProjection, onChange: (h: HypothesesProj
               onChange={(v) => maj('fraisGestion', v)}
               indice="Réduisent le rendement"
             />
+            <ChampPartConsommee />
           </Avance>
         </div>
       ),
@@ -408,12 +414,21 @@ export function groupeMenage(h: HypothesesCouple, onChange: (h: HypothesesCouple
       rempli: h.depensesRetraite > 0,
       contenu: (
         <div className="grid gap-4 sm:grid-cols-2">
-          <ChampMonetaire
-            label="Dépenses du ménage"
-            valeur={h.depensesRetraite}
-            onChange={(v) => onChange({ ...h, depensesRetraite: v })}
-            indice="Net d'impôt, en $ d'aujourd'hui"
-          />
+          <div>
+            <ChampMonetaire
+              label="Dépenses du ménage"
+              valeur={h.depensesRetraite}
+              onChange={(v) => onChange({ ...h, depensesRetraite: v })}
+              indice="Net d'impôt, en $ d'aujourd'hui"
+            />
+            <SuggestionDepense
+              hypotheses={h}
+              poserDepense={poserDepenseCouple}
+              evaluer={projeterCouple}
+              aDesRessources={aDesRessources(h.personne1) || aDesRessources(h.personne2)}
+              onUtiliser={(v) => onChange({ ...h, depensesRetraite: v })}
+            />
+          </div>
           <ChampPourcent
             label="Dépenses du survivant"
             valeur={h.fractionSurvivant}
@@ -434,6 +449,7 @@ export function groupeMenage(h: HypothesesCouple, onChange: (h: HypothesesCouple
               onChange={(v) => onChange({ ...h, fraisGestion: v })}
               indice="Réduisent le rendement"
             />
+            <ChampPartConsommee />
           </Avance>
         </div>
       ),
