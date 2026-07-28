@@ -142,7 +142,7 @@ Deux conjoints entièrement modélisés (colonnes côte à côte), un ménage à
   est annoncée quand elle change.
 
 ### Qualité / validation
-- **278 cas-tests automatisés** — 209 moteur (fiscalité, cotisations, plafonds CELIAPP/CELI/REER,
+- **279 cas-tests automatisés** — 210 moteur (fiscalité, cotisations, plafonds CELIAPP/CELI/REER,
   fonds de travailleurs, indexation, comptes, projection, décaissement, couple, immobilier dont
   terrain, optimiseur, dépense soutenable) + 69 interface (validations, verdict, fichier, scénarios,
   routage, thème).
@@ -215,7 +215,7 @@ src/
 │   │   ├── couple.ts               # Boucle du ménage (fractionnement, survie)
 │   │   └── projection.ts           # Boucle année par année (cycle de vie)
 │   ├── index.ts                    # API publique du moteur
-│   └── *.test.ts                   # 209 cas-tests (moteur)
+│   └── *.test.ts                   # 210 cas-tests (moteur)
 └── interface/                      # UI React (habillage)
     ├── Champ.tsx                   # Champs de saisie réutilisables
     ├── format.ts                   # Formatage $ / % (fr-CA)
@@ -292,7 +292,7 @@ L'interface est en cours de refonte (« l'Atelier ») — voir [`PLAN_REFONTE_UI
 ```bash
 npm install      # installer les dépendances
 npm run dev      # développement (http://localhost:5173)
-npm test         # les 278 cas-tests
+npm test         # les 279 cas-tests
 npm run build    # version de production (dossier dist/, à héberger)
 npm run preview  # prévisualiser la version de production
 ```
@@ -405,7 +405,21 @@ Détail corrigé en vérifiant : `toFixed` affichait « × 1.79 » avec un point
 une virgule.
 
 Contraste WCAG AA tiroir ouvert : 0 échec dans les deux thèmes. Aucun débordement à 390 px.
-Reste le lot C (couple).
+
+**Lot C — le couple, et un défaut antérieur corrigé au passage.** Le tiroir s'ouvre aussi depuis le
+tableau du ménage, avec la ligne qui manquait le plus : « Part conservée par le survivant (67 %),
+−19 800 $ ». C'est la chute d'un tiers au premier décès, désormais nommée. Vérifié à l'écran :
+60 000 − 19 800 = 40 200 $.
+
+**Le surplus muet du survivant.** Pendant la phase de survie, le surplus affiché valait 0 alors que
+la ventilation du réinvestissement était renseignée : le tiroir montrait « réinvesti dans CELI
+7 075 $, non-enregistré 34 836 $ » sous un surplus de 0 $. Même cause que la régression du lot A —
+une condition portant sur la phase au lieu de la cible. Le surplus affiche maintenant 41 911 $, et
+la ventilation y somme exactement. Un test l'empêche de revenir, avec une garde contre le passage
+« à vide » si le scénario ne dégageait aucun surplus.
+
+**279 cas-tests verts**, contraste 0 échec dans les deux thèmes (tiroirs ouverts, solo et couple),
+aucun débordement aux trois largeurs. La fonctionnalité est complète (lots A, B, C).
 
 ### 2026-07-28 — Dépense de retraite recommandée (lot A : le moteur)
 L'étape « Décaissement » demandait un montant net d'impôt que **l'utilisateur devait deviner**, alors

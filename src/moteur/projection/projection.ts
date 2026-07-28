@@ -178,8 +178,9 @@ function construireDetailAnnee(
   // soustraction (et non le produit des composantes) garantit que revenusNets − depenses redonne
   // exactement le surplus d'avant ce changement.
   const depenses = c.cible > 0 ? c.cible - c.paiementImmo : 0;
-  // Le surplus (revenus au-delà de la cible, réinvesti) n'a de sens qu'en décaissement.
-  const surplus = phase === 'decaissement' ? Math.max(0, revenusNets - depenses) : 0;
+  // Le surplus (revenus au-delà de la cible, réinvesti) n'a de sens qu'en décaissement — repéré
+  // par une cible non nulle, pour rester symétrique du calcul de `depenses` ci-dessus.
+  const surplus = c.cible > 0 ? Math.max(0, revenusNets - depenses) : 0;
 
   const disponible: DetailDisponible = {
     entrees,

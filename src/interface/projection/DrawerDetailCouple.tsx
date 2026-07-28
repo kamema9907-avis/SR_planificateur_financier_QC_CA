@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import type { AnneeCouple, DetailFractionnement } from '../../moteur';
-import { BlocDisponible, BlocImpotFiscal, BlocValeurNette, LigneTotal } from './detailBriques';
+import { BlocDepenses, BlocDisponible, BlocImpotFiscal, BlocValeurNette, LigneTotal } from './detailBriques';
 import { formatDollars } from '../format';
 
 /** Agrégat décomposable au clic (couple). */
-export type AgregatCouple = 'disponible' | 'impot' | 'fractionnement' | 'valeurNette';
+export type AgregatCouple = 'disponible' | 'impot' | 'fractionnement' | 'valeurNette' | 'depenses';
 
 export interface VueDrawerCouple {
   agregat: AgregatCouple;
@@ -16,6 +16,7 @@ const TITRES: Record<AgregatCouple, string> = {
   impot: 'Impôt du ménage',
   fractionnement: 'Fractionnement',
   valeurNette: 'Valeur nette',
+  depenses: 'Dépenses du ménage',
 };
 
 /** Détail du fractionnement du revenu de pension : transfert, impôt avec/sans, économie. */
@@ -108,6 +109,9 @@ export function DrawerDetailCouple({ vue, reel, onClose }: { vue: VueDrawerCoupl
           )}
           {courante.agregat === 'fractionnement' && <BlocFractionnement fr={d.fractionnement} facteur={facteur} />}
           {courante.agregat === 'valeurNette' && <BlocValeurNette v={d.valeurNette} total={courante.annee.valeurNette} facteur={facteur} />}
+          {courante.agregat === 'depenses' && (
+            <BlocDepenses d={d.disponible} facteur={facteur} reel={reel} onRevenusNets={() => pousser('disponible')} />
+          )}
         </div>
       </div>
     </div>

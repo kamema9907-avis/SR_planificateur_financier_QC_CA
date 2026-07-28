@@ -97,7 +97,7 @@ colonne rendue cliquable. À faire **deux fois** : `DetailAnnees` / `DrawerDetai
 |---|---|---|
 | **A** | ✅ Décomposition dans la trace + hypothèque déplacée | 12 nouveaux cas-tests |
 | **B** | ✅ Tiroir et colonne cliquable, solo | captures aux deux thèmes, audit de contraste |
-| **C** | Idem couple, avec la ligne du survivant | dossier d'essai franchissant le premier décès |
+| **C** | ✅ Idem couple, ligne du survivant, surplus de survie | dossier franchissant le premier décès |
 
 ---
 
@@ -119,9 +119,11 @@ la trace est absente, et les tableaux tournent toujours avec la trace : le corri
 changement de sortie du moteur, hors du périmètre convenu. Les deux tests d'invariance existants
 encodent explicitement l'écart plutôt que de l'ignorer.
 
-**Point à trancher pour la suite** : pendant la phase de survie, le surplus affiché vaut toujours 0
-alors que la ventilation du réinvestissement, elle, est renseignée. Antérieur à ce correctif, hors
-périmètre, mais visible dans le tiroir.
+**Le surplus muet du survivant, corrigé au lot C.** Pendant la phase de survie, le surplus affiché
+valait 0 alors que la ventilation du réinvestissement était renseignée : le tiroir montrait
+« réinvesti dans CELI 7 075 $, non-enregistré 34 836 $ » sous un surplus nul. Même cause que la
+régression ci-dessus — une condition sur la phase au lieu de la cible. Antérieur à ce correctif, il
+a été traité ici sur demande.
 
 ## Points tranchés sans vous consulter
 

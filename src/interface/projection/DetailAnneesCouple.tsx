@@ -25,7 +25,7 @@ interface Colonne {
 
 const COLS_REVENUS: Colonne[] = [
   { titre: 'Revenus nets', v: (a) => a.detail?.disponible.revenusNets ?? a.revenuDisponible, agregat: 'disponible', accent: true },
-  { titre: 'Dépenses', v: (a) => a.detail?.disponible.depenses ?? null },
+  { titre: 'Dépenses', v: (a) => a.detail?.disponible.depenses ?? null, agregat: 'depenses' },
   { titre: 'Surplus →', v: (a) => a.detail?.disponible.surplus ?? null, agregat: 'disponible' },
 ];
 

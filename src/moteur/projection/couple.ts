@@ -543,7 +543,10 @@ function construireDetailCouple(
   // décaisse elle aussi. Se fier à `phase === 'decaissement'` mettait les dépenses à zéro pendant
   // toute la survie du conjoint restant.
   const depenses = comp.cible > 0 ? comp.cible - comp.paiementImmo : 0;
-  const surplus = phase === 'decaissement' ? Math.max(0, revenusNets - depenses) : 0;
+  // Même raisonnement que pour `depenses` : la phase « survie » décaisse elle aussi, et le
+  // survivant peut dégager un surplus réinvesti. Se fier à `phase === 'decaissement'` affichait un
+  // surplus nul alors que la ventilation du réinvestissement, elle, était renseignée.
+  const surplus = comp.cible > 0 ? Math.max(0, revenusNets - depenses) : 0;
 
   const disponible: DetailDisponible = {
     entrees,

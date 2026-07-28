@@ -187,6 +187,35 @@ describe('les dépenses se reconstituent depuis leurs composantes', () => {
   });
 });
 
+describe('le surplus du survivant', () => {
+  it('n’est plus muet : la ventilation du réinvestissement somme au surplus affiché', () => {
+    // Défaut antérieur au correctif : pendant la phase de survie, le surplus affiché valait 0
+    // alors que la destination du réinvestissement, elle, était renseignée. Le tiroir montrait
+    // donc « réinvesti dans… » sous un surplus nul.
+    const h: HypothesesCouple = {
+      ...couple(),
+      // Rentes généreuses et train de vie modeste : le survivant dégage un surplus.
+      personne1: { ...conjoint('A', 'H', 78), rrqA65: 20_000, svA65: 9_000 },
+      personne2: { ...conjoint('B', 'F', 95), rrqA65: 20_000, svA65: 9_000 },
+      depensesRetraite: 30_000,
+      immeubles: [],
+    };
+    const r = projeterCouple(h, { trace: true });
+    const survie = r.annees.filter((a) => a.phase === 'survie' && a.detail!.disponible.depenses > 0);
+    expect(survie.length).toBeGreaterThan(0);
+
+    let avecSurplus = 0;
+    for (const a of survie) {
+      const d = a.detail!.disponible;
+      const ventile = somme(d.destinationSurplus);
+      expect(ventile).toBeCloseTo(d.surplus, 0);
+      if (d.surplus > 0.5) avecSurplus += 1;
+    }
+    // Sans cette garde, le test passerait À VIDE si le scénario ne dégageait aucun surplus.
+    expect(avecSurplus).toBeGreaterThan(0);
+  });
+});
+
 describe('accumulation', () => {
   it('les dépenses y sont nulles : la cible ne commence qu’à la retraite', () => {
     const r = projeter(solo(), { trace: true });
