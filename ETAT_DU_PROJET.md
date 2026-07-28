@@ -392,7 +392,24 @@ même bloc.
    `npm run build` exécute `tsc -b`, lancé après chaque changement — mais la bonne commande est
    `npm run typecheck`, qui existait déjà dans `package.json`.
 
-- **291 cas-tests verts** (+12), build OK. Lots B et C (interface) à venir.
+- **291 cas-tests verts** (+12), build OK.
+
+**Lot B — le tiroir de vente, côté solo.** Deux points d'entrée, parce qu'ils répondent à deux
+besoins : le **badge 🏠 devient un bouton** (seul repère qui rende une vente trouvable en balayant le
+tableau) et la ligne « Produit de vente » du tiroir devient cliquable. Le mécanisme de lien des
+postes, jusque-là câblé sur le seul cas « impôt », est devenu générique.
+
+La chaîne se vérifie de bout en bout à l'écran : 356 910 − 79 645 = **277 265 $** de produit, moins
+23 435 $ d'impôt supporté = **253 830 $** placés, qui somment exactement à la ventilation
+CELI 51 825 + REER 87 207 + non-enregistré 114 798. **Le solde hypothécaire remboursé est enfin une
+ligne**, au lieu d'être soustrait en silence.
+
+Le tiroir dit aussi, en toutes lettres, que l'impôt affiché est une attribution du modèle et non une
+ligne de déclaration. Cas couverts : résidence exemptée, downsizing partiel, ventes multiples,
+héritage la même année.
+
+Contraste WCAG AA tiroir ouvert : 0 échec dans les deux thèmes. Aucun débordement à 390 px.
+Reste le lot C (couple).
 
 ### 2026-07-28 — Colonne « Dépenses » : le moteur (lot A)
 **Signalé par l'utilisateur** : « Revenus nets » est cliquable et explique ses chiffres, « Dépenses »

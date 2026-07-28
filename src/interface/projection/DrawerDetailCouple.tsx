@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import type { AnneeCouple, DetailFractionnement } from '../../moteur';
-import { BlocDepenses, BlocDisponible, BlocImpotFiscal, BlocValeurNette, LigneTotal } from './detailBriques';
+import { BlocDepenses, BlocDisponible, BlocImpotFiscal, BlocValeurNette, BlocVentes, LigneTotal } from './detailBriques';
 import { formatDollars } from '../format';
 
 /** Agrégat décomposable au clic (couple). */
-export type AgregatCouple = 'disponible' | 'impot' | 'fractionnement' | 'valeurNette' | 'depenses';
+export type AgregatCouple = 'disponible' | 'impot' | 'fractionnement' | 'valeurNette' | 'depenses' | 'vente';
 
 export interface VueDrawerCouple {
   agregat: AgregatCouple;
@@ -17,6 +17,7 @@ const TITRES: Record<AgregatCouple, string> = {
   fractionnement: 'Fractionnement',
   valeurNette: 'Valeur nette',
   depenses: 'Dépenses du ménage',
+  vente: 'Vente immobilière',
 };
 
 /** Détail du fractionnement du revenu de pension : transfert, impôt avec/sans, économie. */
@@ -92,7 +93,7 @@ export function DrawerDetailCouple({ vue, reel, onClose }: { vue: VueDrawerCoupl
         </div>
 
         <div className="flex-1 overflow-auto p-4">
-          {courante.agregat === 'disponible' && <BlocDisponible d={d.disponible} facteur={facteur} onImpot={() => pousser('impot')} />}
+          {courante.agregat === 'disponible' && <BlocDisponible d={d.disponible} facteur={facteur} onLien={pousser} />}
           {courante.agregat === 'impot' && (
             <>
               {d.impot1 && <BlocImpotFiscal t={d.impot1} facteur={facteur} titre={d.nom1} />}
@@ -109,6 +110,14 @@ export function DrawerDetailCouple({ vue, reel, onClose }: { vue: VueDrawerCoupl
           )}
           {courante.agregat === 'fractionnement' && <BlocFractionnement fr={d.fractionnement} facteur={facteur} />}
           {courante.agregat === 'valeurNette' && <BlocValeurNette v={d.valeurNette} total={courante.annee.valeurNette} facteur={facteur} />}
+          {courante.agregat === 'vente' && (
+            <BlocVentes
+              d={d.disponible}
+              facteur={facteur}
+              accumulation={courante.annee.phase === 'accumulation'}
+              onImpot={() => pousser('impot')}
+            />
+          )}
           {courante.agregat === 'depenses' && (
             <BlocDepenses d={d.disponible} facteur={facteur} reel={reel} onRevenusNets={() => pousser('disponible')} />
           )}

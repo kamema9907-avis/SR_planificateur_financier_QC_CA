@@ -1,5 +1,5 @@
 /** Briques d'affichage partagées par les drawers de drill-down (solo et couple). */
-import type { DetailDisponible, DetailImpotAnnee, DetailValeurNette, Poste } from '../../moteur';
+import type { DetailDisponible, DetailImpotAnnee, DetailValeurNette, DetailVente, LienDetail, Poste } from '../../moteur';
 import { formatDollars, formatPourcent } from '../format';
 
 /** Une ligne « poste » (montant signé) ; cliquable si le poste porte un lien de drill-down. */
@@ -25,15 +25,30 @@ export function LignePoste({ poste, facteur, onLien }: { poste: Poste; facteur: 
   );
 }
 
-/** Une section titrée (liste de postes). */
-export function Section({ titre, postes, facteur, onLienImpot }: { titre: string; postes: readonly Poste[]; facteur: number; onLienImpot?: () => void }) {
+/**
+ * Une section titrée (liste de postes).
+ *
+ * `onLien` reçoit le TYPE de lien du poste, au lieu du seul cas « impôt » codé en dur : c'est ce qui
+ * permet au produit de vente d'ouvrir sa propre décomposition.
+ */
+export function Section({ titre, postes, facteur, onLien }: {
+  titre: string;
+  postes: readonly Poste[];
+  facteur: number;
+  onLien?: (lien: LienDetail) => void;
+}) {
   if (postes.length === 0) return null;
   return (
     <div className="mb-4">
       <p className="mb-1 text-xs font-semibold tracking-wide text-doux uppercase">{titre}</p>
       <div className="divide-y divide-filet">
         {postes.map((p, i) => (
-          <LignePoste key={i} poste={p} facteur={facteur} onLien={p.lien === 'impot' ? onLienImpot : undefined} />
+          <LignePoste
+            key={i}
+            poste={p}
+            facteur={facteur}
+            onLien={p.lien && onLien ? () => onLien(p.lien!) : undefined}
+          />
         ))}
       </div>
     </div>
@@ -126,12 +141,119 @@ export function BlocDepenses({
   );
 }
 
-/** Cascade du revenu disponible : entrées − sorties = nets, puis dépenses / surplus / destination. */
-export function BlocDisponible({ d, facteur, onImpot }: { d: DetailDisponible; facteur: number; onImpot: () => void }) {
+/**
+ * Anatomie d'une vente immobilière.
+ *
+ * Le produit était un nombre sans origine, et le remboursement de l'hypothèque restait **implicite**
+ * : soustrait à l'intérieur du calcul, il n'apparaissait jamais. On ne pouvait que le déduire de la
+ * disparition du versement et de la chute de l'équité à zéro.
+ *
+ * La chaîne somme exactement, et sa dernière ligne correspond au capital réellement investi.
+ * L'impôt affiché est celui **réellement supporté** : la provision retenue à la vente, moins ce
+ * qu'une déduction REER a pu absorber. C'est une convention d'attribution — l'impôt porte sur le
+ * revenu total de l'année, il n'existe pas d'impôt « par bien » — et la phrase finale le dit.
+ */
+export function BlocVentes({
+  d, facteur, accumulation, onImpot,
+}: {
+  d: DetailDisponible;
+  facteur: number;
+  /** En accumulation le net est intégralement placé ; en décaissement il finance d'abord les dépenses. */
+  accumulation: boolean;
+  onImpot?: () => void;
+}) {
+  if (d.ventes.length === 0) return null;
+
+  const pourcent = (f: number) => `${Math.round(f * 100)} %`;
+  const impotTotal = d.ventes.reduce((s, v) => s + v.impotSupporte, 0);
+
   return (
     <>
-      <Section titre="Entrées de liquidités" postes={d.entrees} facteur={facteur} />
-      <Section titre="Sorties" postes={d.sorties} facteur={facteur} onLienImpot={onImpot} />
+      {d.ventes.map((v: DetailVente, i) => {
+        const etapes: Poste[] = [
+          { libelle: 'Valeur au moment de la vente', montant: v.valeurVente },
+          { libelle: 'Solde hypothécaire remboursé', montant: -v.soldeRembourse },
+        ];
+        return (
+          <div key={i} className={i > 0 ? 'mt-6 border-t border-filet pt-4' : ''}>
+            <p className="mb-2 text-sm font-semibold text-corps">{v.nom}</p>
+
+            <Section titre="Ce que la vente libère" postes={etapes} facteur={facteur} />
+            {v.fractionVendue < 1 ? (
+              <>
+                <LigneTotal libelle="= Équité libérée" montant={v.valeurVente - v.soldeRembourse} facteur={facteur} />
+                <p className="mb-3 text-xs leading-relaxed text-doux">
+                  Vente partielle de <strong>{pourcent(v.fractionVendue)}</strong> : le reste du bien est
+                  conservé, sans hypothèque.
+                </p>
+              </>
+            ) : null}
+            <LigneTotal libelle="= Produit de la vente" montant={v.produitBrut} facteur={facteur} />
+
+            {v.exempte ? (
+              <p className="mb-3 rounded-lg bg-champ p-3 text-xs leading-relaxed text-doux">
+                Résidence principale <strong>exemptée</strong> : le gain de{' '}
+                <span className="chiffres font-medium text-corps">
+                  {formatDollars(v.gainBrutAvantExemption * facteur)}
+                </span>{' '}
+                n'est pas imposable, et rien n'est retenu sur le produit.
+              </p>
+            ) : (
+              <>
+                <Section
+                  titre="Impôt du gain"
+                  postes={[
+                    { libelle: 'Gain en capital réalisé', montant: v.gainImposable, lien: onImpot ? 'impot' : undefined },
+                    { libelle: 'Impôt supporté à cause du gain', montant: -v.impotSupporte },
+                  ]}
+                  facteur={facteur}
+                  onLien={onImpot ? () => onImpot() : undefined}
+                />
+                <LigneTotal
+                  libelle={accumulation ? '= Produit net placé' : "= Produit net d'impôt"}
+                  montant={v.netApresImpot}
+                  facteur={facteur}
+                  accent
+                />
+              </>
+            )}
+          </div>
+        );
+      })}
+
+      {/* La ventilation ne vaut que si la vente est le seul capital placé de l'année. */}
+      {accumulation &&
+        (d.ventesSeuleSourceDeCapital ? (
+          <Section titre="Placé dans" postes={d.destinationSurplus} facteur={facteur} />
+        ) : (
+          <p className="mb-3 text-xs leading-relaxed text-doux">
+            Un héritage a été reçu la même année : le produit de la vente et cet héritage sont placés
+            d'un seul bloc, la répartition entre comptes ne peut donc pas être attribuée à la vente
+            seule.
+          </p>
+        ))}
+
+      {impotTotal > 0.5 && (
+        <p className="text-xs leading-relaxed text-doux">
+          L'impôt indiqué est celui que le gain a <strong>réellement</strong> coûté : l'impôt de
+          l'année, moins ce qu'il aurait été sans ce gain. C'est une attribution du modèle, pas une
+          ligne de déclaration — l'impôt porte sur le revenu total de l'année.
+        </p>
+      )}
+    </>
+  );
+}
+
+/** Cascade du revenu disponible : entrées − sorties = nets, puis dépenses / surplus / destination. */
+export function BlocDisponible({ d, facteur, onLien }: {
+  d: DetailDisponible;
+  facteur: number;
+  onLien: (lien: LienDetail) => void;
+}) {
+  return (
+    <>
+      <Section titre="Entrées de liquidités" postes={d.entrees} facteur={facteur} onLien={onLien} />
+      <Section titre="Sorties" postes={d.sorties} facteur={facteur} onLien={onLien} />
       <LigneTotal libelle="Revenus nets" montant={d.revenusNets} facteur={facteur} />
       {d.depenses > 0.5 && (
         <>

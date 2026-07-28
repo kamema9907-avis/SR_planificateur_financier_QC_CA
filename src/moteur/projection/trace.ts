@@ -13,7 +13,7 @@ import type { EntreeFiscale } from '../types';
 import type { VenteRealisee } from './immobilier';
 
 /** Agrégat lui-même re-décomposable (drill-down récursif). */
-export type LienDetail = 'impot';
+export type LienDetail = 'impot' | 'vente';
 
 /** Un poste d'une décomposition (un signe négatif = sortie / crédit / déduction). */
 export interface Poste {

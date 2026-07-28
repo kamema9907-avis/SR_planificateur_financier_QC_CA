@@ -535,7 +535,7 @@ function construireDetailCouple(
     { libelle: 'Rentes privées / FERR minimum', montant: comp.rentesPrivees },
     { libelle: 'Retraits de comptes', montant: comp.retraits },
     { libelle: 'Loyers encaissés', montant: comp.loyers },
-    { libelle: 'Produit de vente / downsizing', montant: comp.ventes },
+    { libelle: 'Produit de vente / downsizing', montant: comp.ventes, lien: 'vente' },
     { libelle: 'Héritage reçu (non imposable)', montant: comp.heritage },
   ];
   const sortiesBrut: Poste[] =

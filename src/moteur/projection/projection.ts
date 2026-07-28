@@ -142,7 +142,7 @@ function construireDetailAnnee(
           { libelle: 'Rentes d’employeur', montant: c.renteEmp },
           { libelle: 'Retrait minimum FERR', montant: c.minimumFERR },
           { libelle: 'Loyers encaissés', montant: c.loyers },
-          { libelle: 'Produit de vente / downsizing', montant: c.ventes },
+          { libelle: 'Produit de vente / downsizing', montant: c.ventes, lien: 'vente' },
           { libelle: 'Héritage reçu (non imposable)', montant: c.heritage },
         ]
       : [
@@ -155,7 +155,7 @@ function construireDetailAnnee(
           { libelle: 'Retraits non-enregistré', montant: c.retraitNonEnr },
           { libelle: 'Retraits CELI/CELIAPP', montant: c.retraitLibre },
           { libelle: 'Loyers encaissés', montant: c.loyers },
-          { libelle: 'Produit de vente / downsizing', montant: c.ventes },
+          { libelle: 'Produit de vente / downsizing', montant: c.ventes, lien: 'vente' },
           { libelle: 'Héritage reçu (non imposable)', montant: c.heritage },
         ];
 

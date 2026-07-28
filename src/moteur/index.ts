@@ -61,6 +61,8 @@ export {
 export type {
   Poste,
   LienDetail,
+  DetailDepenses,
+  DetailVente,
   DetailDisponible,
   DetailImpotAnnee,
   DetailValeurNette,

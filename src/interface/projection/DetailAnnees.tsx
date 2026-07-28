@@ -52,13 +52,24 @@ const COLS_PATRIMOINE_FIN: Colonne[] = [
   { titre: 'Valeur nette', v: (a) => a.valeurNette, agregat: 'valeurNette', accent: true },
 ];
 
-/** Petites icônes signalant les événements spéciaux d'une année. */
-function Badges({ a, ageEpuisement }: { a: AnneeProjection; ageEpuisement: number | null }) {
-  const badges: { e: string; t: string }[] = [];
+/**
+ * Petites icônes signalant les événements spéciaux d'une année.
+ *
+ * Le badge de vente est **cliquable** : c'est le seul repère qui rende une vente trouvable en
+ * balayant le tableau, alors que le montant, lui, est enfoui dans un tiroir.
+ */
+function Badges({ a, ageEpuisement, onVente }: {
+  a: AnneeProjection;
+  ageEpuisement: number | null;
+  onVente: () => void;
+}) {
+  const badges: { e: string; t: string; onClic?: () => void }[] = [];
   const d = a.detail;
   if (d && d.impot.impotDeces > 0.5) badges.push({ e: '💀', t: 'Décès — impôt sur dispositions présumées' });
-  const vente = d?.disponible.entrees.find((p) => p.libelle.startsWith('Produit de vente') && p.montant > 0.5);
-  if (vente) badges.push({ e: '🏠', t: 'Vente / downsizing immobilier' });
+  if (d && d.disponible.ventes.length > 0) {
+    const noms = d.disponible.ventes.map((v) => v.nom).join(', ');
+    badges.push({ e: '🏠', t: `Vente : ${noms} — voir le détail`, onClic: onVente });
+  }
   const heritage = d?.disponible.entrees.find((p) => p.libelle.startsWith('Héritage') && p.montant > 0.5);
   if (heritage) badges.push({ e: '🎁', t: 'Héritage reçu (non imposable)' });
   if (d && d.disponible.surplus > 0.5) badges.push({ e: '💰', t: 'Surplus réinvesti' });
@@ -66,9 +77,22 @@ function Badges({ a, ageEpuisement }: { a: AnneeProjection; ageEpuisement: numbe
   if (badges.length === 0) return null;
   return (
     <span className="ml-1 inline-flex gap-0.5">
-      {badges.map((b, i) => (
-        <span key={i} title={b.t} className="text-xs">{b.e}</span>
-      ))}
+      {badges.map((b, i) =>
+        b.onClic ? (
+          <button
+            key={i}
+            type="button"
+            onClick={b.onClic}
+            aria-label={b.t}
+            title={b.t}
+            className="rounded text-xs transition hover:scale-125 focus-visible:ring-2 focus-visible:ring-marque focus-visible:outline-none"
+          >
+            {b.e}
+          </button>
+        ) : (
+          <span key={i} title={b.t} className="text-xs">{b.e}</span>
+        ),
+      )}
     </span>
   );
 }
@@ -117,7 +141,7 @@ function Tableau({ annees, colonnes, reel, ageEpuisement, onOuvrir }: {
             <tr key={a.annee} className={a.phase === 'decaissement' ? 'bg-marque-fond/30' : ''}>
               <td className="px-3 py-1.5 text-left whitespace-nowrap text-corps">
                 {a.age}
-                <Badges a={a} ageEpuisement={ageEpuisement} />
+                <Badges a={a} ageEpuisement={ageEpuisement} onVente={() => onOuvrir({ agregat: 'vente', annee: a })} />
               </td>
               {colonnes.map((c) => (
                 <td key={c.titre} className="px-3 py-1.5 text-right whitespace-nowrap">
