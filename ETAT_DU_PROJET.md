@@ -3,11 +3,15 @@
 > **Document vivant** : synthèse de tout ce que le projet fait à ce jour. À mettre à jour au fil des
 > phases. Voir le [journal des modifications](#-journal-des-modifications) à la fin pour l'historique.
 >
-> Dernière mise à jour : **2026-07-28** — **dépense de retraite recommandée** : le planificateur
+> Dernière mise à jour : **2026-07-28** — **deux correctifs de traçabilité**, tous deux nés d'une
+> question de l'utilisateur : la colonne « Dépenses » du détail annuel s'explique désormais au clic
+> (et le versement hypothécaire en sort, pour redevenir une ligne de sortie dans les deux phases), et
+> les **ventes immobilières** exposent enfin leur anatomie — valeur, solde hypothécaire remboursé,
+> gain, impôt supporté, produit net placé.
+> Auparavant : **dépense de retraite recommandée** — le planificateur
 > calcule par dichotomie le montant maximal que le capital finance jusqu'au décès et en recommande
 > 85 %, affiché sous le champ de l'étape « Décaissement » avec un bouton pour l'appliquer.
-> L'utilisateur n'a plus à deviner la donnée qui commande tout le verdict.
-> Auparavant, le **lot 5 terminé** : **mode sombre** complet (Système /
+> Plus tôt, le **lot 5 terminé** : **mode sombre** complet (Système /
 > Clair / Sombre), bâti sur une couche de **jetons sémantiques** — aucun composant ne nomme plus une
 > couleur. Plus tôt le même jour : l'application tient sur
 > un téléphone (elle débordait de 968 px), l'adresse est **partageable** (`#/projection/couple/...`,
@@ -107,6 +111,12 @@ Projette le patrimoine et l'impôt **année par année**, de l'âge actuel jusqu
   consommée se règle en mode Avancé.
 - Sorties : **graphique** du patrimoine, **tableau** annuel, indicateurs clés (« le capital dure jusqu'à
   X ans », valeur nette au décès, **impôt total sur la vie**), interrupteur nominal/réel.
+- **Traçabilité au clic** (« drill-down ») : tout montant souligné du détail année par année ouvre sa
+  décomposition, et chaque décomposition somme **exactement** au total affiché. Sont expliqués : le
+  revenu disponible (entrées, sorties, surplus réinvesti), l'**impôt** (revenu imposable par source,
+  fédéral, Québec, taux), la **valeur nette**, les **dépenses** (cible saisie × part du survivant ×
+  inflation) et les **ventes immobilières** (valeur à la vente, solde hypothécaire remboursé, gain,
+  impôt supporté, produit net placé et sa destination).
 
 ### Optimiseur automatique (bouton dans la Projection) — Phase 4
 Le bouton « Optimiser la stratégie » (solo et couple) explore les stratégies avec notre simulateur et
@@ -244,7 +254,16 @@ src/
         └── …                       # Graphiques, tableaux, drill-down, optimiseur
 ```
 
-L'interface est en cours de refonte (« l'Atelier ») — voir [`PLAN_REFONTE_UI.md`](PLAN_REFONTE_UI.md).
+### Documents de conception
+
+Chaque chantier d'ampleur a son plan, écrit **avant** le code et conservé avec ses décisions :
+
+| Document | Sujet | État |
+|---|---|---|
+| [`PLAN_REFONTE_UI.md`](PLAN_REFONTE_UI.md) | L'Atelier : lots 0 à 5b, dont le mode sombre | ✅ livré |
+| [`PLAN_DEPENSE_RECOMMANDEE.md`](PLAN_DEPENSE_RECOMMANDEE.md) | Dépense de retraite recommandée | ✅ livré |
+| [`PLAN_DETAIL_DEPENSES.md`](PLAN_DETAIL_DEPENSES.md) | Expliquer « Dépenses » et les ventes immobilières | ✅ livré |
+| [`PLAN_MONTE_CARLO.md`](PLAN_MONTE_CARLO.md) | Phase 6 : projection probabiliste | conception seule |
 
 ---
 

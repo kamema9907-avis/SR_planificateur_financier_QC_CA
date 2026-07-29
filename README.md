@@ -23,11 +23,13 @@ s'ouvre vierge ; un bouton **« Réinitialiser »** remet les champs à zéro à
 ## 🚀 Démarrer
 
 ```bash
-npm install      # installer les dépendances
-npm run dev      # serveur de développement (http://localhost:5173)
-npm test         # lancer les cas-tests étalons du moteur fiscal
-npm run build    # bâtir la version de production (dossier dist/)
-npm run preview  # prévisualiser la version de production
+npm install       # installer les dépendances
+npm run dev       # serveur de développement (http://localhost:5173)
+npm test          # lancer les 291 cas-tests
+npm run typecheck # vérifier les types (« npx tsc --noEmit » ne vérifie RIEN ici :
+                  #   tsconfig.json est un fichier de références, avec "files": [])
+npm run build     # bâtir la version de production (dossier dist/)
+npm run preview   # prévisualiser la version de production
 ```
 
 ## 🧱 Architecture
@@ -43,11 +45,24 @@ src/
 │   ├── impotFederal.ts      # Impôt fédéral (+ abattement QC, récupération PSV) — barèmes indexables
 │   ├── impotQuebec.ts       # Impôt du Québec — barèmes indexables
 │   ├── moteurFiscal.ts      # Orchestrateur : assemble tout, calcule les taux
-│   ├── projection/          # Phase 2 : comptes, rentes publiques, décaissement, boucle cycle de vie
+│   ├── projection/          # Cycle de vie : comptes, rentes, immobilier, héritage, décaissement,
+│   │                        #   couple, optimiseur, dépense soutenable, traçabilité
 │   ├── index.ts             # API publique du moteur
-│   └── *.test.ts            # 122 cas-tests (dont validation croisée des taux publiés)
-└── interface/               # Interface React (habillage) — vues « Impôt » et « Projection »
+│   └── *.test.ts            # 222 cas-tests du moteur (dont validation croisée des taux publiés)
+└── interface/               # Interface React (habillage) — aucune règle fiscale ici
+    ├── atelier/             # Coquille de saisie : rail d'étapes, étape courante, résultat collant
+    ├── projection/          # Vues solo et couple, tableaux, graphiques, tiroirs de détail
+    ├── ui/                  # Briques partagées : thème, aide, impression, alertes
+    ├── routage.ts           # Adresse partageable (#/projection/couple/…)
+    └── theme.ts             # Thème Système / Clair / Sombre
 ```
+
+Le détail complet — décisions verrouillées, limites, journal des modifications — vit dans
+[`ETAT_DU_PROJET.md`](ETAT_DU_PROJET.md). Chaque chantier d'ampleur a en outre son plan, écrit
+**avant** le code : [refonte de l'interface](PLAN_REFONTE_UI.md),
+[dépense recommandée](PLAN_DEPENSE_RECOMMANDEE.md),
+[détail des dépenses et des ventes](PLAN_DETAIL_DEPENSES.md),
+[projection probabiliste](PLAN_MONTE_CARLO.md) (conception seule).
 
 ## ✅ Phase 1 — Moteur fiscal (une personne, une année)
 
@@ -81,9 +96,20 @@ l'inflation** chaque année (calcul nominal, affichage en dollars d'aujourd'hui)
 - **Minimums de retrait FERR/FRV** forcés dès 72 ans.
 - **Accumulation** (épargne + croissance) puis **décaissement** : un solveur par bissection retire dans
   l'ordre choisi pour financer une cible de dépenses **nette d'impôt**.
+- **Travail à la retraite** (« retraité-actif ») : une ou plusieurs périodes de revenu après la
+  retraite, qui réduisent le décaissement et rouvrent des droits REER.
+- **Héritage** : apport ponctuel non imposable à un âge choisi, placé CELI → REER → non-enregistré
+  selon les droits restants.
+- **Dépense de retraite recommandée** : plutôt que de vous demander de deviner votre train de vie,
+  l'outil cherche par dichotomie le montant maximal que votre capital finance jusqu'au décès et en
+  recommande 85 % par prudence. Un bouton le reporte dans le champ.
 - **Impôt au décès** (dispositions présumées des comptes enregistrés + gains latents).
 - Sorties : graphique du patrimoine, tableau annuel, indicateurs (« le capital dure jusqu'à X ans »,
   valeur nette au décès, **impôt total sur la vie**). Onglet « Projection (cycle de vie) ».
+- **Traçabilité au clic** : tout montant souligné ouvre sa décomposition, et chaque décomposition
+  somme **exactement** au total affiché. Sont expliqués le revenu disponible, l'impôt, la valeur
+  nette, les dépenses (cible saisie × part du survivant × inflation) et les **ventes immobilières**
+  — valeur à la vente, solde hypothécaire remboursé, gain, impôt supporté, produit net placé.
 
 ### Simplifications assumées (à raffiner)
 
@@ -146,6 +172,26 @@ net au décès** (le capital ne doit pas s'épuiser), puis affiche l'améliorati
 *Révision de la décision n°7 : l'approche par recherche remplace `glpk.js`, car l'impôt QC+fédéral est
 trop non linéaire pour un LP fiable, et notre moteur est déjà un simulateur exact et rapide.*
 
+## ✅ Phase 5 — L'interface (« l'Atelier »)
+
+La saisie tenait sur une page de 6 000 pixels, les résultats sous les formulaires : modifier un champ
+et voir son effet demandait de défiler. Elle est désormais découpée en **étapes courtes**, avec un
+rail à gauche, l'étape au centre et le **résultat qui ne quitte jamais l'écran**.
+
+- **Verdict en grand** : « vos dépenses sont financées jusqu'à 95 ans », avec une jauge d'autonomie.
+- **Essentiel / Avancé** : les réglages experts (indexation, facteur d'équivalence, appréciation…)
+  sont masqués par défaut, jamais perdus.
+- **Validations croisées** : les incohérences sont signalées par une pastille dans le rail, avant
+  même d'ouvrir l'étape.
+- **Scénarios comparables** : enregistrez une simulation sous un nom, modifiez vos hypothèses,
+  comparez ligne à ligne.
+- **Sauvegarde en fichier** : le dossier s'exporte et se réimporte en JSON — le `localStorage` d'un
+  navigateur n'est pas un coffre-fort. **Impression PDF** de la simulation complète.
+- **Mode sombre** (Système / Clair / Sombre), **adresse partageable** (`#/projection/couple`, le
+  rechargement et le bouton Retour fonctionnent), **utilisable sur téléphone**, et **contraste WCAG AA
+  vérifié par mesure** dans les deux thèmes.
+- L'optimiseur tourne sur un **fil séparé** (Web Worker) : la page reste vivante, le calcul annulable.
+
 ## 🗺️ Feuille de route
 
 1. **✅ Phase 1** — Moteur fiscal (une personne, une année).
@@ -153,7 +199,13 @@ trop non linéaire pour un LP fiable, et notre moteur est déjà un simulateur e
 3. **✅ Phase 3** — Le couple : fractionnement optimisé, REER de conjoint, décaissement coordonné, survie.
 4. **✅ Phase 3.5** — Immobilier : résidence, chalet, immeuble à revenu (hypothèque, loyers, vente, exemption).
 5. **✅ Phase 4** — Optimiseur automatique (recherche sur le moteur) : trouve la meilleure stratégie fiscale.
-5. **Phase 5** — Interface soignée + partage.
+6. **✅ Phase 5** — L'interface (« l'Atelier »), mode sombre, accessibilité, adresse partageable,
+   sauvegarde en fichier, scénarios, impression PDF.
+7. **Phase 6 — envisagée** : projection **probabiliste** (Monte Carlo), pour répondre « dans quelle
+   proportion des scénarios de marché mon plan tient-il ? » plutôt que par un oui/non. Conception
+   détaillée écrite dans [`PLAN_MONTE_CARLO.md`](PLAN_MONTE_CARLO.md), implémentation non commencée.
+
+Idées à explorer : options d'employé, autres provinces, travailleur autonome.
 
 ## 📚 Sources des données (2026)
 
