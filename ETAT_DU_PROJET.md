@@ -1042,28 +1042,75 @@ d'essai. À traiter le jour où le format de fichier évoluera.
 - Interface web soignée et responsive (100 % locale).
 - Ajouts après revue : revenus de pension correctement imposés ; crédit fonds de travailleurs FTQ/CSN.
 
-### Comment mettre à jour ce document
+### Comment mettre à jour la documentation
 
-Ce document a **deux moitiés** : un *journal* (ce qui s'est passé) et un *inventaire* (ce qui existe
-aujourd'hui). Le journal se remplit naturellement en fin de tâche ; l'inventaire demande de relire
-des sections qu'on n'a pas touchées — c'est celui qu'on oublie. Passer la liste **entière** :
+La documentation du projet, ce n'est pas **ce** document : c'en est **quatre sortes**, et elles ne
+dérivent pas au même rythme.
 
+| Document | Rôle | Qui le lit |
+|---|---|---|
+| `ETAT_DU_PROJET.md` | journal + inventaire complet | celui qui reprend le travail |
+| `README.md` | **porte d'entrée** : ce que l'outil fait, comment le lancer | un visiteur, un ami |
+| `PLAN_*.md` | conception d'un chantier, écrite **avant** le code | celui qui implémente |
+| `sources_*.md` | références fiscales | celui qui vérifie un barème |
+
+**Ce document a lui-même deux moitiés** : un *journal* (ce qui s'est passé) et un *inventaire* (ce
+qui existe aujourd'hui). Le journal se remplit naturellement en fin de tâche ; l'inventaire demande
+de relire des sections qu'on n'a pas touchées — c'est celui qui décroche.
+
+**Et le README décroche encore plus vite**, parce que rien dans le travail quotidien n'oblige à
+l'ouvrir. Constaté le 2026-07-29 : il était resté au 4 juillet, annonçait 122 cas-tests au lieu de
+291, listait la Phase 5 comme « à faire » alors qu'elle était livrée, et ne mentionnait aucune des
+fonctionnalités des trois semaines précédentes. Pendant ce temps la présente checklist était cochée
+consciencieusement — elle ne parlait que d'`ETAT_DU_PROJET.md`.
+
+Passer la liste **entière** :
+
+**`ETAT_DU_PROJET.md`**
 - [ ] **Journal** — une entrée datée en haut, expliquant le *pourquoi* et pas seulement le *quoi*
-- [ ] **Date et résumé en tête** du document
+- [ ] **Date et résumé en tête** — doit décrire le **dernier** travail, pas l'avant-dernier
 - [ ] **« Ce que l'outil fait aujourd'hui »** — si une capacité s'ajoute ou change
 - [ ] **Architecture** — l'arborescence doit lister les fichiers réellement présents
 - [ ] **Nombre de cas-tests** (trois endroits : qualité/validation, commande `npm test`, journal)
 - [ ] **Limites et simplifications** — toute approximation nouvelle ou levée
 - [ ] **Feuille de route** — cocher ce qui est fait
 
-Vérification rapide de l'arborescence. Le **moteur** est documenté fichier par fichier — c'est là que
+**`README.md`** — à relire dès qu'une fonctionnalité **visible** est livrée
+- [ ] La **description** couvre-t-elle ce que l'outil sait faire *aujourd'hui* ?
+- [ ] Le **nombre de cas-tests** y figure aussi (deux endroits : `npm test`, arborescence)
+- [ ] L'**arborescence** et la **feuille de route** disent-elles la même chose qu'ici ?
+- [ ] Une **commande** nouvelle ou piégeuse est-elle documentée ?
+
+**Les plans**
+- [ ] Le `PLAN_*.md` du chantier livré est-il **coché**, avec ses écarts assumés ?
+- [ ] Est-il **atteignable** ? Un plan que rien ne référence est introuvable (arrivé deux fois).
+
+---
+
+Trois vérifications mécaniques. Le **moteur** est documenté fichier par fichier — c'est là que
 la justesse fiscale se joue ; l'**interface**, qui compte plus de trente fichiers, l'est par dossier.
 
 ```bash
-# Fichiers du moteur absents de ce document (doit ne rien afficher).
+# 1. Fichiers du moteur absents de ce document (doit ne rien afficher).
 # `--others` est indispensable : sans lui, `git ls-files` ne voit que les fichiers DÉJÀ suivis,
 # donc la commande ignore les fichiers neufs — précisément ceux qu'on oublie de documenter.
 for f in $(git ls-files --cached --others --exclude-standard 'src/moteur/**/*.ts'            | grep -v test | xargs -n1 basename | sort -u); do
   grep -q "$f" ETAT_DU_PROJET.md || echo "absent de la doc : $f"
+done
+
+# 2. Le compte de cas-tests annoncé correspond-il au réel ?
+# `sed` retire le JOURNAL, qui garde légitimement les comptes des versions passées — sans quoi la
+# commande ramène trente valeurs historiques. L'ancre est le TITRE de section : « Journal des
+# modifications » apparaît aussi dans le sommaire, et couper là viderait presque tout le fichier.
+# Le second `sed` retire les codes de couleur de vitest, qui cassent le motif.
+npx vitest run 2>&1 | sed 's/\x1b\[[0-9;]*m//g' | grep -oE 'Tests +[0-9]+ passed' | grep -oE '[0-9]+'
+sed '/^## .*Journal des modifications/,$d' ETAT_DU_PROJET.md | grep -oE '[0-9]+ cas-tests'
+grep -oE '[0-9]+ cas-tests' README.md
+# Attendu : le total réel, puis ce total partout, et le sous-total du moteur là où il est nommé.
+
+# 3. Aucun document orphelin : chaque .md doit être référencé par un autre (doit ne rien afficher).
+for f in *.md; do
+  [ "$f" = "README.md" ] && continue
+  grep -l "$f" *.md 2>/dev/null | grep -qv "^$f$" || echo "orphelin : $f"
 done
 ```
