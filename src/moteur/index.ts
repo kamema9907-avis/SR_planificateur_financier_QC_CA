@@ -66,6 +66,8 @@ export type {
   DetailDisponible,
   DetailImpotAnnee,
   DetailValeurNette,
+  DetailDroits,
+  DetailDroitsAnnee,
   DetailAnnee,
   DetailFractionnement,
   DetailCouple,

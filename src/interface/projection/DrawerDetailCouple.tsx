@@ -1,10 +1,17 @@
 import { useEffect, useState } from 'react';
 import type { AnneeCouple, DetailFractionnement } from '../../moteur';
-import { BlocDepenses, BlocDisponible, BlocImpotFiscal, BlocValeurNette, BlocVentes, LigneTotal } from './detailBriques';
+import { BlocDepenses, BlocDisponible, BlocDroits, BlocImpotFiscal, BlocValeurNette, BlocVentes, LigneTotal } from './detailBriques';
 import { formatDollars } from '../format';
 
-/** Agrégat décomposable au clic (couple). */
-export type AgregatCouple = 'disponible' | 'impot' | 'fractionnement' | 'valeurNette' | 'depenses' | 'vente';
+/**
+ * Agrégat décomposable au clic (couple).
+ *
+ * Les droits sont **par conjoint** : quatre vues, parce qu'un droit de cotisation n'existe pas au
+ * niveau du ménage. Il appartient à une personne, se calcule sur SON salaire et s'éteint avec elle.
+ */
+export type AgregatCouple =
+  | 'disponible' | 'impot' | 'fractionnement' | 'valeurNette' | 'depenses' | 'vente'
+  | 'droitsCeli1' | 'droitsReer1' | 'droitsCeli2' | 'droitsReer2';
 
 export interface VueDrawerCouple {
   agregat: AgregatCouple;
@@ -18,7 +25,14 @@ const TITRES: Record<AgregatCouple, string> = {
   valeurNette: 'Valeur nette',
   depenses: 'Dépenses du ménage',
   vente: 'Vente immobilière',
+  droitsCeli1: 'Droits CELI',
+  droitsReer1: 'Droits REER',
+  droitsCeli2: 'Droits CELI',
+  droitsReer2: 'Droits REER',
 };
+
+/** Les droits de cotisation sont toujours nominaux : la bascule d'affichage ne les concerne pas. */
+const TOUJOURS_NOMINAL: readonly AgregatCouple[] = ['droitsCeli1', 'droitsReer1', 'droitsCeli2', 'droitsReer2'];
 
 /** Détail du fractionnement du revenu de pension : transfert, impôt avec/sans, économie. */
 function BlocFractionnement({ fr, facteur }: { fr: DetailFractionnement; facteur: number }) {
@@ -54,9 +68,12 @@ export function DrawerDetailCouple({ vue, reel, onClose }: { vue: VueDrawerCoupl
   const courante = pile[pile.length - 1];
   if (!courante) return null;
 
-  const facteur = reel ? courante.annee.deflateurReel : 1;
+  const nominal = TOUJOURS_NOMINAL.includes(courante.agregat);
+  const facteur = reel && !nominal ? courante.annee.deflateurReel : 1;
   const d = courante.annee.detail!;
   const pousser = (agregat: AgregatCouple) => setPile((p) => [...p, { agregat, annee: courante.annee }]);
+  /** L'âge du conjoint concerné : il date la restauration des retraits CELI (« restaurés à N+1 ans »). */
+  const agePersonne = (n: 1 | 2) => (n === 1 ? courante.annee.age1 : courante.annee.age2) ?? 0;
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end" role="dialog" aria-modal="true">
@@ -89,7 +106,7 @@ export function DrawerDetailCouple({ vue, reel, onClose }: { vue: VueDrawerCoupl
 
         <div className="border-b border-filet px-4 py-2 text-xs text-doux">
           {courante.annee.age1 ?? '—'} / {courante.annee.age2 ?? '—'} ans · {courante.annee.annee} ·{' '}
-          {reel ? "dollars d'aujourd'hui" : 'dollars nominaux'}
+          {nominal ? 'dollars nominaux (toujours)' : reel ? "dollars d'aujourd'hui" : 'dollars nominaux'}
         </div>
 
         <div className="flex-1 overflow-auto p-4">
@@ -120,6 +137,17 @@ export function DrawerDetailCouple({ vue, reel, onClose }: { vue: VueDrawerCoupl
           )}
           {courante.agregat === 'depenses' && (
             <BlocDepenses d={d.disponible} facteur={facteur} reel={reel} onRevenusNets={() => pousser('disponible')} />
+          )}
+          {nominal && (
+            <>
+              <p className="mb-3 text-sm font-semibold text-corps">
+                {courante.agregat.endsWith('1') ? d.nom1 : d.nom2}
+              </p>
+              {courante.agregat === 'droitsCeli1' && d.droits1 && <BlocDroits d={d.droits1.celi} age={agePersonne(1)} celi />}
+              {courante.agregat === 'droitsReer1' && d.droits1 && <BlocDroits d={d.droits1.reer} age={agePersonne(1)} celi={false} />}
+              {courante.agregat === 'droitsCeli2' && d.droits2 && <BlocDroits d={d.droits2.celi} age={agePersonne(2)} celi />}
+              {courante.agregat === 'droitsReer2' && d.droits2 && <BlocDroits d={d.droits2.reer} age={agePersonne(2)} celi={false} />}
+            </>
           )}
         </div>
       </div>

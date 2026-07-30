@@ -19,8 +19,13 @@ interface Colonne {
   titre: string;
   v: (a: AnneeCouple) => number | null;
   agregat?: AgregatCouple;
-  format?: 'pourcent';
+  /** `annee` : nombre brut, sans séparateur ni symbole (2036, pas « 2 036 $ »). */
+  format?: 'pourcent' | 'annee';
   accent?: boolean;
+  /** Échappe à la bascule « dollars d'aujourd'hui » : la colonne reste en dollars de l'année. */
+  nominal?: boolean;
+  /** Affiche 0 $ au lieu de « — » : un zéro peut être l'information cherchée (aucun droit restant). */
+  montrerZero?: boolean;
 }
 
 const COLS_REVENUS: Colonne[] = [
@@ -74,8 +79,14 @@ function Badges({ a, anneeEpuisement, onVente }: {
 
 function Cellule({ a, col, reel, onOuvrir }: { a: AnneeCouple; col: Colonne; reel: boolean; onOuvrir: (v: VueDrawerCouple) => void }) {
   const val = col.v(a);
-  if (val == null || (col.format !== 'pourcent' && Math.abs(val) < 0.5)) return <span className="text-doux">—</span>;
-  const texte = col.format === 'pourcent' ? formatPourcent(val) : formatDollars((reel ? a.deflateurReel : 1) * val);
+  if (val == null || (col.format == null && Math.abs(val) < 0.5 && !col.montrerZero)) {
+    return <span className="text-doux">—</span>;
+  }
+  const facteur = reel && !col.nominal ? a.deflateurReel : 1;
+  const texte =
+    col.format === 'pourcent' ? formatPourcent(val)
+    : col.format === 'annee' ? String(val)
+    : formatDollars(facteur * val);
   if (col.agregat) {
     return (
       <button
@@ -90,11 +101,14 @@ function Cellule({ a, col, reel, onOuvrir }: { a: AnneeCouple; col: Colonne; ree
   return <span className={`chiffres ${col.accent ? 'font-semibold text-titre' : 'text-corps'}`}>{texte}</span>;
 }
 
-function Tableau({ annees, colonnes, reel, anneeEpuisement, onOuvrir }: {
-  annees: readonly AnneeCouple[]; colonnes: Colonne[]; reel: boolean; anneeEpuisement: number | null; onOuvrir: (v: VueDrawerCouple) => void;
+function Tableau({ annees, colonnes, reel, anneeEpuisement, onOuvrir, etroit }: {
+  annees: readonly AnneeCouple[]; colonnes: Colonne[]; reel: boolean; anneeEpuisement: number | null;
+  onOuvrir: (v: VueDrawerCouple) => void;
+  /** Peu de colonnes : borner la largeur, sinon les chiffres flottent au bout d'un tableau vide. */
+  etroit?: boolean;
 }) {
   return (
-    <div className="max-h-[30rem] overflow-auto rounded-xl ring-1 ring-bordure">
+    <div className={`max-h-[30rem] overflow-auto rounded-xl ring-1 ring-bordure ${etroit ? 'max-w-3xl' : ''}`}>
       <table className="w-full text-sm">
         <thead className="text-xs text-doux [&_th]:sticky [&_th]:top-0 [&_th]:z-10 [&_th]:bg-champ">
           <tr>
@@ -156,6 +170,26 @@ export function DetailAnneesCouple({ annees, reel, anneeEpuisement }: Props) {
   }));
   const colsPatrimoine: Colonne[] = [...colsComptes, { titre: 'Valeur nette', v: (a) => a.valeurNette, agregat: 'valeurNette', accent: true }];
 
+  /**
+   * Droits de cotisation, **par conjoint** : un droit appartient à une personne, se calcule sur SON
+   * salaire et s'éteint avec elle — les additionner n'aurait aucun sens. D'où quatre colonnes.
+   *
+   * `nominal` : c'est le chiffre de l'avis de l'ARC, pas un pouvoir d'achat. `montrerZero` :
+   * « aucun droit » est précisément ce qu'on veut pouvoir lire, et cliquer.
+   */
+  const droit = (titre: string, cle: 'droits1' | 'droits2', compte: 'celi' | 'reer', agregat: AgregatCouple): Colonne => ({
+    titre, agregat, nominal: true, montrerZero: true,
+    v: (a) => a.detail?.[cle]?.[compte].restant ?? null,
+  });
+  const colsDroits: Colonne[] = [
+    // L'année civile est la clé de rapprochement avec un avis de l'ARC, qui est annuel.
+    { titre: 'Année', v: (a) => a.annee, format: 'annee' },
+    droit(`CELI ${nom1}`, 'droits1', 'celi', 'droitsCeli1'),
+    droit(`REER ${nom1}`, 'droits1', 'reer', 'droitsReer1'),
+    droit(`CELI ${nom2}`, 'droits2', 'celi', 'droitsCeli2'),
+    droit(`REER ${nom2}`, 'droits2', 'reer', 'droitsReer2'),
+  ];
+
   const ong = (actif: boolean) =>
     `rounded-md px-3 py-1 text-xs font-medium transition ${actif ? 'bg-carte text-marque shadow-sm' : 'text-corps hover:text-titre'}`;
 
@@ -170,8 +204,8 @@ export function DetailAnneesCouple({ annees, reel, anneeEpuisement }: Props) {
       </div>
 
       {modeComplet ? (
-        <BlocTableau titre="Tableau complet" aide="Toutes les colonnes sur une même ligne — défilement horizontal.">
-          <Tableau annees={annees} colonnes={[...COLS_REVENUS, ...colsImpot, ...colsPatrimoine]} reel={reel} anneeEpuisement={anneeEpuisement} onOuvrir={setDrawer} />
+        <BlocTableau titre="Tableau complet" aide="Toutes les colonnes sur une même ligne — défilement horizontal. Les quatre colonnes de droits restent en dollars de l'année.">
+          <Tableau annees={annees} colonnes={[...COLS_REVENUS, ...colsImpot, ...colsPatrimoine, ...colsDroits.slice(1)]} reel={reel} anneeEpuisement={anneeEpuisement} onOuvrir={setDrawer} />
         </BlocTableau>
       ) : (
         <div className="space-y-5">
@@ -183,6 +217,12 @@ export function DetailAnneesCouple({ annees, reel, anneeEpuisement }: Props) {
           </BlocTableau>
           <BlocTableau titre="Comptes & patrimoine" aide="Soldes combinés des deux conjoints et valeur nette du ménage.">
             <Tableau annees={annees} colonnes={colsPatrimoine} reel={reel} anneeEpuisement={anneeEpuisement} onOuvrir={setDrawer} />
+          </BlocTableau>
+          <BlocTableau
+            titre="Droits de cotisation"
+            aide="Place inutilisée au 31 décembre, par conjoint — ces droits ne se partagent ni ne s'additionnent. Toujours en dollars de l'année, comme votre avis de l'ARC : ce bloc ignore la bascule d'affichage."
+          >
+            <Tableau annees={annees} colonnes={colsDroits} reel={reel} anneeEpuisement={anneeEpuisement} onOuvrir={setDrawer} etroit />
           </BlocTableau>
         </div>
       )}

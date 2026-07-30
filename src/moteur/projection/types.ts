@@ -155,6 +155,27 @@ export interface HypothesesProjection {
   // Hypothèses économiques
   readonly inflation: number;
   readonly fraisGestion: number;
+  /**
+   * Taux marginal minimal pour verser au REER **en priorité**, avant le CELI (0,36 = 36 %).
+   *
+   * Absent ou ≥ 1 : règle désactivée, le placement suit la chaîne historique CELI → REER →
+   * non-enregistré, au dollar près. Voir `seuilReer.ts`.
+   */
+  readonly seuilMarginalReer?: number;
+  /**
+   * Réinvestir le remboursement d'impôt produit par les déductions de l'année (REER, CELIAPP), au
+   * lieu de le laisser au train de vie.
+   *
+   * **Pourquoi ce réglage existe.** En accumulation, l'épargne est SAISIE et le train de vie est le
+   * résidu : le remboursement tombe donc dans ce résidu — il est consommé. C'est cohérent avec la
+   * structure du modèle (en décaissement c'est l'inverse : le train de vie est saisi, donc le
+   * remboursement va forcément à l'épargne). Mais cela rend toute comparaison REER/CELI inéquitable,
+   * puisque 8 000 $ au REER coûtent moins de sa poche que 8 000 $ au CELI. Activer ce réglage remet
+   * les deux comptes à **coût égal**, ce qui est la seule base honnête pour les arbitrer.
+   *
+   * Absent ou faux : comportement historique, au dollar près.
+   */
+  readonly reinvestirRemboursementReer?: boolean;
 }
 
 /** Résultat d'une année de projection (montants NOMINAUX). */

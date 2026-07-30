@@ -29,10 +29,15 @@ const LIBELLE_TYPE: Record<TypeCompte, string> = {
 export function detailsStrategie(s: {
   cibleFonteReer?: number; ordreDecaissement: readonly TypeCompte[];
   ageDebutRRQ?: number; ageDebutSV?: number;
+  seuilMarginalReer?: number;
   immeubles: readonly { nom: string; ageVente: number | null }[];
 }): { label: string; valeur: string }[] {
   const d: { label: string; valeur: string }[] = [];
   d.push({ label: 'Fonte du REER', valeur: s.cibleFonteReer && s.cibleFonteReer > 0 ? `${formatDollars(s.cibleFonteReer)} / an` : 'Aucune' });
+  // Ce levier n'existe que si le remboursement d'impôt est réinvesti : ne l'annoncer que s'il a joué.
+  if (s.seuilMarginalReer != null && s.seuilMarginalReer < 1) {
+    d.push({ label: 'REER prioritaire si marginal >', valeur: `${Math.round(s.seuilMarginalReer * 100)} %` });
+  }
   if (s.ageDebutRRQ != null) d.push({ label: 'Début RRQ', valeur: `${s.ageDebutRRQ} ans` });
   if (s.ageDebutSV != null) d.push({ label: 'Début SV', valeur: `${s.ageDebutSV} ans` });
   d.push({ label: 'Décaisser d’abord', valeur: LIBELLE_TYPE[s.ordreDecaissement[0]] });
@@ -207,6 +212,7 @@ export function VueProjection() {
                       ordreDecaissement: optim.resultat.strategie.ordreDecaissement,
                       ageDebutRRQ: optim.resultat.strategie.rrqA65 > 0 ? optim.resultat.strategie.ageDebutRRQ : undefined,
                       ageDebutSV: optim.resultat.strategie.svA65 > 0 ? optim.resultat.strategie.ageDebutSV : undefined,
+                      seuilMarginalReer: optim.resultat.strategie.seuilMarginalReer,
                       immeubles: optim.resultat.strategie.immeubles,
                     })}
                     trajectoires={{

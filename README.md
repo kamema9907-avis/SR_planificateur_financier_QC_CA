@@ -25,7 +25,7 @@ s'ouvre vierge ; un bouton **« Réinitialiser »** remet les champs à zéro à
 ```bash
 npm install       # installer les dépendances
 npm run dev       # serveur de développement (http://localhost:5173)
-npm test          # lancer les 291 cas-tests
+npm test          # lancer les 343 cas-tests
 npm run typecheck # vérifier les types (« npx tsc --noEmit » ne vérifie RIEN ici :
                   #   tsconfig.json est un fichier de références, avec "files": [])
 npm run build     # bâtir la version de production (dossier dist/)
@@ -48,7 +48,7 @@ src/
 │   ├── projection/          # Cycle de vie : comptes, rentes, immobilier, héritage, décaissement,
 │   │                        #   couple, optimiseur, dépense soutenable, traçabilité
 │   ├── index.ts             # API publique du moteur
-│   └── *.test.ts            # 222 cas-tests du moteur (dont validation croisée des taux publiés)
+│   └── *.test.ts            # 265 cas-tests du moteur (dont validation croisée des taux publiés)
 └── interface/               # Interface React (habillage) — aucune règle fiscale ici
     ├── atelier/             # Coquille de saisie : rail d'étapes, étape courante, résultat collant
     ├── projection/          # Vues solo et couple, tableaux, graphiques, tiroirs de détail
@@ -88,6 +88,10 @@ l'inflation** chaque année (calcul nominal, affichage en dollars d'aujourd'hui)
   (compteur vivant : droits ARC saisis, +7 000 $/an indexé/arrondi au 500 $, retraits restaurés l'année
   suivante) ; **droits REER** (droits ARC saisis, +18 % du salaire − **facteur d'équivalence** RREGOP/RPA,
   max 33 810 $, aucune restauration au retrait). L'excédent déborde en chaîne : CELIAPP → CELI → non-enregistré.
+  Les deux champs de **droits disponibles** sont **toujours affichés** à l'étape « Vie active » : ils
+  décident aussi où atterrit le produit d'une **vente d'immeuble**, un **héritage** ou le surplus d'un
+  retraité-actif. Une alerte prévient si un tel apport arrive **sans droits REER** — le gain en capital
+  serait alors imposé au maximum, faute de cotisation déductible pour l'absorber.
 - **Crédit fonds de travailleurs** (FTQ/Fondaction) appliqué **chaque année active** : cotisation REER
   additionnelle + **crédit de 30 %** sur le 1er 5 000 $ (jusqu'à 1 500 $/an), obtenu même sans droits REER
   (membre RREGOP). Sur 30 ans, des dizaines de milliers de dollars auparavant ignorés par la projection.
@@ -103,13 +107,24 @@ l'inflation** chaque année (calcul nominal, affichage en dollars d'aujourd'hui)
 - **Dépense de retraite recommandée** : plutôt que de vous demander de deviner votre train de vie,
   l'outil cherche par dichotomie le montant maximal que votre capital finance jusqu'au décès et en
   recommande 85 % par prudence. Un bouton le reporte dans le champ.
-- **Impôt au décès** (dispositions présumées des comptes enregistrés + gains latents).
+- **REER ou CELI ?** Un réglage avancé **réinvestit le remboursement d'impôt** de vos cotisations REER
+  et CELIAPP au lieu de le laisser grossir votre train de vie. C'est ce qui met les deux comptes à
+  **coût égal de votre poche** : sans lui, le CELI gagne par construction, puisque 8 000 $ au REER
+  coûtent moins que 8 000 $ au CELI. Le réglage allumé, l'**optimiseur cherche lui-même** le taux
+  marginal au-delà duquel il vaut mieux verser au REER d'abord — la réponse dépend du dossier.
+- **Impôt au décès** (dispositions présumées des comptes enregistrés + gains latents), **retranché du
+  patrimoine transmis** : la « valeur nette au décès » annoncée est nette, et le tiroir de la dernière
+  année montre la soustraction. C'est aussi ce chiffre net que l'optimiseur maximise.
 - Sorties : graphique du patrimoine, tableau annuel, indicateurs (« le capital dure jusqu'à X ans »,
   valeur nette au décès, **impôt total sur la vie**). Onglet « Projection (cycle de vie) ».
 - **Traçabilité au clic** : tout montant souligné ouvre sa décomposition, et chaque décomposition
   somme **exactement** au total affiché. Sont expliqués le revenu disponible, l'impôt, la valeur
   nette, les dépenses (cible saisie × part du survivant × inflation) et les **ventes immobilières**
   — valeur à la vente, solde hypothécaire remboursé, gain, impôt supporté, produit net placé.
+- **Suivi des droits de cotisation** : un tableau année par année donne la place CELI et REER
+  inutilisée (par conjoint en couple), et le clic en montre la chaîne — report du 1er janvier,
+  18 % du salaire moins le facteur d'équivalence, consommation **source par source**, restant au
+  31 décembre. Toujours en dollars de l'année, comme un avis de l'ARC.
 
 ### Simplifications assumées (à raffiner)
 

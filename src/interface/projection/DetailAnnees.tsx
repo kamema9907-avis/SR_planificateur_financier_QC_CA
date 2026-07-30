@@ -20,8 +20,13 @@ interface Colonne {
   titre: string;
   v: (a: AnneeProjection) => number | null;
   agregat?: AgregatDrawer;
-  format?: 'pourcent';
+  /** `annee` : nombre brut, sans séparateur ni symbole (2036, pas « 2 036 $ »). */
+  format?: 'pourcent' | 'annee';
   accent?: boolean;
+  /** Échappe à la bascule « dollars d'aujourd'hui » : la colonne reste en dollars de l'année. */
+  nominal?: boolean;
+  /** Affiche 0 $ au lieu de « — » : un zéro peut être l'information cherchée (aucun droit restant). */
+  montrerZero?: boolean;
 }
 
 const retraits = (a: AnneeProjection) => a.retraitsEnregistres + a.retraitsNonEnregistres + a.retraitsLibresImpot;
@@ -44,6 +49,24 @@ const COLS_IMPOT: Colonne[] = [
   { titre: 'Impôt total', v: (a) => a.impotTotal, agregat: 'impot', accent: true },
   { titre: 'Taux moyen', v: (a) => a.detail?.impot.tauxMoyen ?? null, format: 'pourcent' },
   { titre: 'Taux marg.', v: (a) => a.detail?.impot.tauxMarginal ?? null, format: 'pourcent' },
+];
+
+/**
+ * Droits de cotisation restants au 31 décembre.
+ *
+ * `nominal` : un droit est une quantité légale de l'année, pas un pouvoir d'achat — c'est le chiffre
+ * de l'avis de l'ARC. `montrerZero` : « aucun droit REER » est précisément ce qu'on veut pouvoir
+ * lire, et cliquer, plutôt qu'un tiret muet.
+ */
+const COL_DROITS_CELI: Colonne = { titre: 'Droits CELI', v: (a) => a.detail?.droits.celi.restant ?? null, agregat: 'droitsCeli', nominal: true, montrerZero: true };
+const COL_DROITS_REER: Colonne = { titre: 'Droits REER', v: (a) => a.detail?.droits.reer.restant ?? null, agregat: 'droitsReer', nominal: true, montrerZero: true };
+
+// L'année civile n'apparaît que dans ce bloc : c'est la clé de rapprochement avec un avis de l'ARC,
+// qui est annuel. Ailleurs l'âge suffit et la colonne serait du bruit.
+const COLS_DROITS: Colonne[] = [
+  { titre: 'Année', v: (a) => a.annee, format: 'annee' },
+  COL_DROITS_CELI,
+  COL_DROITS_REER,
 ];
 
 const COLS_PATRIMOINE_FIN: Colonne[] = [
@@ -100,10 +123,14 @@ function Badges({ a, ageEpuisement, onVente }: {
 /** Une cellule : « — » si nulle, sinon un montant (ou %), cliquable si liée à un agrégat. */
 function Cellule({ a, col, reel, onOuvrir }: { a: AnneeProjection; col: Colonne; reel: boolean; onOuvrir: (v: VueDrawer) => void }) {
   const val = col.v(a);
-  if (val == null || (col.format !== 'pourcent' && Math.abs(val) < 0.5)) {
+  if (val == null || (col.format == null && Math.abs(val) < 0.5 && !col.montrerZero)) {
     return <span className="text-doux">—</span>;
   }
-  const texte = col.format === 'pourcent' ? formatPourcent(val) : formatDollars((reel ? a.deflateurReel : 1) * val);
+  const facteur = reel && !col.nominal ? a.deflateurReel : 1;
+  const texte =
+    col.format === 'pourcent' ? formatPourcent(val)
+    : col.format === 'annee' ? String(val)
+    : formatDollars(facteur * val);
   if (col.agregat) {
     return (
       <button
@@ -118,15 +145,17 @@ function Cellule({ a, col, reel, onOuvrir }: { a: AnneeProjection; col: Colonne;
   return <span className={`chiffres ${col.accent ? 'font-semibold text-titre' : 'text-corps'}`}>{texte}</span>;
 }
 
-function Tableau({ annees, colonnes, reel, ageEpuisement, onOuvrir }: {
+function Tableau({ annees, colonnes, reel, ageEpuisement, onOuvrir, etroit }: {
   annees: readonly AnneeProjection[];
   colonnes: Colonne[];
   reel: boolean;
   ageEpuisement: number | null;
   onOuvrir: (v: VueDrawer) => void;
+  /** Peu de colonnes : borner la largeur, sinon les chiffres flottent au bout d'un tableau vide. */
+  etroit?: boolean;
 }) {
   return (
-    <div className="max-h-[30rem] overflow-auto rounded-xl ring-1 ring-bordure">
+    <div className={`max-h-[30rem] overflow-auto rounded-xl ring-1 ring-bordure ${etroit ? 'max-w-lg' : ''}`}>
       <table className="w-full text-sm">
         <thead className="text-xs text-doux [&_th]:sticky [&_th]:top-0 [&_th]:z-10 [&_th]:bg-champ">
           <tr>
@@ -188,8 +217,8 @@ export function DetailAnnees({ annees, reel, ageEpuisement }: Props) {
       </div>
 
       {modeComplet ? (
-        <BlocTableau titre="Tableau complet" aide="Toutes les colonnes sur une même ligne — défilement horizontal.">
-          <Tableau annees={annees} colonnes={[...COLS_REVENUS, ...COLS_IMPOT, ...colsComptes, ...COLS_PATRIMOINE_FIN]} reel={reel} ageEpuisement={ageEpuisement} onOuvrir={setDrawer} />
+        <BlocTableau titre="Tableau complet" aide="Toutes les colonnes sur une même ligne — défilement horizontal. Les deux colonnes de droits restent en dollars de l'année.">
+          <Tableau annees={annees} colonnes={[...COLS_REVENUS, ...COLS_IMPOT, ...colsComptes, ...COLS_PATRIMOINE_FIN, COL_DROITS_CELI, COL_DROITS_REER]} reel={reel} ageEpuisement={ageEpuisement} onOuvrir={setDrawer} />
         </BlocTableau>
       ) : (
         <div className="space-y-5">
@@ -201,6 +230,12 @@ export function DetailAnnees({ annees, reel, ageEpuisement }: Props) {
           </BlocTableau>
           <BlocTableau titre="Comptes & patrimoine" aide="Solde de chaque compte, épargne versée, équité immobilière et valeur nette.">
             <Tableau annees={annees} colonnes={[...colsComptes, ...COLS_PATRIMOINE_FIN]} reel={reel} ageEpuisement={ageEpuisement} onOuvrir={setDrawer} />
+          </BlocTableau>
+          <BlocTableau
+            titre="Droits de cotisation"
+            aide="Place inutilisée au 31 décembre, reportée à l'année suivante. Toujours en dollars de l'année, comme votre avis de l'ARC : ce bloc ignore la bascule d'affichage."
+          >
+            <Tableau annees={annees} colonnes={COLS_DROITS} reel={reel} ageEpuisement={ageEpuisement} onOuvrir={setDrawer} etroit />
           </BlocTableau>
         </div>
       )}

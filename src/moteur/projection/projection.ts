@@ -9,7 +9,7 @@
 import { ANNEE_BASE } from '../constantes/indexation';
 import { AGE_CONVERSION_FERR, facteurRetraitMinimumFERR } from '../constantes/ferr';
 import type { ProfilRendement } from '../constantes/profilsRendement';
-import { construireBase, impotTotalPour } from '../moteurFiscal';
+import { calculerTauxMarginal, construireBase, impotTotalPour } from '../moteurFiscal';
 import { calculerCotisations, parametresCotisations } from '../cotisations';
 import type { EntreeFiscale } from '../types';
 import {
@@ -24,22 +24,25 @@ import {
   repartirCotisationCeliapp,
   soldesParType,
   valeurNette,
+  REER_TAUX,
 } from './comptes';
 import { financerDepenses } from './decaissement';
 import { rrqNominale, svNominale } from './rentesPubliques';
 import { totalRentesEmployeur } from './rentesEmployeur';
 import { totalRevenuTravail } from './periodesTravail';
 import { totalHeritage } from './heritage';
-import { placerCapital, placerSurplusRetraite } from './placementSurplus';
+import { placerCapital, placerSurplusRetraite, verserReerPrioritaire } from './placementSurplus';
 import { clonerImmeubles, determinerBienAbrite, gainAuDeces, traiterImmeublesAnnee, type AgregatImmo, type EtatImmeuble, type VenteRealisee } from './immobilier';
 import { fondreReer } from './fonteReer';
 import {
   construireDetailFiscal,
   detaillerVentes,
+  postesNonNuls,
   postesSignificatifs,
   sommePostes,
   type DetailAnnee,
   type DetailDisponible,
+  type DetailDroitsAnnee,
   type DetailValeurNette,
   type Poste,
 } from './trace';
@@ -103,6 +106,8 @@ interface ComposantesTrace {
   heritage: number;
   /** Capital sorti du flux pour être placé dans les comptes (héritage + produit net de vente). */
   capitalPlace: number;
+  /** Remboursement d'impôt réinvesti au lieu d'être consommé (0 si le réglage est éteint). */
+  remboursementReinvesti: number;
   paiementImmo: number;
   retenues: number;
   cotisations: number;
@@ -112,6 +117,8 @@ interface ComposantesTrace {
   cibleSaisie: number;
   facteurInflation: number;
   ventilSurplus: { celi: number; reer: number; nonEnr: number };
+  /** Évolution des deux compteurs de droits de cotisation sur l'année (voir `DetailDroits`). */
+  droits: DetailDroitsAnnee;
 }
 
 const LIBELLE_COMPTE: Record<TypeCompte, string> = {
@@ -165,6 +172,7 @@ function construireDetailAnnee(
           { libelle: 'Impôt', montant: -impotCourant, lien: 'impot' },
           { libelle: 'Cotisations (épargne)', montant: -c.cotisations },
           { libelle: 'Capital placé (héritage, vente)', montant: -c.capitalPlace },
+          { libelle: 'Remboursement d’impôt réinvesti', montant: -c.remboursementReinvesti },
           { libelle: 'Retenues sur la paie (RRQ/AE/RQAP)', montant: -c.retenues },
         ]
       : [
@@ -214,9 +222,10 @@ function construireDetailAnnee(
     immobilier: postesSignificatifs(
       etatsImmo.map((e) => ({ libelle: e.bien.nom, montant: e.vendu ? 0 : Math.max(0, e.valeur - e.hypotheque) })),
     ),
+    impotDeces,
   };
 
-  return { disponible, impot: fiscal, valeurNette };
+  return { disponible, impot: fiscal, valeurNette, droits: c.droits };
 }
 
 /** Projette une situation financière sur tout le cycle de vie. */
@@ -229,6 +238,14 @@ export function projeter(h: HypothesesProjection, options: { trace?: boolean } =
 
   let ageEpuisement: number | null = null;
   let impotTotalVieReel = 0;
+  /**
+   * Impôt des dispositions présumées au décès, retenu pour être **retranché du patrimoine transmis**.
+   *
+   * Il était calculé et compté dans l'impôt de la vie, mais jamais soustrait de la valeur nette —
+   * alors que l'écran promettait « après impôt au décès ». Le mode couple le soustrayait déjà
+   * (`couple.ts`) : les deux modes mesuraient donc avec des règles différentes.
+   */
+  let impotAuDeces = 0;
   let celiappCotiseCumul = h.celiappDejaCotise ?? 0; // cumul nominal des cotisations CELIAPP (plafond 40 000 $)
   // Droits CELI : compteur vivant — départ (ARC ou heuristique), +droits annuels chaque année,
   // −cotisations, +retraits de l'année précédente (restaurés au 1er janvier suivant).
@@ -236,14 +253,48 @@ export function projeter(h: HypothesesProjection, options: { trace?: boolean } =
   let droitsCeliRestaures = 0;
   let droitsReer = h.droitsReerDisponibles ?? 0; // droits REER (report), sans restauration au retrait
   const soldeCeliTotal = () => comptes.filter((c) => c.type === 'CELI').reduce((s, c) => s + c.solde, 0);
+  // Seuil du versement REER prioritaire. Absent ou ≥ 1 : règle désactivée, chaîne historique.
+  const seuilReer = h.seuilMarginalReer ?? 1;
+  const LIBELLE_PRIORITAIRE = `Versement REER prioritaire (marginal > ${Math.round(seuilReer * 100)} %)`;
 
   for (let i = 0; h.ageActuel + i <= h.ageDeces; i++) {
     const age = h.ageActuel + i;
     const annee = ANNEE_BASE + i;
+
+    // Traçabilité des droits : on capture le report AVANT l'ajout du 1er janvier, puis chaque
+    // mouvement est nommé au moment où il se produit. La somme doit redonner le compteur final.
+    const reportCeli = droitsCeli;
+    const reportReer = droitsReer;
+    const ajoutsCeli: Poste[] = [];
+    const ajoutsReer: Poste[] = [];
+    const consoCeli: Poste[] = [];
+    const consoReer: Poste[] = [];
+    let salaireDroitsReer = 0;
+
     if (i > 0) {
-      droitsCeli += droitsCeliAnnuels(annee, h.inflation) + droitsCeliRestaures;
+      const neufsCeli = droitsCeliAnnuels(annee, h.inflation);
+      const restaures = droitsCeliRestaures;
+      droitsCeli += neufsCeli + restaures;
       droitsCeliRestaures = 0;
+      ajoutsCeli.push({ libelle: 'Droits CELI de l’année', montant: neufsCeli });
+      // Un retrait CELI ne redonne ses droits qu'au 1er janvier SUIVANT : la ligne nomme donc l'âge
+      // de l'année où le retrait a eu lieu, sinon elle semblerait tomber de nulle part.
+      ajoutsCeli.push({ libelle: `Retraits CELI de ${age - 1} ans, restaurés`, montant: restaures });
     }
+
+    /** Droits REER neufs d'une année, décomposés en postes qui somment à `droitsReerAnnuels`. */
+    const ajouterDroitsReer = (salaire: number, fe: number) => {
+      const plafond = plafondReerNominal(annee);
+      const brut = REER_TAUX * Math.max(0, salaire);
+      const plafonne = Math.min(brut, plafond);
+      const feApplique = Math.min(Math.max(0, fe), plafonne); // ce qui est réellement retranché
+      droitsReer += droitsReerAnnuels(salaire, plafond, fe);
+      salaireDroitsReer = salaire;
+      ajoutsReer.push({ libelle: '18 % du salaire', montant: brut });
+      // Le plafond en dollars ne mord que sur les hauts salaires : l'afficher toujours serait du bruit.
+      ajoutsReer.push({ libelle: 'Plafond de l’année appliqué', montant: -(brut - plafonne) });
+      ajoutsReer.push({ libelle: 'Facteur d’équivalence (régime à PD)', montant: -feApplique });
+    };
     const facteurInflation = Math.pow(1 + h.inflation, i);
     const deflateurReel = 1 / facteurInflation;
     const phase = age < h.ageRetraite ? 'accumulation' : 'decaissement';
@@ -307,6 +358,8 @@ export function projeter(h: HypothesesProjection, options: { trace?: boolean } =
     let traceVentil = { celi: 0, reer: 0, nonEnr: 0 };
     /** Capital sorti du flux pour être placé (héritage + produit net de vente). */
     let capitalPlace = 0;
+    /** Remboursement d'impôt réinvesti au lieu d'être consommé (0 si le réglage est éteint). */
+    let remboursementReinvesti = 0;
     /** Provision d'impôt retenue sur le gain de vente, et part restituée ensuite (voir plus bas). */
     let impotSurGainVente = 0;
     let reliquatVente = 0;
@@ -323,28 +376,83 @@ export function projeter(h: HypothesesProjection, options: { trace?: boolean } =
           : h.regimeRetraitePD
             ? feRegimePD(revenuEmploi)
             : 0;
-      droitsReer += droitsReerAnnuels(revenuEmploi, plafondReerNominal(annee), feReer);
+      ajouterDroitsReer(revenuEmploi, feReer);
 
       // Cotisations aux comptes (indexées à l'inflation).
       let deductible = 0;
 
-      // Verse au CELI dans la limite des droits ; l'excédent déborde au non-enregistré.
-      const verserAuCeli = (montant: number) => {
-        const auCeli = Math.min(montant, Math.max(0, droitsCeli));
+      /**
+       * Entrée fiscale de l'année pour une déduction et un gain donnés.
+       *
+       * Définie AVANT la boucle d'épargne — elle l'était après — parce que le versement REER
+       * prioritaire a besoin du taux marginal pendant cette boucle. Tous les revenus qu'elle
+       * référence sont déjà calculés à ce stade ; seule la déduction varie d'un appel à l'autre.
+       */
+      const entreeCourante = (dedReer: number, gain: number): EntreeFiscale => ({
+        ...nouvelleEntree(age, h.vitSeul),
+        revenuEmploi,
+        revenuRRQ: rrq,
+        revenuPensionSV: sv,
+        revenuPensionPrivee: minimumFERR + renteEmp,
+        autresRevenus: interetNonEnr + immo.revenuImposable,
+        dividendesDetermines: dividendesNonEnr,
+        gainsCapital: gain,
+        deductionReer: dedReer,
+      });
+
+      /** Revenu imposable qu'il reste à effacer : au-delà, une déduction serait perdue. */
+      const deductionUtilisableAvec = (dedDeja: number, gain: number) => {
+        const b = construireBase(entreeCourante(dedDeja, gain), annee);
+        return Math.max(0, b.revenuTotalImpose - b.deductionsFederal);
+      };
+
+      /**
+       * Versement REER prioritaire : tant que la déduction rapporte plus que le seuil, cet argent
+       * vaut mieux au REER qu'au CELI. Étape AJOUTÉE devant la chaîne existante — ce qu'elle ne
+       * prend pas poursuit son chemin normal. MUTE `deductible`.
+       */
+      const reerPrioritaire = (montant: number, gain: number): number => {
+        const droits = { droitsCeli, droitsReer };
+        const verse = verserReerPrioritaire(
+          comptes, profilDefaut, droits, montant, age,
+          deductionUtilisableAvec(deductible, gain), seuilReer,
+          (x) => calculerTauxMarginal(entreeCourante(deductible + x, gain), 1, annee),
+        );
+        droitsReer = droits.droitsReer;
+        if (verse > 0) {
+          deductible += verse;
+          consoReer.push({ libelle: LIBELLE_PRIORITAIRE, montant: -verse });
+        }
+        return verse;
+      };
+
+      /**
+       * Verse au CELI dans la limite des droits ; l'excédent déborde au non-enregistré.
+       * @returns la part qui a **consommé des droits CELI**, pour que l'appelant la nomme.
+       */
+      const verserAuCeli = (montant: number): number => {
+        // Étape prioritaire, devant le CELI. Sans effet quand la règle est désactivée, ou quand les
+        // droits REER sont déjà épuisés — c'est notamment le cas du débordement venu du REER.
+        const aPlacer = montant - reerPrioritaire(montant, immo.gainBrut);
+        const auCeli = Math.min(aPlacer, Math.max(0, droitsCeli));
         if (auCeli > 0) {
           trouverOuCreer(comptes, 'CELI', profilDefaut).solde += auCeli;
           droitsCeli -= auCeli;
         }
-        const reste = montant - auCeli;
+        const reste = aPlacer - auCeli;
         if (reste > 0) {
           const ne = trouverOuCreer(comptes, 'NON_ENREGISTRE', profilDefaut);
           ne.solde += reste;
           ne.coutBase = (ne.coutBase ?? 0) + reste;
         }
+        return auCeli;
       };
 
-      // Verse au REER dans la limite des droits ; l'excédent déborde en chaîne CELI → non-enregistré.
-      const verserAuReer = (montant: number) => {
+      /**
+       * Verse au REER dans la limite des droits ; l'excédent déborde en chaîne CELI → non-enregistré.
+       * @returns les droits consommés de chaque côté : le débordement au CELI en consomme aussi.
+       */
+      const verserAuReer = (montant: number): { reer: number; celi: number } => {
         const auReer = Math.min(montant, Math.max(0, droitsReer));
         if (auReer > 0) {
           trouverOuCreer(comptes, 'REER', profilDefaut).solde += auReer;
@@ -353,10 +461,12 @@ export function projeter(h: HypothesesProjection, options: { trace?: boolean } =
           cotisations += auReer;
         }
         const excedent = montant - auReer;
+        let celi = 0;
         if (excedent > 0) {
-          verserAuCeli(excedent);
+          celi = verserAuCeli(excedent);
           cotisations += excedent;
         }
+        return { reer: auReer, celi };
       };
 
       // Fonds de travailleurs (FTQ/Fondaction) : donne SEULEMENT le crédit de 30 % (1er 5 000 $). La
@@ -370,7 +480,7 @@ export function projeter(h: HypothesesProjection, options: { trace?: boolean } =
 
         // CELI : plafonné par les droits de cotisation (excédent → non-enregistré).
         if (type === 'CELI') {
-          verserAuCeli(montant);
+          consoCeli.push({ libelle: 'Épargne CELI planifiée', montant: -verserAuCeli(montant) });
           cotisations += montant;
           continue;
         }
@@ -385,7 +495,8 @@ export function projeter(h: HypothesesProjection, options: { trace?: boolean } =
             cotisations += celiapp;
           }
           if (excedent > 0) {
-            verserAuCeli(excedent); // redirigé (non déductible), dans la limite des droits CELI
+            // Redirigé (non déductible), dans la limite des droits CELI.
+            consoCeli.push({ libelle: 'Excédent CELIAPP redirigé au CELI', montant: -verserAuCeli(excedent) });
             cotisations += excedent;
           }
           continue;
@@ -393,7 +504,9 @@ export function projeter(h: HypothesesProjection, options: { trace?: boolean } =
 
         // REER : plafonné aux droits disponibles ; l'excédent suit la chaîne CELI → non-enregistré.
         if (type === 'REER') {
-          verserAuReer(montant);
+          const v = verserAuReer(montant);
+          consoReer.push({ libelle: 'Épargne REER planifiée', montant: -v.reer });
+          consoCeli.push({ libelle: 'Débordement de l’épargne REER vers le CELI', montant: -v.celi });
           continue;
         }
 
@@ -413,19 +526,7 @@ export function projeter(h: HypothesesProjection, options: { trace?: boolean } =
       // La vente, elle, déclenche un gain en capital : on ne peut placer que le produit NET de
       // l'impôt qu'il engendre, sinon le même argent servirait deux fois — c'est ce que faisait
       // l'ancien code, qui plaçait le produit brut et laissait le revenu disponible partir en
-      // négatif.
-      const entreeCourante = (dedReer: number, gain: number): EntreeFiscale => ({
-        ...nouvelleEntree(age, h.vitSeul),
-        revenuEmploi,
-        revenuRRQ: rrq,
-        revenuPensionSV: sv,
-        revenuPensionPrivee: minimumFERR + renteEmp,
-        autresRevenus: interetNonEnr + immo.revenuImposable,
-        dividendesDetermines: dividendesNonEnr,
-        gainsCapital: gain,
-        deductionReer: dedReer,
-      });
-
+      // négatif. (`entreeCourante` est défini plus haut : la boucle d'épargne en a besoin.)
       if (immo.cashVente > 0 && immo.gainBrut > 0) {
         // Mesuré AVANT tout versement REER issu de la vente : sinon le montant à placer dépendrait
         // de l'impôt, qui dépendrait du montant placé. On place donc un peu moins que le maximum
@@ -441,20 +542,33 @@ export function projeter(h: HypothesesProjection, options: { trace?: boolean } =
       const capitalAPlacer = heritageRecu + venteAPlacer;
 
       if (capitalAPlacer > 0) {
+        // Étape prioritaire : la part du capital dont la déduction rapporte plus que le seuil va au
+        // REER avant tout. Le reste suit la chaîne historique CELI → REER → non-enregistré.
+        const prioritaire = reerPrioritaire(capitalAPlacer, immo.gainBrut);
+
         // Ce qu'il reste de revenu imposable une fois les déductions déjà prévues appliquées :
         // au-delà, un versement REER ne procurerait plus aucune économie d'impôt. Le gain de la
         // vente en fait partie — c'est ce qui permet la stratégie « vendre puis cotiser au REER
         // pour absorber le gain ».
-        const baseAvant = construireBase(entreeCourante(deductible, immo.gainBrut), annee);
-        const deductionUtilisable = Math.max(0, baseAvant.revenuTotalImpose - baseAvant.deductionsFederal);
+        const deductionUtilisable = deductionUtilisableAvec(deductible, immo.gainBrut);
 
         const droits = { droitsCeli, droitsReer };
-        const pose = placerCapital(comptes, profilDefaut, droits, capitalAPlacer, age, deductionUtilisable);
+        const pose = placerCapital(comptes, profilDefaut, droits, capitalAPlacer - prioritaire, age, deductionUtilisable);
         droitsCeli = droits.droitsCeli;
         droitsReer = droits.droitsReer;
         deductible += pose.deductible;
         capitalPlace = capitalAPlacer;
-        traceVentil = { celi: pose.celi, reer: pose.reer, nonEnr: pose.nonEnr };
+        traceVentil = { celi: pose.celi, reer: pose.reer + prioritaire, nonEnr: pose.nonEnr };
+        // Héritage et vente sont placés d'un seul bloc : le libellé dit laquelle des deux sources
+        // alimente ce bloc, plutôt que de laisser croire à une attribution qui n'existe pas.
+        const source =
+          heritageRecu > 0.5 && venteAPlacer > 0.5
+            ? 'd’un héritage et d’une vente'
+            : heritageRecu > 0.5
+              ? 'd’un héritage'
+              : 'du produit d’une vente';
+        consoCeli.push({ libelle: `Placement ${source}`, montant: -pose.celi });
+        consoReer.push({ libelle: `Placement ${source}`, montant: -pose.reer });
       }
 
       entreeAnnee = {
@@ -493,12 +607,34 @@ export function projeter(h: HypothesesProjection, options: { trace?: boolean } =
         }
       }
 
+      /**
+       * Réinvestir le remboursement d'impôt des déductions de l'année, au lieu de le laisser au
+       * train de vie (voir `HypothesesProjection.reinvestirRemboursementReer`).
+       *
+       * Placé **CELI → non-enregistré**, jamais au REER : l'y verser ouvrirait une nouvelle
+       * déduction, donc un nouveau remboursement. La rétroaction est bornée à zéro itération, dans
+       * le même esprit que le reliquat de vente ci-dessus. `deductionUtilisable = 0` suffit à
+       * l'interdire, sans dupliquer la logique de `placerCapital`.
+       */
+      if (h.reinvestirRemboursementReer && deductible > 0) {
+        const impotSansDeduction = impotTotalPour({ ...entreeAnnee, deductionReer: 0 }, annee);
+        const remboursement = Math.max(0, impotSansDeduction - impotAnnee);
+        if (remboursement > 0.5) {
+          const droits = { droitsCeli, droitsReer };
+          const pose = placerCapital(comptes, profilDefaut, droits, remboursement, age, 0);
+          droitsCeli = droits.droitsCeli;
+          remboursementReinvesti = remboursement;
+          consoCeli.push({ libelle: 'Remboursement d’impôt réinvesti', montant: -pose.celi });
+        }
+      }
+
       // Conservation, lisible telle quelle dans le tiroir de détail : tout ce qui entre (revenus,
-      // loyers, produit de vente, héritage) ressort en impôt, cotisations, capital placé ou
-      // disponible. Aucun dollar ne se crée ni ne disparaît.
+      // loyers, produit de vente, héritage) ressort en impôt, cotisations, capital placé,
+      // remboursement réinvesti ou disponible. Aucun dollar ne se crée ni ne disparaît.
       revenuDisponible =
         revenuEmploi + rrq + sv + minimumFERR + renteEmp + immo.loyerCash + immo.cashVente +
-        heritageRecu - capitalPlace - immo.paiement - impotAnnee - cotisations - retenuesPaie;
+        heritageRecu - capitalPlace - remboursementReinvesti - immo.paiement - impotAnnee -
+        cotisations - retenuesPaie;
     } else {
       // Revenu de travail poursuivi À LA RETRAITE (« retraité-actif ») : imposé comme emploi, net
       // des retenues (RRQ/AE/RQAP) dans l'encaisse, et rouvrant des droits REER (jusqu'à 71 ans).
@@ -507,7 +643,7 @@ export function projeter(h: HypothesesProjection, options: { trace?: boolean } =
         revenuTravail > 0 ? calculerCotisations(revenuTravail, parametresCotisations(annee)).total : 0;
       revenuEmploi = revenuTravail;
       if (revenuTravail > 0 && age <= AGE_CONVERSION_FERR) {
-        droitsReer += droitsReerAnnuels(revenuTravail, plafondReerNominal(annee), 0);
+        ajouterDroitsReer(revenuTravail, 0);
       }
 
       const cible = h.depensesRetraite * facteurInflation + immo.paiement;
@@ -542,7 +678,37 @@ export function projeter(h: HypothesesProjection, options: { trace?: boolean } =
       // Réinvestir un éventuel surplus (revenu de travail ou revenus fixes dépassant la cible) :
       // CELI → REER (≤ 71 ans, déductible) → non-enregistré.
       if (res.disponible > cible + 1) {
-        const surplus = res.disponible - cible;
+        let surplus = res.disponible - cible;
+
+        /**
+         * Étape prioritaire, devant le CELI.
+         *
+         * **Garde-fou** : jamais l'année d'une fonte du REER. `fondreReer` s'exécute quelques lignes
+         * plus bas et retire des comptes enregistrés pour remplir les tranches basses — cotiser au
+         * REER juste avant reviendrait à verser le matin ce qu'on fond l'après-midi.
+         */
+        let prioritaire = 0;
+        if (seuilReer < 1 && !(h.cibleFonteReer && h.cibleFonteReer > 0)) {
+          const baseSurplus = construireBase(entreeAnnee, annee);
+          const droitsP = { droitsCeli, droitsReer };
+          prioritaire = verserReerPrioritaire(
+            comptes, profilDefaut, droitsP, surplus, age,
+            Math.max(0, baseSurplus.revenuTotalImpose - baseSurplus.deductionsFederal), seuilReer,
+            (x) => calculerTauxMarginal({ ...entreeAnnee, deductionReer: entreeAnnee.deductionReer + x }, 1, annee),
+          );
+          droitsReer = droitsP.droitsReer;
+          if (prioritaire > 0) {
+            // La déduction obtenue réduit l'impôt : le remboursement est du liquide en plus, replacé
+            // avec le reste du surplus — même convention que `placerSurplusRetraite`.
+            const e: EntreeFiscale = { ...entreeAnnee, deductionReer: entreeAnnee.deductionReer + prioritaire };
+            const nouvelImpot = impotTotalPour(e, annee);
+            surplus += Math.max(0, impotAnnee - nouvelImpot) - prioritaire;
+            impotAnnee = nouvelImpot;
+            entreeAnnee = e;
+            consoReer.push({ libelle: LIBELLE_PRIORITAIRE, montant: -prioritaire });
+          }
+        }
+
         const droits = { droitsCeli, droitsReer };
         const pose = placerSurplusRetraite(
           comptes, profilDefaut, droits, surplus, age, entreeAnnee, impotAnnee,
@@ -555,8 +721,22 @@ export function projeter(h: HypothesesProjection, options: { trace?: boolean } =
         droitsReer = droits.droitsReer;
         impotAnnee = pose.impot;
         entreeAnnee = pose.entree;
-        traceVentil = pose.ventilation;
+        traceVentil = { ...pose.ventilation, reer: pose.ventilation.reer + prioritaire };
         revenuDisponible = cible;
+        // En décaissement, un héritage ou une vente ne sont PAS placés d'un bloc : ils entrent dans
+        // l'encaisse, financent les dépenses de l'année, et seul l'excédent est réinvesti. Le
+        // libellé nomme donc le mécanisme (le surplus) et, entre parenthèses, sa provenance — sans
+        // quoi un héritage de 120 000 $ apparaissait sous le seul mot « surplus ».
+        const venue =
+          heritageRecu > 0.5 && immo.cashVente > 0.5
+            ? ' (héritage et vente cette année)'
+            : heritageRecu > 0.5
+              ? ' (héritage reçu cette année)'
+              : immo.cashVente > 0.5
+                ? ' (vente d’immeuble cette année)'
+                : '';
+        consoCeli.push({ libelle: `Surplus de retraite réinvesti${venue}`, montant: -pose.ventilation.celi });
+        consoReer.push({ libelle: `Surplus de retraite réinvesti${venue}`, montant: -pose.ventilation.reer });
       }
 
       // Épuisement du capital : impossible de financer la cible.
@@ -570,6 +750,7 @@ export function projeter(h: HypothesesProjection, options: { trace?: boolean } =
         impotAnnee = f.impot;
         entreeAnnee = f.entree;
         droitsCeli -= f.celiUtilise;
+        consoCeli.push({ libelle: 'Fonte du REER réinvestie au CELI', montant: -f.celiUtilise });
       }
     }
 
@@ -600,6 +781,7 @@ export function projeter(h: HypothesesProjection, options: { trace?: boolean } =
       const impotDeces = impotTotalPour(entreeDeces, annee) - impotTotalPour(entreeAnnee, annee);
       impotAnnee += impotDeces;
       impotTotalVieReel += impotDeces * deflateurReel;
+      impotAuDeces = impotDeces;
       traceImpotDeces = impotDeces;
       traceDetailDeces = [
         { libelle: 'REER / FERR / CRI / FRV liquidés', montant: soldesEnr },
@@ -666,6 +848,7 @@ export function projeter(h: HypothesesProjection, options: { trace?: boolean } =
               impotSupporteVente,
               heritage: heritageRecu,
               capitalPlace,
+              remboursementReinvesti,
               paiementImmo: immo.paiement,
               cibleSaisie: h.depensesRetraite,
               facteurInflation,
@@ -673,6 +856,25 @@ export function projeter(h: HypothesesProjection, options: { trace?: boolean } =
               cotisations,
               cible: traceCible,
               ventilSurplus: traceVentil,
+              droits: {
+                celi: {
+                  report: reportCeli,
+                  ajouts: postesNonNuls(ajoutsCeli),
+                  consommations: postesNonNuls(consoCeli),
+                  restant: droitsCeli,
+                  // Retraits de CETTE année : ils ne reviendront qu'au 1er janvier prochain.
+                  aRestaurerLAnProchain: droitsCeliRestaures,
+                  salaireRetenu: 0,
+                },
+                reer: {
+                  report: reportReer,
+                  ajouts: postesNonNuls(ajoutsReer),
+                  consommations: postesNonNuls(consoReer),
+                  restant: droitsReer,
+                  aRestaurerLAnProchain: 0, // le REER ne restaure rien au retrait
+                  salaireRetenu: salaireDroitsReer,
+                },
+              },
             },
             entreeAnnee,
             annee,
@@ -690,7 +892,11 @@ export function projeter(h: HypothesesProjection, options: { trace?: boolean } =
     annees,
     ageEpuisement,
     suffisant: ageEpuisement === null,
-    valeurNetteAuDecesReelle: derniere ? derniere.valeurNette * derniere.deflateurReel : 0,
+    // Patrimoine réellement TRANSMIS : les soldes bruts moins l'impôt des dispositions présumées.
+    // `valeurNette` par année reste brute — le tableau et le tiroir listent les soldes compte par
+    // compte, et leur somme doit continuer d'égaler le total affiché. Même formule que `couple.ts`,
+    // sans clamp : un patrimoine transmis négatif signalerait une erreur de modèle qu'il faut voir.
+    valeurNetteAuDecesReelle: derniere ? (derniere.valeurNette - impotAuDeces) * derniere.deflateurReel : 0,
     impotTotalVieReel,
   };
 }

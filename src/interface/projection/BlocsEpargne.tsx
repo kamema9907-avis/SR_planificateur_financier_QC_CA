@@ -1,8 +1,10 @@
 /**
- * Encadrés conditionnels de la section « Vie active » : plafonds et droits de cotisation.
+ * Encadrés de la section « Vie active » : plafonds et droits de cotisation.
  *
- * Ils n'apparaissent que lorsqu'ils sont pertinents (on ne parle du plafond CELIAPP que si l'on
- * cotise au CELIAPP), ce qui évite d'alourdir le formulaire pour rien.
+ * Les encadrés de PLAFOND n'apparaissent que lorsqu'ils sont pertinents (on ne parle du plafond
+ * CELIAPP que si l'on cotise au CELIAPP), ce qui évite d'alourdir le formulaire pour rien.
+ *
+ * Les DROITS de cotisation, eux, sont toujours visibles : voir `BlocDroitsCotisation`.
  */
 import {
   CELIAPP_PLAFOND_ANNUEL,
@@ -76,73 +78,86 @@ export function BlocCeliapp({ p, onChange }: Props) {
 }
 
 /**
- * Droits de cotisation CELI.
+ * Droits de cotisation CELI et REER — **toujours visibles**.
  *
- * Visible dès que quelque chose peut aboutir au CELI — et pas seulement en cas d'épargne CELI
- * planifiée : un héritage, un produit de vente ou un simple surplus de retraite y sont versés en
- * priorité. Masquer le champ dans ces cas laissait croire que les droits n'étaient pas pris en
- * compte, alors qu'une valeur par défaut (109 000 $ − solde actuel) s'appliquait en silence.
+ * Ces deux chiffres ne décrivent pas l'épargne annuelle : ce sont des attributs permanents de la
+ * personne, que le moteur consomme partout où un dollar entre. Il les lit à quatre endroits, dont
+ * trois n'ont rien à voir avec la vie active : la cotisation annuelle, le placement du produit
+ * d'une vente d'immeuble, le placement d'un héritage, et le surplus d'un retraité qui travaille.
+ *
+ * Ils étaient auparavant masqués tant qu'on ne cotisait pas au compte correspondant. Un retraité qui
+ * vendait un immeuble se voyait donc appliquer en silence le défaut de `droitsReerDisponibles`,
+ * c'est-à-dire ZÉRO : la cotisation REER qui absorbe le gain de l'année devenait impossible. Mesuré
+ * sur un cas réaliste (immeuble de 350 000 $ vendu à 60 ans) : 20 769 $ d'impôt en trop et 12 % de
+ * patrimoine en moins au décès, sur un champ que l'écran refusait d'afficher.
+ *
+ * Le défaut REER reste 0 (aucun report inutilisé) : il n'existe aucune heuristique défendable, les
+ * droits dépendant de toute la carrière. Mais un défaut prudent VISIBLE vaut mieux qu'un défaut
+ * caché — d'où le champ permanent et l'indice qui nomme la ligne exacte de l'avis de cotisation.
  */
-export function BlocDroitsCeli({ p, onChange }: Props) {
-  const peutRecevoir =
-    (p.epargneAnnuelle.CELI ?? 0) > 0 ||
-    (p.epargneAnnuelle.CELIAPP ?? 0) > 0 ||
-    (p.heritages ?? []).some((h) => h.montant > 0) ||
-    p.comptes.some((c) => c.type === 'CELI' && c.solde > 0);
-  if (!peutRecevoir) return null;
+export function BlocDroitsCotisation({ p, onChange }: Props) {
+  // Le facteur d'équivalence ne joue que tant qu'un salaire génère de nouveaux droits ; inutile de
+  // l'imposer à un retraité. On le garde visible s'il est déjà activé, pour pouvoir l'éteindre.
+  const accumuleEncore = p.revenuEmploi > 0 || (p.regimeRetraitePD ?? false);
   return (
     <div className="encadre-ciel">
-      <ChampMonetaire
-        label="Droits CELI disponibles"
-        valeur={Math.round(p.droitsCeliDisponibles ?? droitsCeliParDefaut(p.comptes))}
-        onChange={(v) => onChange({ droitsCeliDisponibles: v })}
-        indice="Chiffre exact dans « Mon dossier » (ARC). Pré-rempli : 109 000 $ − votre solde CELI actuel."
-      />
-      <p className="mt-2 text-xs text-doux">
-        Les droits croissent de ~7 000 $/an (indexé) et un retrait les redonne l'année suivante.
-        L'épargne au-delà des droits ira au non-enregistré.
+      <p className="etiquette">Droits de cotisation (ARC)</p>
+      <p className="mt-1 mb-3 text-xs text-doux">
+        Deux chiffres personnels, tirés de votre avis de cotisation et de « Mon dossier ». Ils
+        décident où aboutit <strong>chaque dollar qui entre</strong> : épargne annuelle, produit
+        d'une vente d'immeuble, héritage, surplus d'un retraité qui travaille.
       </p>
-    </div>
-  );
-}
-
-/** Droits de cotisation REER et facteur d'équivalence — visible seulement si l'on cotise au REER. */
-export function BlocDroitsReer({ p, onChange }: Props) {
-  if ((p.epargneAnnuelle.REER ?? 0) <= 0) return null;
-  return (
-    <div className="encadre-marque">
       <div className="grid gap-4 sm:grid-cols-2">
-        <ChampMonetaire
-          label="Droits REER disponibles"
-          valeur={p.droitsReerDisponibles ?? 0}
-          onChange={(v) => onChange({ droitsReerDisponibles: v })}
-          indice="Chiffre de votre avis de cotisation ARC (inclut le report inutilisé)."
-        />
-        <div className="pt-1">
-          <Interrupteur
-            label="Régime à PD (RREGOP / RPA)"
-            valeur={p.regimeRetraitePD ?? false}
-            onChange={(v) => onChange({ regimeRetraitePD: v })}
+        <div>
+          <ChampMonetaire
+            label="Droits CELI disponibles"
+            valeur={Math.round(p.droitsCeliDisponibles ?? droitsCeliParDefaut(p.comptes))}
+            onChange={(v) => onChange({ droitsCeliDisponibles: v })}
+            indice="« Mon dossier » (ARC). Prérempli : 109 000 $ − votre solde CELI actuel."
           />
-          {p.regimeRetraitePD && (
-            <Avance>
-              <div className="mt-3">
-                <ChampMonetaire
-                  label="Facteur d'équivalence (si connu)"
-                  valeur={p.facteurEquivalenceReer ?? 0}
-                  onChange={(v) => onChange({ facteurEquivalenceReer: v })}
-                  indice="T4 case 52. Laissez 0 pour l'estimation automatique."
-                />
-              </div>
-            </Avance>
+          <p className="mt-2 text-xs text-doux">
+            Les droits croissent de ~7 000 $/an (indexé) et un retrait les redonne l'année suivante.
+            Ce qui dépasse les droits ira au non-enregistré.
+          </p>
+        </div>
+        <div>
+          <ChampMonetaire
+            label="Droits REER disponibles"
+            valeur={p.droitsReerDisponibles ?? 0}
+            onChange={(v) => onChange({ droitsReerDisponibles: v })}
+            indice="Avis de cotisation ARC, ligne « Maximum déductible au titre des REER ». Laissé vide, le calcul suppose aucun report inutilisé."
+          />
+          <p className="mt-2 text-xs text-doux">
+            Nouveaux droits ≈ 18 % du salaire − facteur d'équivalence (max{' '}
+            {formatDollars(REER_PLAFOND_DOLLAR_2026)}). Ce qui dépasse ira au CELI, puis au
+            non-enregistré.
+          </p>
+          {accumuleEncore && (
+            <div className="mt-3">
+              <Interrupteur
+                label="Régime à PD (RREGOP / RPA)"
+                valeur={p.regimeRetraitePD ?? false}
+                onChange={(v) => onChange({ regimeRetraitePD: v })}
+              />
+              <p className="mt-1 text-xs text-doux">
+                Un régime à PD réduit fortement les nouveaux droits (~600 $/an).
+              </p>
+              {p.regimeRetraitePD && (
+                <Avance>
+                  <div className="mt-3">
+                    <ChampMonetaire
+                      label="Facteur d'équivalence (si connu)"
+                      valeur={p.facteurEquivalenceReer ?? 0}
+                      onChange={(v) => onChange({ facteurEquivalenceReer: v })}
+                      indice="T4 case 52. Laissez 0 pour l'estimation automatique."
+                    />
+                  </div>
+                </Avance>
+              )}
+            </div>
           )}
         </div>
       </div>
-      <p className="mt-2 text-xs text-doux">
-        Nouveaux droits ≈ 18 % du salaire − facteur d'équivalence (max {formatDollars(REER_PLAFOND_DOLLAR_2026)}).
-        Un régime à PD (RREGOP) réduit fortement les droits (~600 $/an). L'excédent ira au CELI, puis au
-        non-enregistré.
-      </p>
     </div>
   );
 }

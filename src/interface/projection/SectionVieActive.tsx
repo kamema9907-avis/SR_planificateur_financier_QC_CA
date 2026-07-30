@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import type { TypeCompte } from '../../moteur';
 import { ChampMonetaire, ChampPourcent } from '../Champ';
 import { Avance } from '../ui/ModeDetail';
-import { BlocCeliapp, BlocDroitsCeli, BlocDroitsReer, BlocFondsTravailleurs } from './BlocsEpargne';
+import { BlocCeliapp, BlocDroitsCotisation, BlocFondsTravailleurs } from './BlocsEpargne';
 import type { ChampsPersonne, PatchPersonne } from './champsPersonne';
 
 /** Un type de compte proposé à l'épargne annuelle. */
@@ -38,8 +38,9 @@ interface Props {
 }
 
 /**
- * Revenu de travail et épargne annuelle, avec les encadrés de plafonds qui n'apparaissent que
- * lorsqu'ils sont pertinents. Commune à la personne seule et à chaque conjoint.
+ * Revenu de travail et épargne annuelle. Les encadrés de PLAFOND (CELIAPP) n'apparaissent que
+ * lorsqu'ils sont pertinents ; les DROITS de cotisation sont permanents, car le moteur les consomme
+ * bien au-delà de la vie active. Commune à la personne seule et à chaque conjoint.
  */
 export function SectionVieActive({ p, onChange, epargnes, epargneSupplementaire }: Props) {
   const majEpargne = (type: TypeCompte, montant: number) =>
@@ -79,8 +80,7 @@ export function SectionVieActive({ p, onChange, epargnes, epargneSupplementaire 
 
       <BlocFondsTravailleurs p={p} onChange={onChange} />
       <BlocCeliapp p={p} onChange={onChange} />
-      <BlocDroitsCeli p={p} onChange={onChange} />
-      <BlocDroitsReer p={p} onChange={onChange} />
+      <BlocDroitsCotisation p={p} onChange={onChange} />
     </>
   );
 }

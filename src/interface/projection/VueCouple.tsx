@@ -23,6 +23,10 @@ import { DetailAnneesCouple } from './DetailAnneesCouple';
 function detailsCouple(s: HypothesesCouple): { label: string; valeur: string }[] {
   const d: { label: string; valeur: string }[] = [];
   d.push({ label: 'Fonte du REER', valeur: s.cibleFonteReer && s.cibleFonteReer > 0 ? `${formatDollars(s.cibleFonteReer)} / an` : 'Aucune' });
+  // Ce levier n'existe que si le remboursement d'impôt est réinvesti : ne l'annoncer que s'il a joué.
+  if (s.seuilMarginalReer != null && s.seuilMarginalReer < 1) {
+    d.push({ label: 'REER prioritaire si marginal >', valeur: `${Math.round(s.seuilMarginalReer * 100)} %` });
+  }
   if (s.personne1.rrqA65 > 0) d.push({ label: `Début RRQ — ${s.personne1.nom}`, valeur: `${s.personne1.ageDebutRRQ} ans` });
   if (s.personne2.rrqA65 > 0) d.push({ label: `Début RRQ — ${s.personne2.nom}`, valeur: `${s.personne2.ageDebutRRQ} ans` });
   if (s.personne1.svA65 > 0) d.push({ label: `Début SV — ${s.personne1.nom}`, valeur: `${s.personne1.ageDebutSV} ans` });

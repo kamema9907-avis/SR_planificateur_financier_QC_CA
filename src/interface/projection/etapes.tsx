@@ -52,6 +52,26 @@ const immobilise = (immeubles: readonly Immeuble[]) =>
     .filter((b) => b.ageVente == null)
     .map((b) => ({ nom: b.nom, equite: Math.max(0, b.valeur - b.hypotheque) }));
 
+/**
+ * Réglage du sort du remboursement d'impôt REER, commun au solo et au couple.
+ *
+ * Sa place ici, parmi les hypothèses de modèle, plutôt qu'à l'étape « Vie active » : c'est une
+ * convention de calcul comme l'inflation, et en couple elle vaut pour les deux conjoints alors que
+ * l'étape « Vie active » est propre à chacun. L'aide de « Vie active » y renvoie.
+ */
+function ChampRemboursement({ valeur, onChange }: { valeur: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <div className="sm:col-span-2">
+      <Interrupteur label="Réinvestir le remboursement d’impôt REER" valeur={valeur} onChange={onChange} />
+      <p className="mt-1 text-xs text-doux">
+        Éteint, le remboursement que procurent vos cotisations REER et CELIAPP grossit votre train de
+        vie de l’année. Allumé, il est épargné (CELI, puis non-enregistré) — ce qui met le REER et le
+        CELI à <strong>coût égal de votre poche</strong>, seule base honnête pour les comparer.
+      </p>
+    </div>
+  );
+}
+
 /** Pose une dépense de retraite dans des hypothèses, sans toucher au reste. */
 const poserDepenseSolo = (h: HypothesesProjection, montant: number) => ({
   ...h,
@@ -86,9 +106,17 @@ function etapesCommunes(
       description: "Ce que vous gagnez aujourd'hui et ce que vous mettez de côté chaque année.",
       aide: (
         <>
-          Les encadrés de plafonds n'apparaissent que pour les comptes où vous cotisez : plafond à vie
-          du CELIAPP, droits CELI, droits REER. Le cas échéant, l'excédent d'une cotisation est
-          redirigé en chaîne CELIAPP → CELI → non-enregistré, comme le fait l'ARC dans les faits.
+          L'excédent d'une cotisation est redirigé en chaîne CELIAPP → CELI → non-enregistré, comme le
+          fait l'ARC dans les faits ; le plafond à vie du CELIAPP n'apparaît que si vous y cotisez.
+          L'encadré <strong>« Droits de cotisation »</strong>, lui, est toujours affiché : ces deux
+          chiffres servent aussi <em>hors</em> de la vie active, pour placer le produit d'une vente
+          d'immeuble, un héritage ou le surplus d'un retraité qui travaille.
+          <br />
+          <br />
+          Une cotisation REER ou CELIAPP procure un <strong>remboursement d'impôt</strong>. Par
+          défaut, il grossit votre train de vie de l'année ; le réglage avancé « Réinvestir le
+          remboursement d'impôt REER », à l'étape des dépenses, l'épargne à la place — c'est ce qui
+          rend le REER et le CELI comparables à coût égal.
         </>
       ),
       rempli: p.revenuEmploi > 0 || epargneNonNulle(p),
@@ -339,6 +367,10 @@ export function groupeSolo(h: HypothesesProjection, onChange: (h: HypothesesProj
               indice="Réduisent le rendement"
             />
             <ChampPartConsommee />
+            <ChampRemboursement
+              valeur={h.reinvestirRemboursementReer ?? false}
+              onChange={(v) => maj('reinvestirRemboursementReer', v)}
+            />
           </Avance>
         </div>
       ),
@@ -461,6 +493,10 @@ export function groupeMenage(h: HypothesesCouple, onChange: (h: HypothesesCouple
               indice="Réduisent le rendement"
             />
             <ChampPartConsommee />
+            <ChampRemboursement
+              valeur={h.reinvestirRemboursementReer ?? false}
+              onChange={(v) => onChange({ ...h, reinvestirRemboursementReer: v })}
+            />
           </Avance>
         </div>
       ),

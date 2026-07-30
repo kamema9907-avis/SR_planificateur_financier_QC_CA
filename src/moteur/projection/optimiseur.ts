@@ -22,6 +22,11 @@ const ORDRES: readonly TypeCompte[][] = [
   ['NON_ENREGISTRE', 'REER', 'FERR', 'CRI', 'FRV', 'CELIAPP', 'CELI'], // équilibré
 ];
 const FONTE: readonly number[] = [0, 40_000, 50_000, 60_000, 75_000, 90_000];
+/**
+ * Seuil de taux marginal au-delà duquel l'épargne va au REER avant le CELI (voir `seuilReer.ts`).
+ * `1` = comportement historique, CELI d'abord.
+ */
+const SEUILS_REER: readonly number[] = [1, 0.5, 0.45, 0.4, 0.36, 0.3, 0];
 const AGES_RRQ: readonly number[] = [60, 62, 65, 67, 70, 72];
 const AGES_SV: readonly number[] = [65, 67, 70];
 const AGES_VENTE: readonly (number | null)[] = [null, 60, 65, 70, 75, 80];
@@ -39,6 +44,22 @@ function agesVenteCandidats(ageVenteMin?: number): (number | null)[] {
   if (!candidats.includes(ageVenteMin)) candidats.push(ageVenteMin);
   return candidats;
 }
+
+/**
+ * Le seuil REER n'est un levier de STRATÉGIE que si le remboursement d'impôt est réinvesti.
+ *
+ * Raison : à remboursement consommé, déplacer de l'épargne du CELI vers le REER augmente le train de
+ * vie (le remboursement part en consommation) et baisse le patrimoine. Le score ignorant la
+ * consommation, l'optimiseur y verrait une pure perte et recommanderait toujours le CELI — pour la
+ * mauvaise raison. Réinvesti, la consommation est identique de part et d'autre (`revenu − épargne −
+ * impôt sans déduction`), et la comparaison porte enfin sur le seul choix de compte.
+ *
+ * Le réinvestissement lui-même n'est **pas** un levier : il convertit de la consommation en
+ * patrimoine, donc le score le choisirait systématiquement sans rien apprendre à personne. C'est un
+ * arbitrage de train de vie, qui appartient à l'utilisateur.
+ */
+const seuilsCandidats = (reinvestit: boolean | undefined): readonly number[] =>
+  reinvestit ? SEUILS_REER : [];
 
 /** Score d'une projection : patrimoine net au décès si le capital dure, sinon pénalisé (longévité). */
 function scoreSolo(r: ResultatProjection): number {
@@ -92,6 +113,7 @@ export function optimiserProjection(h: HypothesesProjection): ResultatOptimisati
   const leviers: ((b: HypothesesProjection) => HypothesesProjection[])[] = [
     (b) => ORDRES.map((ordreDecaissement) => ({ ...b, ordreDecaissement })),
     (b) => FONTE.map((cibleFonteReer) => ({ ...b, cibleFonteReer })),
+    (b) => seuilsCandidats(b.reinvestirRemboursementReer).map((seuilMarginalReer) => ({ ...b, seuilMarginalReer })),
     (b) => (b.rrqA65 > 0 ? AGES_RRQ.map((ageDebutRRQ) => ({ ...b, ageDebutRRQ })) : []),
     (b) => (b.svA65 > 0 ? AGES_SV.map((ageDebutSV) => ({ ...b, ageDebutSV })) : []),
     (b) =>
@@ -120,6 +142,7 @@ export function optimiserCouple(h: HypothesesCouple): ResultatOptimisation<Hypot
   const leviers: ((b: HypothesesCouple) => HypothesesCouple[])[] = [
     (b) => ORDRES.map((ordreDecaissement) => ({ ...b, ordreDecaissement })),
     (b) => FONTE.map((cibleFonteReer) => ({ ...b, cibleFonteReer })),
+    (b) => seuilsCandidats(b.reinvestirRemboursementReer).map((seuilMarginalReer) => ({ ...b, seuilMarginalReer })),
     (b) => (b.personne1.rrqA65 > 0 ? AGES_RRQ.map((a) => ({ ...b, personne1: { ...b.personne1, ageDebutRRQ: a } })) : []),
     (b) => (b.personne2.rrqA65 > 0 ? AGES_RRQ.map((a) => ({ ...b, personne2: { ...b.personne2, ageDebutRRQ: a } })) : []),
     (b) => (b.personne1.svA65 > 0 ? AGES_SV.map((a) => ({ ...b, personne1: { ...b.personne1, ageDebutSV: a } })) : []),

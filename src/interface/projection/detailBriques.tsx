@@ -1,5 +1,5 @@
 /** Briques d'affichage partagées par les drawers de drill-down (solo et couple). */
-import type { DetailDisponible, DetailImpotAnnee, DetailValeurNette, DetailVente, LienDetail, Poste } from '../../moteur';
+import type { DetailDisponible, DetailDroits, DetailImpotAnnee, DetailValeurNette, DetailVente, LienDetail, Poste } from '../../moteur';
 import { formatDollars, formatPourcent } from '../format';
 
 /** Une ligne « poste » (montant signé) ; cliquable si le poste porte un lien de drill-down. */
@@ -290,13 +290,98 @@ export function BlocImpotFiscal({ t, facteur, titre }: { t: DetailImpotAnnee; fa
   );
 }
 
-/** Valeur nette : comptes + immobilier + total. */
-export function BlocValeurNette({ v, total, facteur }: { v: DetailValeurNette; total: number; facteur: number }) {
+/**
+ * Évolution d'un compteur de droits de cotisation sur l'année.
+ *
+ * `facteur` vaut toujours 1 : ce bloc ignore délibérément la bascule « dollars d'aujourd'hui ». Un
+ * droit de cotisation est une quantité légale **nominale** — celle de votre avis de l'ARC — et
+ * l'ajout annuel du CELI, arrondi au 500 $ avant indexation, se mettrait à osciller une fois
+ * déflaté (7 000 $, puis 6 856 $, puis 7 194 $…) alors qu'il progresse par paliers nets.
+ *
+ * La chaîne somme **exactement** au restant, qui est le compteur du moteur lui-même et non une
+ * reconstitution : c'est ce qui rend le calcul vérifiable ligne à ligne.
+ */
+export function BlocDroits({ d, age, celi }: { d: DetailDroits; age: number; celi: boolean }) {
+  const rien = d.ajouts.length === 0 && d.consommations.length === 0;
+  return (
+    <>
+      <LigneTotal libelle="Report au 1er janvier" montant={d.report} facteur={1} />
+      <Section titre="Ajouts de l’année" postes={d.ajouts} facteur={1} />
+      <Section titre="Consommation des droits" postes={d.consommations} facteur={1} />
+      <LigneTotal libelle="= Droits restants au 31 décembre" montant={d.restant} facteur={1} accent />
+
+      {d.salaireRetenu > 0.5 && (
+        <p className="mb-3 rounded-lg bg-champ p-3 text-xs leading-relaxed text-doux">
+          Le 18 % porte sur un salaire de{' '}
+          <span className="chiffres font-medium text-corps">{formatDollars(d.salaireRetenu)}</span>,
+          en dollars de l’année — c’est le salaire d’aujourd’hui indexé, pas celui que vous avez saisi.
+        </p>
+      )}
+
+      {d.aRestaurerLAnProchain > 0.5 && (
+        <p className="mb-3 rounded-lg bg-champ p-3 text-xs leading-relaxed text-doux">
+          <span className="chiffres font-medium text-corps">{formatDollars(d.aRestaurerLAnProchain)}</span>{' '}
+          ont été retirés du CELI cette année. Ces droits ne reviennent <strong>pas</strong> tout de
+          suite : ils seront restaurés le 1<sup>er</sup> janvier de vos {age + 1} ans, et figureront
+          dans les ajouts de cette année-là.
+        </p>
+      )}
+
+      {rien && !celi && d.salaireRetenu === 0 && (
+        <p className="mb-3 rounded-lg bg-champ p-3 text-xs leading-relaxed text-doux">
+          Aucun salaire cette année, donc aucun droit REER neuf. Les droits inutilisés se reportent{' '}
+          <strong>indéfiniment</strong> : ce montant ne se perd pas, il attend.
+        </p>
+      )}
+
+      <p className="text-xs leading-relaxed text-doux">
+        Montants <strong>nominaux</strong>, quelle que soit la bascule d’affichage : un droit de
+        cotisation est le chiffre de votre avis de l’ARC pour cette année-là.
+        {celi
+          ? ' Les droits CELI croissent d’environ 7 000 $ par an (indexé, arrondi au 500 $) et un retrait les redonne l’année suivante.'
+          : ' Les droits REER neufs valent 18 % du salaire, plafonnés, moins le facteur d’équivalence d’un régime d’employeur.'}
+      </p>
+    </>
+  );
+}
+
+/**
+ * Valeur nette : comptes + immobilier + total, et l'année du décès le patrimoine **transmis**.
+ *
+ * Le total du tableau est **brut** : c'est la somme des soldes, et elle doit le rester pour que la
+ * liste ci-dessus s'additionne. Le panneau de synthèse, lui, annonce la valeur nette « après impôt au
+ * décès ». Sans les trois lignes finales, ces deux chiffres différeraient sans explication — ce qui
+ * est précisément ce qui a permis à l'écart de passer inaperçu si longtemps en mode solo.
+ */
+export function BlocValeurNette({ v, total, facteur, onImpot }: {
+  v: DetailValeurNette;
+  total: number;
+  facteur: number;
+  onImpot?: () => void;
+}) {
+  const impot = v.impotDeces;
   return (
     <>
       <Section titre="Comptes de placement" postes={v.comptes} facteur={facteur} />
       <Section titre="Immobilier (équité : valeur − hypothèque)" postes={v.immobilier} facteur={facteur} />
-      <LigneTotal libelle="Valeur nette" montant={total} facteur={facteur} accent />
+      <LigneTotal libelle="Valeur nette" montant={total} facteur={facteur} accent={impot <= 0.5} />
+
+      {impot > 0.5 && (
+        <>
+          <Section
+            titre="Dispositions présumées au décès"
+            postes={[{ libelle: 'Impôt au décès', montant: -impot, lien: onImpot ? 'impot' : undefined }]}
+            facteur={facteur}
+            onLien={onImpot ? () => onImpot() : undefined}
+          />
+          <LigneTotal libelle="= Patrimoine transmis" montant={total - impot} facteur={facteur} accent />
+          <p className="text-xs leading-relaxed text-doux">
+            C'est ce montant, et non le total brut, que le panneau annonce comme{' '}
+            <strong>valeur nette au décès</strong> : au décès, les comptes enregistrés sont réputés
+            liquidés et les gains latents réalisés.
+          </p>
+        </>
+      )}
     </>
   );
 }

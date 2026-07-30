@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import type { HypothesesCouple, HypothesesProjection, PersonneProjection } from '../../moteur';
+import type { HypothesesCouple, HypothesesProjection, Immeuble, PersonneProjection } from '../../moteur';
 import { alertesMenage, alertesPersonne, validerSolo, type Alerte } from './validation';
+
+/** Immeuble à revenu vendu à 60 ans : l'apport de capital qui déclenche l'alerte « droits REER ». */
+function immeubleVendu(p: Partial<Immeuble> = {}): Immeuble {
+  return {
+    nom: 'Immeuble à revenu', type: 'revenu', valeur: 350_000, coutBase: 80_000,
+    hypotheque: 0, paiementAnnuel: 0, revenuNetExploitation: 12_000,
+    anneesDetenues: 20, appreciation: 0.025, tauxHypotheque: 0.05,
+    ageVente: 60, fractionLiberee: 1, proprietaire: 1, ...p,
+  };
+}
 
 /** Dossier solo cohérent : sert de base, chaque test n'introduit qu'un défaut. */
 function soloValide(): HypothesesProjection {
@@ -168,6 +178,102 @@ describe('validation du couple', () => {
   it('rattache les alertes d’immobilier et de dépenses au ménage', () => {
     const h = { ...coupleValide(), depensesRetraite: 0 };
     expect(alertesMenage(h).some((x) => x.etape === 'depenses')).toBe(true);
+  });
+});
+
+/**
+ * L'apport de capital qui arrive devant une porte fermée.
+ *
+ * Le champ « droits REER » vaut 0 par défaut. Tant qu'il était masqué hors cotisation REER, un
+ * retraité qui vendait un immeuble subissait ce 0 sans jamais le voir. Le champ est désormais
+ * permanent ; ces alertes couvrent le cas où il reste malgré tout à zéro.
+ */
+describe('droits REER face à un apport de capital', () => {
+  /** Retraité de 58 ans, sans salaire : plus aucun droit ne s'accumulera d'ici la vente. */
+  const retraiteQuiVend = (p: Partial<HypothesesProjection> = {}): HypothesesProjection => ({
+    ...soloValide(),
+    ageActuel: 58, ageRetraite: 59, revenuEmploi: 0, epargneAnnuelle: {},
+    immeubles: [immeubleVendu()], ...p,
+  });
+
+  const surDroitsReer = (a: Alerte[]) =>
+    surEtape(a, 'vie-active').filter((x) => x.message.includes('Maximum déductible'));
+
+  it('avertit le retraité qui vend un immeuble sans report saisi', () => {
+    const a = validerSolo(retraiteQuiVend());
+    expect(surDroitsReer(a).length).toBe(1);
+    expect(surDroitsReer(a)[0].niveau).toBe('attention');
+    expect(surDroitsReer(a)[0].message).toContain('Immeuble à revenu');
+    expect(surDroitsReer(a)[0].message).toContain('60 ans');
+  });
+
+  it('se tait dès qu’un report est saisi', () => {
+    expect(surDroitsReer(validerSolo(retraiteQuiVend({ droitsReerDisponibles: 60_000 })))).toEqual([]);
+  });
+
+  it('se tait pour un salarié qui accumulera des droits d’ici la vente', () => {
+    // 45 ans, 85 000 $ de salaire, 8 000 $ cotisés : ~7 300 $ de droits neufs par an sur 15 ans.
+    expect(surDroitsReer(validerSolo({ ...soloValide(), immeubles: [immeubleVendu()] }))).toEqual([]);
+  });
+
+  it('avertit malgré un salaire, sous régime à PD (le FE absorbe presque tout)', () => {
+    // Même salarié, mais RREGOP : ~600 $ de droits neufs par an, soit 6 000 $ sur 10 ans.
+    const a = validerSolo({
+      ...soloValide(),
+      epargneAnnuelle: {}, regimeRetraitePD: true,
+      immeubles: [immeubleVendu({ ageVente: 55 })],
+    });
+    expect(surDroitsReer(a).length).toBe(1);
+  });
+
+  it('avertit aussi pour un héritage, et compte les apports suivants', () => {
+    const a = validerSolo(
+      retraiteQuiVend({ heritages: [{ nom: 'Succession', montant: 150_000, age: 65 }] }),
+    );
+    expect(surDroitsReer(a).length).toBe(1);
+    // Le plus proche est nommé ; le second est compté, pas répété.
+    expect(surDroitsReer(a)[0].message).toContain('Immeuble à revenu');
+    expect(surDroitsReer(a)[0].message).toContain('et 1 autre');
+  });
+
+  it('ignore un apport hors de l’horizon', () => {
+    const a = validerSolo(retraiteQuiVend({ immeubles: [immeubleVendu({ ageVente: 40 })] }));
+    expect(surDroitsReer(a)).toEqual([]);
+  });
+
+  it('ne dit rien du travail à la retraite, qui rouvre lui-même des droits', () => {
+    const a = validerSolo({
+      ...soloValide(),
+      ageActuel: 58, ageRetraite: 59, revenuEmploi: 0, epargneAnnuelle: {}, immeubles: [],
+      periodesTravail: [{ nom: 'Pige', montant: 30_000, ageDebut: 60, ageFin: 68 }],
+    });
+    expect(surDroitsReer(a)).toEqual([]);
+  });
+
+  it('rattache l’alerte au propriétaire du bien, en couple', () => {
+    const sansDroits = { revenuEmploi: 0, ageActuel: 58, ageRetraite: 59, epargneAnnuelle: {} };
+    const h: HypothesesCouple = {
+      ...coupleValide(),
+      personne1: conjoint('Vigile', sansDroits),
+      personne2: conjoint('Conjointe', { ...sansDroits, sexe: 'F' }),
+      immeubles: [immeubleVendu({ proprietaire: 2 })],
+    };
+    expect(surDroitsReer(alertesPersonne(h, 'personne1'))).toEqual([]);
+    const a = surDroitsReer(alertesPersonne(h, 'personne2'));
+    expect(a.length).toBe(1);
+    expect(a[0].message).toContain('Conjointe');
+  });
+
+  it('avertit les deux conjoints pour un bien commun (gain partagé 50-50)', () => {
+    const sansDroits = { revenuEmploi: 0, ageActuel: 58, ageRetraite: 59, epargneAnnuelle: {} };
+    const h: HypothesesCouple = {
+      ...coupleValide(),
+      personne1: conjoint('Vigile', sansDroits),
+      personne2: conjoint('Conjointe', { ...sansDroits, sexe: 'F' }),
+      immeubles: [immeubleVendu({ proprietaire: 'commun' })],
+    };
+    expect(surDroitsReer(alertesPersonne(h, 'personne1')).length).toBe(1);
+    expect(surDroitsReer(alertesPersonne(h, 'personne2')).length).toBe(1);
   });
 });
 

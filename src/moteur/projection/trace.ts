@@ -81,6 +81,50 @@ export interface DetailVente {
   readonly netApresImpot: number;
 }
 
+/**
+ * Évolution d'un compteur de droits de cotisation (CELI ou REER) sur une année.
+ *
+ * Ces droits étaient des variables internes à la boucle : on voyait leur **effet** — une cotisation
+ * redirigée au non-enregistré, un produit de vente entièrement imposé — sans jamais voir le
+ * compteur. Impossible de vérifier le calcul, ni de savoir combien de place il reste avant une
+ * vente ou un héritage, moment où cette place décide de l'impôt.
+ *
+ * **Invariant** : `report + Σ ajouts + Σ consommations = restant` (les consommations sont
+ * négatives), et le `restant` d'une année est exactement le `report` de la suivante.
+ *
+ * Les consommations sont nommées **source par source** — c'est là que se trouve l'information :
+ * six mécanismes différents peuvent puiser dans ces droits la même année (épargne planifiée,
+ * excédent CELIAPP redirigé, débordement REER → CELI, placement d'un héritage ou d'une vente,
+ * surplus d'un retraité-actif, fonte du REER).
+ *
+ * Montants NOMINAUX, comme toute la trace — mais ici l'interface ne les déflate **pas** : un droit
+ * de cotisation est une quantité légale nominale (celle de l'avis de l'ARC), et l'ajout annuel du
+ * CELI, arrondi au 500 $ avant indexation, se mettrait à osciller une fois déflaté.
+ */
+export interface DetailDroits {
+  /** Droits reportés au 1er janvier, avant tout mouvement de l'année. */
+  readonly report: number;
+  /** Ce qui s'ajoute : droits neufs de l'année, retraits CELI restaurés. */
+  readonly ajouts: readonly Poste[];
+  /** Ce qui se consomme, source par source (montants négatifs). */
+  readonly consommations: readonly Poste[];
+  /** Droits restants au 31 décembre : ce qui se reporte à l'an prochain. */
+  readonly restant: number;
+  /**
+   * Retraits CELI de l'année COURANTE, restaurés au 1er janvier suivant. **Hors somme** : ils
+   * n'affectent pas le restant de cette année-ci. Toujours 0 pour le REER, qui ne restaure rien.
+   */
+  readonly aRestaurerLAnProchain: number;
+  /** Salaire ayant servi au calcul des droits neufs (REER) ; 0 quand il n'y en a pas. */
+  readonly salaireRetenu: number;
+}
+
+/** Les deux compteurs de droits d'une année. */
+export interface DetailDroitsAnnee {
+  readonly celi: DetailDroits;
+  readonly reer: DetailDroits;
+}
+
 /** Décomposition du revenu disponible d'une année. */
 export interface DetailDisponible {
   /** Entrées de liquidités (revenus, retraits, loyers, ventes). */
@@ -134,6 +178,15 @@ export interface DetailValeurNette {
   readonly comptes: readonly Poste[];
   /** Équité de chaque bien immobilier (valeur − hypothèque). */
   readonly immobilier: readonly Poste[];
+  /**
+   * Impôt des dispositions présumées, à **retrancher** du total pour obtenir le patrimoine transmis.
+   * 0 hors de l'année du décès.
+   *
+   * Le total par année reste **brut** — le tableau et ce tiroir listent les soldes compte par compte,
+   * et leur somme doit égaler le total affiché. C'est ici, et ici seulement, que l'écart avec le
+   * chiffre du panneau (« valeur nette au décès ») s'explique.
+   */
+  readonly impotDeces: number;
 }
 
 /** Traçabilité complète d'une année (solo). */
@@ -141,6 +194,7 @@ export interface DetailAnnee {
   readonly disponible: DetailDisponible;
   readonly impot: DetailImpotAnnee;
   readonly valeurNette: DetailValeurNette;
+  readonly droits: DetailDroitsAnnee;
 }
 
 /** Décomposition du fractionnement du revenu de pension (couple). */
@@ -166,6 +220,12 @@ export interface DetailCouple {
   /** Détail fiscal de chaque conjoint (post-fractionnement) ; null si le conjoint est décédé. */
   readonly impot1: DetailImpotAnnee | null;
   readonly impot2: DetailImpotAnnee | null;
+  /**
+   * Droits de cotisation de chaque conjoint ; null si décédé — les droits ne se transmettent pas,
+   * ils s'éteignent avec la personne (contrairement aux comptes, qui roulent au survivant).
+   */
+  readonly droits1: DetailDroitsAnnee | null;
+  readonly droits2: DetailDroitsAnnee | null;
   /** Impôt total du ménage. */
   readonly impotMenage: number;
   readonly fractionnement: DetailFractionnement;
@@ -206,6 +266,17 @@ export function detaillerVentes(
 /** Ne garde que les postes non négligeables (|montant| > 0,5 $). */
 export function postesSignificatifs(postes: readonly Poste[]): Poste[] {
   return postes.filter((p) => Math.abs(p.montant) > 0.5);
+}
+
+/**
+ * Ne retire que les postes **exactement** nuls.
+ *
+ * Sert aux décompositions dont le total n'est PAS recalculé à partir des postes mais lu directement
+ * dans le moteur — les droits de cotisation. Filtrer au demi-dollar y romprait l'égalité
+ * `report + ajouts + consommations = restant`, qui est précisément ce que ces postes doivent prouver.
+ */
+export function postesNonNuls(postes: readonly Poste[]): Poste[] {
+  return postes.filter((p) => Math.abs(p.montant) > 1e-9);
 }
 
 /**

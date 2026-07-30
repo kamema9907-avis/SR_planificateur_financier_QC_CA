@@ -59,6 +59,17 @@ export interface HypothesesCouple {
   cibleFonteReer?: number;
   inflation: number;
   fraisGestion: number;
+  /**
+   * Taux marginal minimal pour verser au REER **en priorité**, avant le CELI (0,36 = 36 %).
+   * Absent ou ≥ 1 : règle désactivée, chaîne historique. Voir `seuilReer.ts`.
+   */
+  seuilMarginalReer?: number;
+  /**
+   * Réinvestir le remboursement d'impôt des déductions de l'année au lieu de le laisser au train de
+   * vie. Convention de ménage, appliquée aux deux conjoints. Absent ou faux : comportement historique.
+   * Voir `HypothesesProjection.reinvestirRemboursementReer` pour le raisonnement.
+   */
+  reinvestirRemboursementReer?: boolean;
 }
 
 /** Résultat d'une année de projection du couple (montants NOMINAUX). */

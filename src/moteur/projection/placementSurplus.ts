@@ -10,6 +10,7 @@
 import { AGE_CONVERSION_FERR } from '../constantes/ferr';
 import type { ProfilRendement } from '../constantes/profilsRendement';
 import type { EntreeFiscale } from '../types';
+import { versementReerAuSeuil } from './seuilReer';
 import type { Compte, TypeCompte } from './types';
 
 /** Compteurs de droits de cotisation (mutés par le placement). */
@@ -25,6 +26,42 @@ function trouverOuCreer(comptes: Compte[], type: TypeCompte, profil: ProfilRende
     comptes.push(c);
   }
   return c;
+}
+
+/**
+ * **Étape prioritaire**, à exécuter AVANT `placerCapital` ou `placerSurplusRetraite` : verser au REER
+ * tant que la déduction rapporte plus que `seuil`. MUTE `comptes` et `droits`.
+ *
+ * Conçue comme une étape *ajoutée devant*, et non comme une réécriture des chaînes existantes : ce
+ * qu'elle ne prend pas continue son chemin normal (CELI → REER → non-enregistré). D'où la propriété
+ * qui rend le changement réversible — un `seuil` ≥ 1 renvoie 0 et la chaîne redevient celle d'avant,
+ * au dollar près.
+ *
+ * @param plafondDeduction Revenu imposable qu'il reste à effacer ; au-delà la déduction serait perdue
+ *                         (le moteur ne modélise pas le report d'une cotisation non déduite).
+ * @returns le montant versé au REER, que l'appelant ajoute à sa déduction et à sa trace.
+ */
+export function verserReerPrioritaire(
+  comptes: Compte[],
+  profilDefaut: ProfilRendement,
+  droits: DroitsCotisation,
+  disponible: number,
+  age: number,
+  plafondDeduction: number,
+  seuil: number,
+  tauxMarginal: (versement: number) => number,
+): number {
+  if (age > AGE_CONVERSION_FERR) return 0; // plus aucun versement REER permis
+  const plafond = Math.min(
+    Math.max(0, disponible),
+    Math.max(0, droits.droitsReer),
+    Math.max(0, plafondDeduction),
+  );
+  const montant = versementReerAuSeuil(plafond, seuil, tauxMarginal);
+  if (montant <= 0) return 0;
+  trouverOuCreer(comptes, 'REER', profilDefaut).solde += montant;
+  droits.droitsReer -= montant;
+  return montant;
 }
 
 /**

@@ -3,7 +3,25 @@
 > **Document vivant** : synthèse de tout ce que le projet fait à ce jour. À mettre à jour au fil des
 > phases. Voir le [journal des modifications](#-journal-des-modifications) à la fin pour l'historique.
 >
-> Dernière mise à jour : **2026-07-28** — **deux correctifs de traçabilité**, tous deux nés d'une
+> Dernière mise à jour : **2026-07-29** — **le REER contre le CELI, enfin arbitrable**. Un nouveau
+> réglage réinvestit le remboursement d'impôt REER au lieu de le laisser au train de vie, ce qui met
+> les deux comptes à coût égal — sans quoi le CELI gagnait par construction. L'**optimiseur choisit
+> alors lui-même** le taux marginal au-delà duquel verser au REER d'abord : 40 % sur un dossier, 36 %
+> sur un autre, aucun sur un troisième.
+> Plus tôt le même jour : **correction du mètre** : la « valeur nette au décès » du
+> mode solo ne retranchait pas l'impôt des dispositions présumées, alors que l'écran l'annonçait
+> « après impôt au décès » et que le mode couple le retranchait déjà. Surévaluation mesurée jusqu'à
+> **31,5 %**, et l'optimiseur, qui maximise ce chiffre, refusait des fontes du REER valant 39 500 $.
+> Le tiroir de la dernière année explique désormais l'écart au clic.
+> Plus tôt le même jour : les **droits de cotisation CELI et REER**, deux fois. Le
+> matin, ils sortent de leurs encadrés conditionnels : ils étaient masqués tant qu'on ne cotisait pas
+> au compte, alors que le moteur les consomme aussi pour placer une **vente d'immeuble**, un
+> **héritage** ou le surplus d'un **retraité qui travaille**. Le défaut REER étant `0`, un retraité
+> qui vendait subissait en silence 20 769 $ d'impôt en trop. L'après-midi, ils deviennent
+> **observables** : un 4ᵉ tableau année par année (quatre colonnes en couple), toujours en dollars
+> nominaux, et un tiroir qui décompose chaque variation **source par source** — dont le REER de
+> conjoint, qui apparaît enfin chez celui qui perd les droits.
+> Auparavant : **deux correctifs de traçabilité**, tous deux nés d'une
 > question de l'utilisateur : la colonne « Dépenses » du détail annuel s'explique désormais au clic
 > (et le versement hypothécaire en sort, pour redevenir une ligne de sortie dans les deux phases), et
 > les **ventes immobilières** exposent enfin leur anatomie — valeur, solde hypothécaire remboursé,
@@ -89,6 +107,11 @@ Projette le patrimoine et l'impôt **année par année**, de l'âge actuel jusqu
   indexé arrondi au 500 $, retraits restaurés l'année suivante) ; **droits REER** (droits ARC, +18 % du
   salaire − **facteur d'équivalence** RREGOP/RPA, max 33 810 $, aucune restauration au retrait ; la fonte
   du REER respecte les droits CELI). Excédent en chaîne : CELIAPP → CELI → non-enregistré.
+  Les deux champs de **droits disponibles** sont saisis à l'étape « Vie active » et **toujours
+  visibles** : ils gouvernent aussi le placement d'une vente d'immeuble, d'un héritage et du surplus
+  d'un retraité-actif. Une alerte prévient si un apport de capital arrive sans droits REER. Leur
+  **solde inutilisé est affiché année par année** (par conjoint en couple), toujours en dollars
+  nominaux, et chaque variation se décompose au clic, source par source.
 - **Crédit fonds de travailleurs** (FTQ/Fondaction) chaque année active : cotisation REER additionnelle
   (déductible, consomme les droits) + crédit de **30 %** sur le 1er 5 000 $, obtenu même sans droits REER.
 - **Profils de rendement** (prudent / équilibré / dynamique) calibrés sur les Normes IQPF 2026.
@@ -115,8 +138,12 @@ Projette le patrimoine et l'impôt **année par année**, de l'âge actuel jusqu
   décomposition, et chaque décomposition somme **exactement** au total affiché. Sont expliqués : le
   revenu disponible (entrées, sorties, surplus réinvesti), l'**impôt** (revenu imposable par source,
   fédéral, Québec, taux), la **valeur nette**, les **dépenses** (cible saisie × part du survivant ×
-  inflation) et les **ventes immobilières** (valeur à la vente, solde hypothécaire remboursé, gain,
-  impôt supporté, produit net placé et sa destination).
+  inflation), les **ventes immobilières** (valeur à la vente, solde hypothécaire remboursé, gain,
+  impôt supporté, produit net placé et sa destination) et les **droits de cotisation** (report du
+  1er janvier, droits neufs décomposés, consommation source par source, restant au 31 décembre —
+  toujours en dollars nominaux, ce bloc ignorant la bascule d'affichage). L'année du décès, le tiroir
+  de la valeur nette retranche l'**impôt des dispositions présumées** et affiche le **patrimoine
+  transmis**, qui est le chiffre du panneau de synthèse.
 
 ### Optimiseur automatique (bouton dans la Projection) — Phase 4
 Le bouton « Optimiser la stratégie » (solo et couple) explore les stratégies avec notre simulateur et
@@ -152,10 +179,11 @@ Deux conjoints entièrement modélisés (colonnes côte à côte), un ménage à
   est annoncée quand elle change.
 
 ### Qualité / validation
-- **291 cas-tests automatisés** — 222 moteur (fiscalité, cotisations, plafonds CELIAPP/CELI/REER,
+- **343 cas-tests automatisés** — 265 moteur (fiscalité, cotisations, plafonds CELIAPP/CELI/REER,
   fonds de travailleurs, indexation, comptes, projection, décaissement, couple, immobilier dont
-  terrain, optimiseur, dépense soutenable) + 69 interface (validations, verdict, fichier, scénarios,
-  routage, thème).
+  terrain, optimiseur, dépense soutenable, traçabilité dont les droits de cotisation, patrimoine
+  transmis net de l'impôt au décès, réinvestissement du remboursement d'impôt) + 78 interface
+  (validations dont droits face à un apport de capital, verdict, fichier, scénarios, routage, thème).
 - Propriété clé du couple : le **fractionnement ne hausse jamais** l'impôt combiné (testé).
 - **Validation croisée** contre les taux marginaux combinés **publiés** du Québec 2026 :
   sommet **53,31 %**, 140 000 $ → **47,46 %**, 60 000 $ → **36,12 %**.
@@ -225,7 +253,7 @@ src/
 │   │   ├── couple.ts               # Boucle du ménage (fractionnement, survie)
 │   │   └── projection.ts           # Boucle année par année (cycle de vie)
 │   ├── index.ts                    # API publique du moteur
-│   └── *.test.ts                   # 222 cas-tests (moteur)
+│   └── *.test.ts                   # 265 cas-tests (moteur)
 └── interface/                      # UI React (habillage)
     ├── Champ.tsx                   # Champs de saisie réutilisables
     ├── format.ts                   # Formatage $ / % (fr-CA)
@@ -244,7 +272,7 @@ src/
         ├── champsPersonne.ts       # Vue « personne » commune au solo et au couple
         ├── etapes.tsx              # Découpage en étapes : solo (8), conjoint (6), ménage (2)
         ├── SectionVieActive.tsx    # Section commune (solo ET chaque conjoint)
-        ├── BlocsEpargne.tsx        # Encadrés de plafonds (CELIAPP, droits CELI/REER, fonds)
+        ├── BlocsEpargne.tsx        # Plafond CELIAPP + fonds (conditionnels) et droits CELI/REER (permanents)
         ├── PanneauSynthese.tsx     # Colonne collante : verdict, optimiseur, indicateurs, courbe
         ├── Verdict.tsx             # « Vos dépenses sont financées jusqu'à… » + jauge
         ├── PanneauScenarios.tsx    # Tableau comparatif des scénarios
@@ -311,7 +339,7 @@ Chaque chantier d'ampleur a son plan, écrit **avant** le code et conservé avec
 ```bash
 npm install      # installer les dépendances
 npm run dev      # développement (http://localhost:5173)
-npm test         # les 291 cas-tests
+npm test         # les 343 cas-tests
 npm run build    # version de production (dossier dist/, à héberger)
 npm run preview  # prévisualiser la version de production
 ```
@@ -377,6 +405,291 @@ options d'employé, analyse de sensibilité / Monte Carlo, autres provinces.
 ---
 
 ## 📓 Journal des modifications
+
+### 2026-07-29 — Le remboursement d'impôt REER, et l'optimiseur qui choisit lui-même le seuil
+
+Suite du mètre corrigé, et **conclusion de la question posée au départ** : faut-il verser au REER en
+priorité plutôt qu'au CELI ?
+
+**Une correction de mon propre cadrage.** J'avais qualifié d'« incohérence » le fait que le moteur
+réinvestisse le remboursement d'impôt à la retraite et le consomme en accumulation. C'est inexact :
+les deux phases ont des **variables d'entrée différentes**. En accumulation l'épargne est saisie et le
+train de vie est le résidu ; en décaissement le train de vie est saisi et l'épargne est le résidu. Le
+remboursement tombe dans le résidu de chaque phase. Ce n'est pas un bogue, c'est la structure.
+
+**Le vrai problème.** Tant que le remboursement est consommé, le moteur **ne peut pas arbitrer REER
+contre CELI** : 8 000 $ au REER coûtent moins de sa poche que 8 000 $ au CELI, donc le CELI gagne par
+construction. Démonstration, même épargne totale de 18 000 $ par an :
+
+| Répartition | Remb. consommé | Remb. réinvesti |
+|---|---:|---:|
+| tout au CELI | 93 612 $ | 93 612 $ |
+| 9 000 / 9 000 | 1 422 $ | 157 455 $ |
+| tout au REER | **0 $** | **208 373 $** |
+
+**Le classement s'inverse complètement.** L'ancien modèle ne répondait pas à la question posée.
+
+**Nouveau réglage `reinvestirRemboursementReer`** (interrupteur en mode Avancé, éteint par défaut,
+comportement historique préservé au dollar près). Allumé, le remboursement des cotisations REER et
+CELIAPP est épargné au lieu de grossir le train de vie. Placé **CELI → non-enregistré, jamais au
+REER** : l'y verser ouvrirait une nouvelle déduction, donc un nouveau remboursement — rétroaction
+bornée à zéro itération, dans l'esprit du reliquat de vente. En couple, le remboursement est mesuré
+sur l'impôt du **ménage avec fractionnement** (gratuit, `impotCoupleOptimal` étant déjà appelé) et
+réparti entre les conjoints au prorata de leur déduction, chacun le plaçant dans SES comptes.
+
+Ce n'est pas de l'argent gratuit, et l'écran doit le dire : le patrimoine monte parce que le train de
+vie baisse.
+
+| Dossier | Patrimoine transmis | Train de vie (accumulation) |
+|---|---|---|
+| Salarié 130 k$ | 201 991 → **396 826 $** | 1 136 268 → 1 055 313 $ |
+| Retraité-actif | 516 827 → **602 481 $** | 328 376 → 268 552 $ |
+| Couple | 1 153 186 → **1 521 701 $** | 1 281 607 → 1 101 815 $ |
+
+**L'optimiseur choisit maintenant le seuil lui-même** (`SEUILS_REER`, 7 candidats). C'est ce qui
+remplace le seuil de 36 % codé à la main : il trouve la valeur qui convient **à chaque dossier**.
+
+| Dossier | Seuil retenu | Gain de patrimoine |
+|---|---|---:|
+| Salarié 130 k$ | **40 %** | 156 213 $ (contre 123 453 $ sans le levier) |
+| Retraité-actif | **aucun** — le CELI d'abord reste meilleur | 167 335 $ |
+| Couple | **36 %** | 383 837 $ |
+
+Trois dossiers, trois réponses différentes : votre intuition des 36 % était juste, mais elle n'est pas
+universelle. Coût : 78 à 104 ms en solo, 650 ms en couple (fil séparé).
+
+**Deux restrictions de méthode, délibérées.**
+
+1. **Le seuil n'est proposé que si le remboursement est réinvesti.** À remboursement consommé,
+   déplacer de l'épargne vers le REER échange du patrimoine contre du train de vie ; le score ignorant
+   la consommation, l'optimiseur y verrait une pure perte et conseillerait le CELI pour la mauvaise
+   raison. Réinvesti, la consommation est **identique** de part et d'autre — `revenu − épargne −
+   impôt sans déduction` — et la comparaison porte enfin sur le seul choix de compte.
+2. **Le réinvestissement n'est PAS un levier de l'optimiseur.** Il convertit de la consommation en
+   patrimoine : le score le choisirait toujours, sans rien apprendre à personne. C'est un arbitrage de
+   train de vie, qui appartient à l'utilisateur.
+
+**Un bogue de câblage, trouvé en vérifiant à l'écran.** La ligne « REER prioritaire si marginal > »
+n'apparaissait pas dans le panneau de l'optimiseur. J'ai d'abord soupçonné un chunk de worker périmé
+(le piège déjà documenté ici) — **hypothèse fausse** : le build de production donnait le même
+résultat. La cause était que `detailsStrategie` reçoit un objet construit champ par champ, où le
+nouveau champ manquait ; le rendre optionnel avait fait taire TypeScript. Corrigé dans les deux modes,
+et vérifié : l'écran affiche bien **40 %**, la valeur que le moteur avait mesurée.
+
+- **343 cas-tests verts** (+14), typecheck et build OK, 0 px de débordement.
+- `seuilReer.ts` n'est plus dormant : il est devenu le levier de l'optimiseur.
+
+### 2026-07-29 — Le mètre était faux : la valeur nette au décès ignorait l'impôt au décès
+
+**Trouvé en voulant mesurer autre chose.** L'utilisateur demandait une règle de placement (verser au
+REER tant que la déduction rapporte plus de 36 %). Avant de la mesurer, j'ai vérifié l'indicateur qui
+sert à juger **toute** décision du projet. Il était faux en solo, et faux **différemment** du couple.
+
+| Mode | Calcul | Impôt au décès |
+|---|---|---|
+| **Solo** — `projection.ts` | `derniere.valeurNette × déflateur` | **non retranché** |
+| **Couple** — `couple.ts` | `(valeurNette + équité − tt) × déflateur` | retranché ✓ |
+
+L'impôt des dispositions présumées était bien calculé en solo, ajouté à `impotTotal` et à
+`impotTotalVieReel`, mais **jamais soustrait du patrimoine**. Or les deux chiffres étaient présentés
+comme nets : « En $ d'aujourd'hui, après impôt au décès » dans le panneau, et « Il resterait X après
+l'impôt au décès » dans le verdict.
+
+**Ampleur mesurée** (dollars d'aujourd'hui) :
+
+| Dossier | Brut (avant) | Net (après) | Impôt au décès | Surévaluation |
+|---|---:|---:|---:|---:|
+| Salarié 130 k$, décès à 92 ans | 201 991 $ | 201 991 $ | 0 $ | 0 % |
+| Retraité-actif avec immeuble | 585 078 $ | 516 827 $ | 68 251 $ | **11,7 %** |
+| Décès à 78 ans, REER de 700 k$ | 455 013 $ | 311 734 $ | 143 278 $ | **31,5 %** |
+| Couple (déjà net) | — | 1 153 186 $ | — | 0 % |
+
+Le biais ne mord que lorsqu'un solde enregistré **survit** jusqu'au décès. Un dossier qui vide son
+REER n'était pas affecté — ce qui explique la suite.
+
+**Conséquence sur l'optimiseur, mesurée.** `scoreSolo` maximise ce chiffre. Il sous-évaluait donc tout
+ce qui paie l'impôt tôt, au premier chef la **fonte du REER** : une fonte convertit des dollars avant
+impôt en dollars après impôt et *baisse* le total brut, son bénéfice au décès étant invisible. Balayage
+du levier sur le dossier « décès à 78 ans avec un gros REER » :
+
+| Fonte du REER | Score brut (ancien) | Score net (nouveau) |
+|---|---:|---:|
+| 0 $ | **455 013 $** ← optimum | 311 734 $ |
+| 60 000 $ | 407 225 $ | 346 878 $ |
+| 75 000 $ | 351 238 $ | **351 234 $** ← optimum |
+
+L'ancienne fonction objectif recommandait donc de **ne pas fondre**, et laissait **39 500 $** sur la
+table. L'optimiseur choisit maintenant une fonte de 75 000 $ sur ce dossier. Sur un dossier qui vide
+son REER de toute façon, la recommandation est inchangée.
+
+**Pourquoi aucun test ne l'avait vu.** Aucun dossier de la suite ne meurt avec une succession
+imposable : l'impôt au décès y valait zéro et brut = net par accident. J'avais prédit que l'attente
+« un héritage de 100 000 $ laisse plus de 90 000 $ au décès » casserait — elle n'a pas cassé, son
+dossier étant **entièrement en CELI**. Prédiction fausse, motif instructif : c'est exactement le trou
+que `valeurNetteTransmise.test.ts` bouche, avec un cas qui aurait échoué avant le correctif (l'égalité
+brut = net devient une inégalité stricte).
+
+**Correctif.** `valeurNette` **par année reste brute** — le tableau et le tiroir listent les soldes
+compte par compte, et leur somme doit continuer d'égaler le total. C'est le retour de `projeter` qui
+devient net, avec la même formule que le couple, **sans clamp à zéro** : un patrimoine transmis négatif
+signalerait une erreur de modèle qu'un `Math.max` cacherait, et un test d'invariant le surveille.
+
+**Réconciliation au clic**, sinon la promesse de traçabilité serait trahie : le tiroir de la dernière
+année montre désormais la chaîne complète, vérifiée à l'écran —
+
+```
+REER                    282 191 $
+CELI                    172 822 $
+Valeur nette            455 013 $
+− Impôt au décès       −143 278 $   → détailler ›
+= Patrimoine transmis   311 734 $      = le chiffre du panneau
+```
+
+**Reste à faire, et pourquoi ce n'est pas ici.** Le couple a le problème **miroir** : son chiffre de
+tête est net, mais son tiroir ne peut pas l'expliquer, parce que l'impôt au décès y est calculé
+**après** la construction de la trace (le roulement au survivant doit suivre l'enregistrement de
+l'année). Le déplacer avant touche au traitement des **décès simultanés**, où les comptes du premier
+défunt semblent disparaître du chiffre final — un sujet à part entière, marqué d'un `TODO` dans
+`couple.ts`.
+
+**La règle des 36 %, remesurée sur le mètre corrigé** — écart de patrimoine transmis contre le
+comportement historique :
+
+| Seuil | Salarié | Retraité-actif | Couple |
+|---|---:|---:|---:|
+| 45 % | −113 677 $ | −2 104 $ | +3 639 $ |
+| 36 % | −184 032 $ | −22 642 $ | −38 525 $ |
+
+Le verdict tient : la règle appauvrit sur les trois profils. `seuilReer.ts` et ses six branchements
+**restent en place et inertes** (défaut moteur `?? 1`, aucun effet sur les résultats), pour pouvoir
+la remesurer gratuitement si le traitement du remboursement d'impôt change un jour.
+
+- **329 cas-tests verts** (+6), typecheck et build OK, 0 px de débordement.
+
+### 2026-07-29 — Les droits de cotisation deviennent observables (lots A et B)
+
+**Demandé par l'utilisateur** : « je veux voir dans les rapports affichés le montant inutilisé des
+droits CELI et REER, ça me permettra de suivre l'évolution de chacun à chaque année et de valider
+notre code. » Suite directe du correctif du matin : les droits étaient devenus **saisissables**, il
+restait à les rendre **vérifiables**.
+
+**Un 4ᵉ tableau « Droits de cotisation »**, à côté de Revenus, Impôt et Comptes. Deux colonnes en
+solo, **quatre en couple** (un droit appartient à une personne, se calcule sur SON salaire et
+s'éteint avec elle : les additionner n'aurait aucun sens). Une colonne **Année** s'y ajoute, absente
+partout ailleurs — c'est la clé de rapprochement avec un avis de l'ARC, qui est annuel.
+
+**Toujours en dollars nominaux**, le bloc ignorant la bascule réel/nominal, et l'en-tête du tiroir le
+dit (« dollars nominaux (toujours) »). Un droit est une quantité **légale** de l'année. Déflaté,
+l'ajout annuel du CELI se mettrait à osciller — 7 000 $, 6 856 $, 7 194 $, 7 047 $ — alors qu'il
+progresse par paliers nets de 500 $, l'arrondi se faisant AVANT l'indexation. Le plafond REER, lui,
+ne vaudrait plus 33 810 $.
+
+**Un zéro s'affiche `0 $` et reste cliquable** au lieu d'un tiret muet : « aucun droit » est
+précisément l'information cherchée — c'est le cas qui coûtait 20 769 $ le matin même.
+
+**Le tiroir décompose source par source**, ce qui est tout l'intérêt : six mécanismes peuvent puiser
+dans ces droits la même année (épargne planifiée, excédent CELIAPP redirigé, débordement REER → CELI,
+placement d'un héritage ou d'une vente, surplus réinvesti, fonte du REER), plus le **REER de conjoint**
+en mode couple. Les droits neufs sont eux aussi décomposés : 18 % du salaire, moins le plafond s'il
+mord, moins le facteur d'équivalence.
+
+**Deux invariants testés** : `report + Σ ajouts + Σ consommations = restant` à 10⁻⁶ près, et le
+`restant` d'une année est exactement le `report` de la suivante. Vérifiés sur des projections
+réunissant tous les consommateurs, solo et couple, sur les trois phases.
+
+**Coût réel, plus faible qu'annoncé.** Les trois fonctions partagées renvoyaient **déjà** leur
+ventilation (`placerCapital` → `{ celi, reer, nonEnr }`, `placerSurplusRetraite` → `ventilation`,
+`fondreReer` → `celiUtilise`) : aucune signature partagée à modifier. En solo, de simples
+accumulateurs locaux ont suffi, la boucle contenant tout. En couple, les mouvements sont dispersés
+dans des fonctions de module qui reçoivent déjà l'état de la personne : le **journal voyage avec
+l'état** (`EtatPersonne.traceDroits`) plutôt que d'ajouter un paramètre à chacune.
+
+**`postesNonNuls` (seuil 10⁻⁹) au lieu de `postesSignificatifs` (0,50 $).** Ailleurs le total est
+recalculé à partir des postes affichés, donc filtrer est sans danger. Ici le total est le **compteur
+du moteur** : filtrer au demi-dollar romprait l'égalité que ces postes doivent précisément prouver.
+
+**Un libellé faux, trouvé en regardant l'écran.** À 66 ans, un héritage de 120 000 $ consommait les
+droits CELI sous le seul mot « Surplus de retraite réinvesti ». Mécaniquement exact — après la
+retraite, un héritage n'est pas placé d'un bloc : il entre dans l'encaisse, finance les dépenses, et
+seul l'excédent est réinvesti — mais illisible. Le libellé nomme désormais la provenance entre
+parenthèses, dans les trois phases.
+
+- **323 cas-tests verts** (+23), typecheck et build OK.
+- Vérifié au navigateur, solo et couple : 0 px de débordement, tiroirs lus dans le DOM vivant. En
+  couple, la phase de survie affiche bien « — » pour le conjoint décédé, et le REER de conjoint de
+  Vigile apparaît chez **lui** (« versé à Sylvie »), jamais chez elle.
+
+**Reste ouvert** : l'ordre dans lequel l'épargne annuelle consomme les droits CELI est celui de
+`Object.entries(h.epargneAnnuelle)`, donc l'ordre d'insertion des clés — un accident, pas une
+décision. Sans effet tant que les droits suffisent ; le jour où ils manquent, il décide quelle
+épargne déborde au non-enregistré. Le tiroir le rend maintenant **observable** : à trancher après
+l'avoir vu à l'œuvre.
+
+### 2026-07-29 — Droits CELI et REER : un champ masqué qui coûtait 20 769 $
+
+**Signalé par l'utilisateur** : « il est impossible d'entrer des valeurs de droits CELI et REER sans
+entrer un montant REER ou CELI, alors que ces montants sont importants à connaître si on travaille à
+la retraite, si on vend un immeuble, si on reçoit un héritage. »
+
+**Ce qui se passait.** Les deux champs vivaient dans des encadrés conditionnels. `BlocDroitsReer`
+n'apparaissait que si `epargneAnnuelle.REER > 0` ; `BlocDroitsCeli`, que si l'on cotisait au
+CELI/CELIAPP, recevait un héritage ou détenait déjà un CELI. Or le moteur lit ces droits à **quatre**
+endroits, dont **trois hors de la vie active** : la cotisation annuelle, le placement du produit
+d'une **vente d'immeuble**, le placement d'un **héritage** et le **surplus d'un retraité qui
+travaille** (`placerCapital` et `placerSurplusRetraite`).
+
+Le défaut de `droitsReerDisponibles` est `0`. Un retraité qui vend un immeuble se voyait donc
+appliquer, en silence et sans recours, l'hypothèse la plus défavorable — alors que dans la réalité
+les droits REER inutilisés se reportent **indéfiniment** et que presque personne n'a zéro. La
+cotisation qui absorbe le gain en capital de l'année, elle, devenait impossible.
+
+**Mesuré** (retraité de 58 ans sans salaire, immeuble à revenu de 350 000 $ acheté 80 000 $, hypothèque
+137 000 $, vendu à 60 ans, dépenses 32 000 $, décès à 90 ans — cas où les **deux** champs étaient
+masqués) :
+
+| Droits REER | Impôt sur la vente | Patrimoine au décès |
+|---|---|---|
+| Défaut invisible (0 $) | 46 722 $ | 189 393 $ |
+| Valeur réelle (60 000 $) | 25 953 $ | 212 582 $ |
+
+Soit **20 769 $ d'impôt en trop** et **12 % de patrimoine en moins**. Côté CELI l'écart n'est que de
+1 711 $ : le défaut heuristique (109 000 $ − solde) est généralement bien orienté, mais il reste faux
+pour qui a immigré, n'avait pas 18 ans en 2009, ou a déjà cotisé puis retiré.
+
+**Portée honnête du défaut.** Tant que la personne **travaille**, le moteur lui accorde 18 % du
+salaire de droits neufs par an : mesuré à 85 000 $ de salaire sur 5 ans avant la vente, mettre 0 ou
+60 000 $ donne **exactement le même impôt**, la déduction étant déjà bornée par le revenu imposable de
+l'année. Le défaut à 0 mord donc surtout les **déjà retraités**, les titulaires d'un **régime à PD**
+(~600 $/an de droits neufs) et les **bas revenus**.
+
+**Lot A — un encadré permanent.** `BlocDroitsCeli` et `BlocDroitsReer` fusionnent en un
+`BlocDroitsCotisation` **toujours affiché**, intitulé « Droits de cotisation (ARC) », deux colonnes.
+Le principe « n'afficher que le pertinent » reste juste pour le **plafond** CELIAPP ; il était faux
+ici, parce que les droits sont un attribut **permanent de la personne**, comme son âge. Le facteur
+d'équivalence et l'interrupteur « régime à PD » restent conditionnels au fait d'avoir un salaire :
+eux ne servent qu'à l'accumulation.
+
+**Lot B — un défaut visible plutôt que corrigé.** Aucune heuristique n'est défendable pour le REER
+(les droits dépendent de toute la carrière et de l'historique de cotisation) : le défaut reste `0`,
+conservateur, mais l'indice nomme désormais la ligne exacte de l'avis de cotisation — « Maximum
+déductible au titre des REER » — et dit ce qu'un champ vide signifie. Un défaut prudent **visible**
+vaut mieux qu'un défaut caché.
+
+**Lot C — une alerte quand le silence coûte cher.** `validation.ts` lève une `attention` sur l'étape
+« Vie active » quand un **apport de capital** est prévu (vente d'immeuble ou héritage) et que les
+droits REER estimés à cette date restent sous 10 000 $. L'estimation réutilise
+`droitsReerAnnuels`/`feRegimePD` du moteur plutôt que de redire la formule, et ne rejoue pas la
+projection : il s'agit de savoir si le levier existera, pas de le chiffrer. Le **travail à la
+retraite est délibérément exclu** — ce revenu rouvre lui-même des droits REER jusqu'à 71 ans, donc son
+surplus ne se présente jamais devant une porte fermée.
+
+Les immeubles étant saisis au niveau du **ménage**, `validerPersonne` ne les voyait pas : ils lui sont
+maintenant passés par `validerSolo` et `alertesPersonne`, cette dernière ne transmettant à chaque
+conjoint que **ses** biens et les biens **communs** (dont le moteur lui attribue la moitié du gain).
+
+- **300 cas-tests verts** (+9), typecheck (`npm run typecheck`) et build OK.
+- Vérifié au navigateur, solo et couple : l'encadré s'affiche dans les deux modes, 0 px de
+  débordement, et l'alerte apparaît bien avec sa pastille dans le rail.
 
 ### 2026-07-28 — Ventes immobilières : le moteur les rend vérifiables (lot A)
 **Signalé par l'utilisateur** : « comment je vérifie les chiffres, et comment je sais que

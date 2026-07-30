@@ -8,8 +8,8 @@
  *
  * Fonctions pures, sans React : testables comme le moteur.
  */
-import type { HypothesesCouple, HypothesesProjection, TypeCompte } from '../../moteur';
-import { REER_TAUX } from '../../moteur';
+import type { HypothesesCouple, HypothesesProjection, Immeuble, TypeCompte } from '../../moteur';
+import { droitsReerAnnuels, feRegimePD, REER_PLAFOND_DOLLAR_2026, REER_TAUX } from '../../moteur';
 import type { ChampsPersonne } from './champsPersonne';
 
 /** Une anomalie détectée, rattachée à l'étape où on peut la corriger. */
@@ -26,8 +26,85 @@ const TYPES_EPARGNE: readonly TypeCompte[] = ['REER', 'CELI', 'CELIAPP', 'NON_EN
 const epargneTotale = (p: ChampsPersonne) =>
   TYPES_EPARGNE.reduce((s, t) => s + (p.epargneAnnuelle[t] ?? 0), 0);
 
-/** Contrôles portant sur une personne (solo ou conjoint), hors étape d'identité. */
-function validerPersonne(p: ChampsPersonne, etapeAges: string, prefixe = ''): Alerte[] {
+/** Une entrée de capital à venir : produit d'une vente d'immeuble, ou héritage. */
+interface Apport {
+  /** Phrase déjà tournée, insérée telle quelle dans le message (« la vente de « Chalet » à 65 ans »). */
+  libelle: string;
+  age: number;
+}
+
+/**
+ * En deçà de ce report, le levier de la déduction REER ne pèse plus rien face à un apport de capital.
+ * Seuil volontairement grossier : l'alerte n'a qu'à rompre le silence, pas à chiffrer quoi que ce soit.
+ */
+const SEUIL_DROITS_REER = 10_000;
+
+/**
+ * Droits REER estimés au moment d'un apport de capital, en dollars d'aujourd'hui.
+ *
+ * Réutilise la formule du moteur (`droitsReerAnnuels`) plutôt que de la redire : 18 % du salaire
+ * plafonné, moins le facteur d'équivalence, par année de travail restante — moins ce que l'épargne
+ * annuelle consomme au passage. On ne rejoue PAS la projection ici : il s'agit seulement de savoir
+ * si le levier de la déduction existera, pas de le chiffrer.
+ */
+function droitsReerEstimesA(p: ChampsPersonne, age: number): number {
+  const anneesDeSalaire = Math.max(0, Math.min(age, p.ageRetraite) - p.ageActuel);
+  const fe =
+    p.facteurEquivalenceReer && p.facteurEquivalenceReer > 0
+      ? p.facteurEquivalenceReer
+      : p.regimeRetraitePD
+        ? feRegimePD(p.revenuEmploi)
+        : 0;
+  const gainAnnuel = droitsReerAnnuels(p.revenuEmploi, REER_PLAFOND_DOLLAR_2026, fe);
+  const consommeAnnuel = (p.epargneAnnuelle.REER ?? 0) + (p.fondsTravailleursAnnuel ?? 0);
+  return (p.droitsReerDisponibles ?? 0) + anneesDeSalaire * Math.max(0, gainAnnuel - consommeAnnuel);
+}
+
+/**
+ * Un apport de capital est prévu, mais aucun droit REER ne sera là pour l'accueillir.
+ *
+ * Le produit d'une vente et un héritage sont placés en CELI → REER → non-enregistré ; la part versée
+ * au REER est déductible et absorbe le gain en capital de l'année. Sans droits, ce levier n'existe
+ * pas et le gain est imposé au maximum — en silence, puisque le défaut du champ est 0.
+ *
+ * Le travail à la retraite est délibérément exclu : ce revenu rouvre lui-même des droits REER
+ * (jusqu'à 71 ans), donc son surplus ne se présente jamais devant une porte fermée.
+ */
+function validerDroitsReerApports(
+  p: ChampsPersonne,
+  apports: readonly Apport[],
+  qui: (texte: string) => string,
+): Alerte[] {
+  const aVenir = apports.filter((x) => x.age >= p.ageActuel && x.age <= p.ageDeces);
+  if (aVenir.length === 0) return [];
+  const premier = aVenir.reduce((a, b) => (b.age < a.age ? b : a));
+  if (droitsReerEstimesA(p, premier.age) >= SEUIL_DROITS_REER) return [];
+
+  const autres = aVenir.length - 1;
+  const suite = autres > 0 ? ` (et ${autres} autre${autres > 1 ? 's' : ''})` : '';
+  return [
+    {
+      etape: 'vie-active',
+      niveau: 'attention',
+      message: qui(
+        `${premier.libelle}${suite} arrive sans droits REER disponibles : le capital reçu ne pourra pas être abrité par une cotisation déductible, et le gain en capital sera imposé au maximum. Vérifiez « Maximum déductible au titre des REER » sur votre avis de cotisation.`,
+      ),
+    },
+  ];
+}
+
+/**
+ * Contrôles portant sur une personne (solo ou conjoint), hors étape d'identité.
+ *
+ * `biens` = les immeubles qui lui appartiennent (en couple, les siens et les biens communs) : ils
+ * sont saisis au niveau du ménage, mais leur vente arrive dans SES comptes.
+ */
+function validerPersonne(
+  p: ChampsPersonne,
+  etapeAges: string,
+  prefixe = '',
+  biens: readonly Immeuble[] = [],
+): Alerte[] {
   const a: Alerte[] = [];
   /** En couple, le message est préfixé du nom ; en solo, il commence par une majuscule. */
   const qui = (texte: string) =>
@@ -68,6 +145,21 @@ function validerPersonne(p: ChampsPersonne, etapeAges: string, prefixe = ''): Al
       message: qui(`la cotisation REER dépasse les droits estimés (18 % du salaire + report saisi) : l'excédent sera redirigé vers le CELI, puis le non-enregistré.`),
     });
   }
+
+  a.push(
+    ...validerDroitsReerApports(
+      p,
+      [
+        ...biens
+          .filter((b) => b.ageVente != null)
+          .map((b) => ({ libelle: `la vente de « ${b.nom} » à ${b.ageVente} ans`, age: b.ageVente! })),
+        ...(p.heritages ?? [])
+          .filter((h) => h.montant > 0)
+          .map((h) => ({ libelle: `l'héritage « ${h.nom} » à ${h.age} ans`, age: h.age })),
+      ],
+      qui,
+    ),
+  );
 
   if (p.regimeRetraitePD && p.rentesEmployeur.length === 0) {
     a.push({
@@ -195,7 +287,7 @@ function validerEconomie(
 /** Toutes les alertes d'une projection solo. */
 export function validerSolo(h: HypothesesProjection): Alerte[] {
   const a = [
-    ...validerPersonne(h, 'horizon'),
+    ...validerPersonne(h, 'horizon', '', h.immeubles),
     ...validerImmeubles(h.immeubles),
     ...validerEconomie(h.depensesRetraite, h.inflation, h.fraisGestion, 'decaissement'),
   ];
@@ -211,10 +303,17 @@ export function validerSolo(h: HypothesesProjection): Alerte[] {
   return a;
 }
 
-/** Alertes d'un conjoint : chaque groupe d'étapes n'affiche que ce qui le concerne. */
+/**
+ * Alertes d'un conjoint : chaque groupe d'étapes n'affiche que ce qui le concerne.
+ *
+ * Les immeubles sont saisis au niveau du ménage : on ne transmet à ce conjoint que les siens, plus
+ * les biens communs, dont le moteur lui attribue la moitié du gain et du capital.
+ */
 export function alertesPersonne(h: HypothesesCouple, cle: 'personne1' | 'personne2'): Alerte[] {
   const p = h[cle];
-  return validerPersonne(p, 'situation', p.nom);
+  const numero = cle === 'personne1' ? 1 : 2;
+  const siens = h.immeubles.filter((b) => b.proprietaire === numero || b.proprietaire === 'commun');
+  return validerPersonne(p, 'situation', p.nom, siens);
 }
 
 /** Alertes du ménage (immobilier commun et dépenses). */
