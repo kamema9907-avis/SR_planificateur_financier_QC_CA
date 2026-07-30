@@ -16,6 +16,7 @@ import type { ChampsPersonne, PatchPersonne } from './champsPersonne';
 import { EditeurComptes } from './EditeurComptes';
 import { SectionHeritage } from './SectionHeritage';
 import { ChampPartConsommee } from './partConsommee';
+import { aDesRessources, epargneNonNulle, equiteImmobiliere } from './ressources';
 import { SuggestionDepense } from './SuggestionDepense';
 import { SectionImmobilier } from './SectionImmobilier';
 import { SectionRentesEmployeur } from './SectionRentesEmployeur';
@@ -28,24 +29,10 @@ const OPTIONS_SEXE = [
   { valeur: 'F', label: 'Femme' },
 ] as const;
 
-/** Une personne a-t-elle déjà de l'épargne en cours ? */
-const epargneNonNulle = (p: ChampsPersonne) => Object.values(p.epargneAnnuelle).some((v) => (v ?? 0) > 0);
-
-/**
- * Y a-t-il de quoi calculer une dépense soutenable ? Sans capital, sans rente et sans revenu, la
- * suggestion vaudrait 0 $ et n'apprendrait rien : on préfère ne rien afficher.
- */
-const aDesRessources = (p: ChampsPersonne) =>
-  p.comptes.some((c) => c.solde > 0) ||
-  p.rrqA65 > 0 ||
-  p.svA65 > 0 ||
-  p.rentesEmployeur.length > 0 ||
-  p.revenuEmploi > 0 ||
-  epargneNonNulle(p);
-
 /**
  * Biens sans âge de vente : leur équité d'aujourd'hui ne financera jamais une dépense, puisque le
- * solveur ne liquide un bien qu'à l'âge saisi.
+ * solveur ne liquide un bien qu'à l'âge saisi. À ne pas confondre avec `equiteImmobiliere()`, qui
+ * compte TOUS les biens — voir `ressources.ts`.
  */
 const immobilise = (immeubles: readonly Immeuble[]) =>
   immeubles
@@ -347,7 +334,7 @@ export function groupeSolo(h: HypothesesProjection, onChange: (h: HypothesesProj
               hypotheses={h}
               poserDepense={poserDepenseSolo}
               evaluer={projeter}
-              aDesRessources={aDesRessources(h)}
+              aDesRessources={aDesRessources(h, equiteImmobiliere(h.immeubles))}
               immobilise={immobilise(h.immeubles)}
               onUtiliser={(v) => maj('depensesRetraite', v)}
             />
@@ -467,7 +454,11 @@ export function groupeMenage(h: HypothesesCouple, onChange: (h: HypothesesCouple
               hypotheses={h}
               poserDepense={poserDepenseCouple}
               evaluer={projeterCouple}
-              aDesRessources={aDesRessources(h.personne1) || aDesRessources(h.personne2)}
+              // Les biens appartiennent au ménage : la même équité sert aux deux conjoints.
+              aDesRessources={
+                aDesRessources(h.personne1, equiteImmobiliere(h.immeubles)) ||
+                aDesRessources(h.personne2, equiteImmobiliere(h.immeubles))
+              }
               immobilise={immobilise(h.immeubles)}
               onUtiliser={(v) => onChange({ ...h, depensesRetraite: v })}
             />

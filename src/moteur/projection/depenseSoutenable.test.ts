@@ -108,6 +108,49 @@ describe('2 — exactitude : c’est bien le maximum', () => {
   });
 });
 
+describe('2 bis — le moteur avait la réponse, c’est l’affichage qui la cachait', () => {
+  /**
+   * L'interface refusait d'afficher la recommandation quand la richesse ne venait pas d'un salaire
+   * (voir `interface/projection/ressources.ts`). Ces cas prouvent que le solveur, lui, savait
+   * répondre : le bogue était bien dans la garde d'affichage, pas dans le calcul.
+   */
+  const demuni = (p: Partial<HypothesesProjection>) =>
+    solo({
+      revenuEmploi: 0, epargneAnnuelle: {}, rrqA65: 0, svA65: 0,
+      comptes: [{ type: 'REER', solde: 0, profil: 'equilibre' }],
+      ...p,
+    });
+
+  it('un héritage reçu à la retraite finance une dépense', () => {
+    const max = maxSolo(demuni({ heritages: [{ nom: 'Succession', montant: 400_000, age: 63 }] }));
+    expect(max).toBeGreaterThan(0);
+  });
+
+  it('un revenu de travail à la retraite aussi', () => {
+    const max = maxSolo(demuni({
+      periodesTravail: [{ nom: 'Consultation', montant: 40_000, ageDebut: 63, ageFin: 75 }],
+    }));
+    expect(max).toBeGreaterThan(0);
+  });
+
+  it('un immeuble vendu dès la retraite aussi', () => {
+    const max = maxSolo(demuni({ immeubles: [maison({ hypotheque: 0, paiementAnnuel: 0, ageVente: 63 })] }));
+    expect(max).toBeGreaterThan(0);
+  });
+
+  it('mais une ressource qui arrive APRÈS la retraite ne soutient rien : 0 est la bonne réponse', () => {
+    // « Soutenable » veut dire financé CHAQUE année. Retraite à 63 ans, héritage à 70 : les sept
+    // premières années n'ont pas un dollar, donc aucune dépense constante ne tient dès 63 ans.
+    // L'interface montrera alors son avertissement, ce qui est le message utile — et non un bogue.
+    expect(maxSolo(demuni({ heritages: [{ nom: 'Succession', montant: 400_000, age: 70 }] }))).toBe(0);
+    // Repousser la retraite à l'année de l'héritage suffit à débloquer la situation.
+    const max = maxSolo(demuni({
+      ageRetraite: 70, heritages: [{ nom: 'Succession', montant: 400_000, age: 70 }],
+    }));
+    expect(max).toBeGreaterThan(0);
+  });
+});
+
 describe('3 — indépendance de la valeur déjà saisie', () => {
   it('le maximum ne dépend pas de la dépense courante', () => {
     // Propriété qui autorise l'interface à figer la suggestion pendant qu'on tape dans le champ.

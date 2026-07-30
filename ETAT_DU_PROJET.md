@@ -3,7 +3,11 @@
 > **Document vivant** : synthèse de tout ce que le projet fait à ce jour. À mettre à jour au fil des
 > phases. Voir le [journal des modifications](#-journal-des-modifications) à la fin pour l'historique.
 >
-> Dernière mise à jour : **2026-07-30** — **le décès en couple, entièrement décortiquable**. Trois
+> Dernière mise à jour : **2026-07-30** — **la dépense recommandée réapparaît** pour les dossiers dont
+> la richesse ne vient pas d'un salaire : la garde d'affichage ignorait les héritages, le travail à la
+> retraite et l'immobilier, faisant disparaître l'encadré entier — bouton compris. Trou présent depuis
+> la création de la fonctionnalité, le 28 juillet, et non une régression récente.
+> Plus tôt : **le décès en couple, entièrement décortiquable**. Trois
 > trous comblés d'un coup : les comptes d'un conjoint disparaissaient du patrimoine transmis quand les
 > deux mouraient la même année (**601 237 $** sur un dossier réaliste) ; le tiroir ne pouvait pas
 > expliquer l'impôt des dispositions présumées ; et le **roulement au survivant** — des centaines de
@@ -190,11 +194,12 @@ Deux conjoints entièrement modélisés (colonnes côte à côte), un ménage à
   est annoncée quand elle change.
 
 ### Qualité / validation
-- **353 cas-tests automatisés** — 275 moteur (fiscalité, cotisations, plafonds CELIAPP/CELI/REER,
+- **373 cas-tests automatisés** — 279 moteur (fiscalité, cotisations, plafonds CELIAPP/CELI/REER,
   fonds de travailleurs, indexation, comptes, projection, décaissement, couple, immobilier dont
   terrain, optimiseur, dépense soutenable, traçabilité dont les droits de cotisation, patrimoine
-  transmis net de l'impôt au décès, réinvestissement du remboursement d'impôt) + 78 interface
-  (validations dont droits face à un apport de capital, verdict, fichier, scénarios, routage, thème).
+  transmis net de l'impôt au décès, réinvestissement du remboursement d'impôt) + 94 interface
+  (validations dont droits face à un apport de capital, garde d'affichage de la dépense recommandée,
+  verdict, fichier, scénarios, routage, thème).
 - Propriété clé du couple : le **fractionnement ne hausse jamais** l'impôt combiné (testé).
 - **Validation croisée** contre les taux marginaux combinés **publiés** du Québec 2026 :
   sommet **53,31 %**, 140 000 $ → **47,46 %**, 60 000 $ → **36,12 %**.
@@ -264,7 +269,7 @@ src/
 │   │   ├── couple.ts               # Boucle du ménage (fractionnement, survie)
 │   │   └── projection.ts           # Boucle année par année (cycle de vie)
 │   ├── index.ts                    # API publique du moteur
-│   └── *.test.ts                   # 275 cas-tests (moteur)
+│   └── *.test.ts                   # 279 cas-tests (moteur)
 └── interface/                      # UI React (habillage)
     ├── Champ.tsx                   # Champs de saisie réutilisables
     ├── format.ts                   # Formatage $ / % (fr-CA)
@@ -350,7 +355,7 @@ Chaque chantier d'ampleur a son plan, écrit **avant** le code et conservé avec
 ```bash
 npm install      # installer les dépendances
 npm run dev      # développement (http://localhost:5173)
-npm test         # les 353 cas-tests
+npm test         # les 373 cas-tests
 npm run build    # version de production (dossier dist/, à héberger)
 npm run preview  # prévisualiser la version de production
 ```
@@ -416,6 +421,51 @@ options d'employé, analyse de sensibilité / Monte Carlo, autres provinces.
 ---
 
 ## 📓 Journal des modifications
+
+### 2026-07-30 — La dépense recommandée disparaissait quand la richesse ne venait pas d'un salaire
+
+**Signalé par l'utilisateur** : « l'encadré avec le bouton *Utiliser* apparaît seulement si j'ai
+entré du revenu de travail ; si les revenus viennent seulement d'un héritage, cela ne fonctionne
+pas. » Le réglage « Part du maximum consommée » semblait alors relié à rien — normal, la fenêtre
+qu'il pilote n'était pas affichée.
+
+**Cause.** La garde `aDesRessources` ne regardait que les comptes, les rentes, le salaire et
+l'épargne planifiée. Elle ignorait les **héritages**, les **périodes de travail à la retraite** et
+l'**immobilier** — `ChampsPersonne` ne déclarant même pas `immeubles`, elle ne pouvait pas les voir.
+Quand elle est fausse, `SuggestionDepense` retourne `null` et **tout** l'encadré disparaît, bouton
+compris.
+
+**Ce n'était pas une régression.** `git log -S` le montre : la garde date du 28 juillet (`bdc6dc4`,
+lot B de la dépense recommandée) et n'avait pas changé depuis. Le trou existait depuis que la
+fonctionnalité existe, et touchait **aussi le solo** — invisible là-bas seulement parce que les
+dossiers de l'utilisateur y ont des soldes de comptes. L'utilisateur le découvre maintenant parce que
+ses dossiers récents s'appuient sur des héritages.
+
+**Correctif.** `aDesRessources` et `epargneNonNulle` quittent `etapes.tsx` — un fichier bourré de JSX
+qu'un test ne peut pas importer sans tirer toute l'interface — pour un module pur
+`interface/projection/ressources.ts`, sur le modèle de `validation.ts`. La garde voit désormais les
+héritages, les périodes de travail et l'équité immobilière. La garde **reste** : sans elle, un
+dossier vierge afficherait « même sans aucune dépense, le capital ne couvre pas les charges »,
+alarmant et faux pour quelqu'un qui n'a rien saisi. C'est sa cécité qui est corrigée, pas son
+existence.
+
+`equiteImmobiliere()` compte **tous** les biens, y compris ceux dont la vente est planifiée — ce sont
+même les premiers à financer des dépenses. À ne pas confondre avec `immobilise()` d'`etapes.tsx`, qui
+retient exactement l'inverse pour avertir qu'un bien jamais vendu ne financera rien.
+
+**Une limite du modèle, découverte en écrivant les tests, et documentée plutôt que masquée.** Mes
+premiers cas échouaient : `depenseMaximale` renvoyait 0 pour un dossier héritant à 70 ans avec une
+retraite à 63. C'est la **bonne** réponse — « soutenable » veut dire financé *chaque* année, et les
+sept premières n'ont pas un dollar. Ma prémisse était fausse, pas le moteur. Le cas est maintenant un
+test à part entière, avec sa contrepartie : repousser la retraite à l'année de l'héritage débloque la
+situation.
+
+- **373 cas-tests verts** (+20), typecheck et build OK.
+- Vérifié sur le build de production, dossier héritage-seul : en **solo**, « soutient jusqu'à
+  28 700 $ », recommandé **24 300 $**, bouton présent ; le curseur à 60 % le fait tomber à
+  **17 200 $**. En **couple**, encadré et bouton également présents. Le réglage est partagé entre les
+  deux modes (un seul contexte, une seule clé de stockage), ce que cette vérification confirme au
+  passage.
 
 ### 2026-07-30 — Le décès en couple, entièrement décortiquable (et un bogue à 601 237 $)
 

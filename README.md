@@ -25,7 +25,7 @@ s'ouvre vierge ; un bouton **« Réinitialiser »** remet les champs à zéro à
 ```bash
 npm install       # installer les dépendances
 npm run dev       # serveur de développement (http://localhost:5173)
-npm test          # lancer les 353 cas-tests
+npm test          # lancer les 373 cas-tests
 npm run typecheck # vérifier les types (« npx tsc --noEmit » ne vérifie RIEN ici :
                   #   tsconfig.json est un fichier de références, avec "files": [])
 npm run build     # bâtir la version de production (dossier dist/)
@@ -48,7 +48,7 @@ src/
 │   ├── projection/          # Cycle de vie : comptes, rentes, immobilier, héritage, décaissement,
 │   │                        #   couple, optimiseur, dépense soutenable, traçabilité
 │   ├── index.ts             # API publique du moteur
-│   └── *.test.ts            # 275 cas-tests du moteur (dont validation croisée des taux publiés)
+│   └── *.test.ts            # 279 cas-tests du moteur (dont validation croisée des taux publiés)
 └── interface/               # Interface React (habillage) — aucune règle fiscale ici
     ├── atelier/             # Coquille de saisie : rail d'étapes, étape courante, résultat collant
     ├── projection/          # Vues solo et couple, tableaux, graphiques, tiroirs de détail
