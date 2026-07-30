@@ -55,6 +55,9 @@ export function Section({ titre, postes, facteur, onLien }: {
   );
 }
 
+/** Somme de postes, pour un total dérivé de la liste affichée (donc toujours d'accord avec elle). */
+const sommePostesLocaux = (postes: readonly Poste[]) => postes.reduce((s, p) => s + p.montant, 0);
+
 /** Une ligne « total » mise en évidence. */
 export function LigneTotal({ libelle, montant, facteur, accent }: { libelle: string; montant: number; facteur: number; accent?: boolean }) {
   return (
@@ -346,12 +349,13 @@ export function BlocDroits({ d, age, celi }: { d: DetailDroits; age: number; cel
 }
 
 /**
- * Valeur nette : comptes + immobilier + total, et l'année du décès le patrimoine **transmis**.
+ * Valeur nette : comptes + immobilier + total, puis les deux événements qui déplacent l'argent au
+ * décès — le **roulement** au conjoint survivant, et l'**impôt des dispositions présumées**.
  *
  * Le total du tableau est **brut** : c'est la somme des soldes, et elle doit le rester pour que la
  * liste ci-dessus s'additionne. Le panneau de synthèse, lui, annonce la valeur nette « après impôt au
- * décès ». Sans les trois lignes finales, ces deux chiffres différeraient sans explication — ce qui
- * est précisément ce qui a permis à l'écart de passer inaperçu si longtemps en mode solo.
+ * décès ». Sans les lignes finales, ces deux chiffres différeraient sans explication — ce qui est
+ * précisément ce qui a permis à l'écart de passer inaperçu si longtemps en mode solo.
  */
 export function BlocValeurNette({ v, total, facteur, onImpot }: {
   v: DetailValeurNette;
@@ -360,11 +364,25 @@ export function BlocValeurNette({ v, total, facteur, onImpot }: {
   onImpot?: () => void;
 }) {
   const impot = v.impotDeces;
+  const roule = sommePostesLocaux(v.roulement);
   return (
     <>
       <Section titre="Comptes de placement" postes={v.comptes} facteur={facteur} />
       <Section titre="Immobilier (équité : valeur − hypothèque)" postes={v.immobilier} facteur={facteur} />
       <LigneTotal libelle="Valeur nette" montant={total} facteur={facteur} accent={impot <= 0.5} />
+
+      {v.roulement.length > 0 && v.roulementVers && (
+        <>
+          <Section titre="Roulement au conjoint survivant" postes={v.roulement} facteur={facteur} />
+          <LigneTotal libelle={`= Transmis à ${v.roulementVers}`} montant={roule} facteur={facteur} />
+          <p className="mb-3 rounded-lg bg-champ p-3 text-xs leading-relaxed text-doux">
+            <strong>Aucun impôt</strong> sur ce transfert : le roulement au conjoint est à
+            <strong> imposition différée</strong>, pas exonéré. Ces comptes changent simplement de
+            titulaire ; l'impôt viendra au second décès, sur le patrimoine réuni. C'est pourquoi les
+            soldes de <strong>{v.roulementVers}</strong> bondissent l'année suivante.
+          </p>
+        </>
+      )}
 
       {impot > 0.5 && (
         <>

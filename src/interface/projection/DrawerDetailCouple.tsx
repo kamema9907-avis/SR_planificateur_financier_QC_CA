@@ -126,7 +126,14 @@ export function DrawerDetailCouple({ vue, reel, onClose }: { vue: VueDrawerCoupl
             </>
           )}
           {courante.agregat === 'fractionnement' && <BlocFractionnement fr={d.fractionnement} facteur={facteur} />}
-          {courante.agregat === 'valeurNette' && <BlocValeurNette v={d.valeurNette} total={courante.annee.valeurNette} facteur={facteur} />}
+          {courante.agregat === 'valeurNette' && (
+            <BlocValeurNette
+              v={d.valeurNette}
+              total={courante.annee.valeurNette}
+              facteur={facteur}
+              onImpot={() => pousser('impot')}
+            />
+          )}
           {courante.agregat === 'vente' && (
             <BlocVentes
               d={d.disponible}

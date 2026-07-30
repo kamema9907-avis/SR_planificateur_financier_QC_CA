@@ -187,6 +187,17 @@ export interface DetailValeurNette {
    * chiffre du panneau (« valeur nette au décès ») s'explique.
    */
   readonly impotDeces: number;
+  /**
+   * Comptes qui passent au conjoint survivant, **sans impôt**. Vide hors de l'année d'un premier
+   * décès, et toujours vide en mode solo.
+   *
+   * Le roulement au conjoint est à **imposition différée**, pas exonéré : l'impôt viendra au second
+   * décès, sur le patrimoine réuni. Sans cette liste, les soldes du défunt disparaissaient d'une
+   * ligne du tableau à l'autre sans explication.
+   */
+  readonly roulement: readonly Poste[];
+  /** Nom du conjoint qui reçoit le roulement ; `null` s'il n'y en a pas. */
+  readonly roulementVers: string | null;
 }
 
 /** Traçabilité complète d'une année (solo). */

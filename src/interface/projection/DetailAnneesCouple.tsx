@@ -45,6 +45,14 @@ function Badges({ a, anneeEpuisement, onVente }: {
   onVente: () => void;
 }) {
   const badges: { e: string; t: string; onClic?: () => void }[] = [];
+  // Le 🕊️ ne marque que les années de survie, qui SUIVENT le décès. Sans 💀, l'année du décès
+  // elle-même — celle où l'impôt frappe et où les comptes changent de mains — était introuvable
+  // en balayant la colonne des âges.
+  const roule = a.detail?.valeurNette.roulementVers;
+  if (roule) badges.push({ e: '💀', t: `Décès — comptes roulés à ${roule}, sans impôt` });
+  else if ((a.detail?.valeurNette.impotDeces ?? 0) > 0.5) {
+    badges.push({ e: '💀', t: 'Décès — impôt sur dispositions présumées' });
+  }
   if (a.phase === 'survie') badges.push({ e: '🕊️', t: 'Phase de survie (un seul conjoint)' });
   if (a.detail && a.detail.disponible.ventes.length > 0) {
     const noms = a.detail.disponible.ventes.map((v) => v.nom).join(', ');

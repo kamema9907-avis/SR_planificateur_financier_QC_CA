@@ -639,6 +639,37 @@ function impotAuDeces(etat: EtatPersonne, age: number, annee: number, gainImmo: 
   return impotTotalPour(e, annee);
 }
 
+/**
+ * Ce sur quoi l'impôt du décès porte, poste par poste — même découpage qu'en mode solo, pour que le
+ * tiroir raconte la même histoire dans les deux modes.
+ */
+function postesDispositionsPresumees(etat: EtatPersonne, gainImmo: number): Poste[] {
+  return [
+    {
+      libelle: 'REER / FERR / CRI / FRV liquidés',
+      montant: etat.comptes.filter((c) => TYPES_ENREGISTRES.includes(c.type)).reduce((s, c) => s + c.solde, 0),
+    },
+    {
+      libelle: 'Gains en capital latents (non-enregistré)',
+      montant: etat.comptes.filter((c) => estNonEnregistre(c.type))
+        .reduce((s, c) => s + Math.max(0, c.solde - (c.coutBase ?? 0)), 0),
+    },
+    { libelle: 'Gains immobiliers (dispositions présumées)', montant: gainImmo },
+  ];
+}
+
+/**
+ * Comptes qui passeront au survivant, lus AVANT le roulement.
+ *
+ * Sans cette liste, les soldes du défunt disparaissaient d'une ligne du tableau à l'autre et ceux du
+ * survivant gonflaient d'autant, sans qu'aucun clic ne l'explique.
+ */
+function postesRoulement(mort: EtatPersonne): Poste[] {
+  return mort.comptes
+    .filter((c) => c.solde > 0.5)
+    .map((c) => ({ libelle: `${LIBELLE_COMPTE[c.type]} — ${mort.p.nom}`, montant: c.solde }));
+}
+
 /** Injecte l'immobilier d'un propriétaire dans son contexte fiscal (revenus, loyers, produit de vente). */
 function foldImmo(ctx: Contexte, a: AgregatImmo): void {
   ctx.entree = {
@@ -716,6 +747,10 @@ function construireDetailCouple(
   etatsImmo: readonly EtatImmeuble[],
   droits1: DetailDroitsAnnee | null,
   droits2: DetailDroitsAnnee | null,
+  /** Dispositions présumées de l'année, par conjoint (0 et [] hors année d'un décès final). */
+  deces: { impot1: number; impot2: number; postes1: readonly Poste[]; postes2: readonly Poste[] },
+  /** Comptes roulés au survivant, lus avant la mutation. */
+  roulement: { postes: readonly Poste[]; vers: string | null },
 ): DetailCouple {
   const entreesBrut: Poste[] = [
     { libelle: 'Revenus de travail', montant: comp.travail },
@@ -777,8 +812,8 @@ function construireDetailCouple(
   // Détail fiscal de chaque conjoint sur son entrée POST-fractionnement.
   const a1 = e1 ? { ...e1, revenuPensionPrivee: e1.revenuPensionPrivee - transfert } : null;
   const a2 = e2 ? { ...e2, revenuPensionPrivee: e2.revenuPensionPrivee + transfert } : null;
-  const impot1 = a1 ? construireDetailFiscal(a1, annee, 0, []) : null;
-  const impot2 = a2 ? construireDetailFiscal(a2, annee, 0, []) : null;
+  const impot1 = a1 ? construireDetailFiscal(a1, annee, deces.impot1, deces.postes1) : null;
+  const impot2 = a2 ? construireDetailFiscal(a2, annee, deces.impot2, deces.postes2) : null;
   const impotSans = (e1 ? impotTotalPour(e1, annee) : 0) + (e2 ? impotTotalPour(e2, annee) : 0);
   const fractionnement: DetailFractionnement = {
     nom1,
@@ -797,11 +832,10 @@ function construireDetailCouple(
     immobilier: postesSignificatifs(
       etatsImmo.map((e) => ({ libelle: e.bien.nom, montant: e.vendu ? 0 : Math.max(0, e.valeur - e.hypotheque) })),
     ),
-    // TODO(lot suivant) : en couple, l'impôt des dispositions présumées est calculé APRÈS la
-    // construction de la trace (le roulement au survivant doit suivre l'enregistrement de l'année).
-    // Son chiffre de tête est donc déjà net, mais ce tiroir ne peut pas encore l'expliquer. Le
-    // déplacer avant la trace touche au traitement des décès simultanés — un sujet à part entière.
-    impotDeces: 0,
+    // Somme des deux successions : deux conjoints peuvent mourir la même année.
+    impotDeces: deces.impot1 + deces.impot2,
+    roulement: postesSignificatifs(roulement.postes),
+    roulementVers: roulement.vers,
   };
 
   return { disponible, nom1, nom2, impot1, impot2, droits1, droits2, impotMenage, fractionnement, valeurNette };
@@ -1323,14 +1357,48 @@ export function projeterCouple(h: HypothesesCouple, options: { trace?: boolean }
       appliquerCroissance(vivant, ctx.croissances);
     }
 
-    impotTotalVieReel += impotAnnee * deflateur;
+    /**
+     * Décès de fin d'année : on MESURE d'abord, on MUTE ensuite.
+     *
+     * La mesure doit précéder l'enregistrement de l'année, pour que le tiroir puisse expliquer
+     * l'impôt des dispositions présumées et le roulement — sans quoi le chiffre de tête était net
+     * sans que rien ne le dise. La mutation (roulement, extinction des comptes) doit le suivre :
+     * sinon les soldes du défunt disparaîtraient de la ligne de sa propre année de décès.
+     */
+    const meurt1 = vivant1 && age1 === h.personne1.ageDeces;
+    const meurt2 = vivant2 && age2 === h.personne2.ageDeces;
+    /** Un décès avec conjoint survivant : roulement, aucun impôt. Au plus un par année. */
+    const premierDeces =
+      meurt1 && vivant2 && !meurt2 ? { mort: etat1, survivant: etat2, mortId: 1 as const, survId: 2 as const }
+      : meurt2 && vivant1 && !meurt1 ? { mort: etat2, survivant: etat1, mortId: 2 as const, survId: 1 as const }
+      : null;
+    /**
+     * Décès sans conjoint survivant : dispositions présumées. Il peut y en avoir DEUX la même année,
+     * et c'est le cas que le code manquait — l'ancienne affectation de `valeurNetteFinaleReelle`
+     * écrasait la première succession, faisant disparaître les comptes d'un conjoint.
+     */
+    const decesFinaux: { etat: EtatPersonne; id: 1 | 2; age: number; impot: number; postes: Poste[] }[] = [];
+    for (const [meurt, etat, id, age] of [[meurt1, etat1, 1, age1], [meurt2, etat2, 2, age2]] as const) {
+      if (!meurt || (premierDeces && premierDeces.mort === etat)) continue;
+      const gainImmo = gainAuDeces(etatsImmo, bienAbrite, id);
+      decesFinaux.push({
+        etat, id, age,
+        impot: impotAuDeces(etat, age, annee, gainImmo),
+        postes: postesDispositionsPresumees(etat, gainImmo),
+      });
+    }
+    const impotDecesAnnee = decesFinaux.reduce((s, d) => s + d.impot, 0);
+    const impotDe = (id: 1 | 2) => decesFinaux.find((d) => d.id === id)?.impot ?? 0;
+    const postesDe = (id: 1 | 2) => decesFinaux.find((d) => d.id === id)?.postes ?? [];
+
+    impotTotalVieReel += (impotAnnee + impotDecesAnnee) * deflateur;
     annees.push({
       annee,
       age1: vivant1 ? age1 : null,
       age2: vivant2 ? age2 : null,
       phase,
       revenuDisponible,
-      impotTotal: impotAnnee,
+      impotTotal: impotAnnee + impotDecesAnnee,
       fractionnement,
       equiteImmobiliere: equiteImmo,
       valeurNette: valeurNette(etat1.comptes) + valeurNette(etat2.comptes) + equiteImmo,
@@ -1345,35 +1413,27 @@ export function projeterCouple(h: HypothesesCouple, options: { trace?: boolean }
               // Les droits s'éteignent avec la personne : rien à montrer pour un conjoint décédé.
               vivant1 ? fermerAnneeDroits(etat1) : null,
               vivant2 ? fermerAnneeDroits(etat2) : null,
+              { impot1: impotDe(1), impot2: impotDe(2), postes1: postesDe(1), postes2: postesDe(2) },
+              premierDeces
+                ? { postes: postesRoulement(premierDeces.mort), vers: premierDeces.survivant.p.nom }
+                : { postes: [], vers: null },
             )
           : undefined,
     });
 
-    // Traitement des décès en fin d'année. La fonction RETOURNE le nouveau défunt (le cas échéant) ;
-    // l'affectation de `defunt` reste en ligne dans la boucle pour que l'analyse de flux la voie.
-    const deces = (
-      mort: EtatPersonne, autre: EtatPersonne, mortId: 1 | 2, survId: 1 | 2, ageMort: number, autreSurvit: boolean,
-    ): PersonneProjection | null => {
-      if (autreSurvit) {
-        roulement(mort, autre);
-        roulementImmeubles(etatsImmo, mortId, survId); // biens roulés au survivant, sans impôt
-        autre.survivant = true;
-        return mort.p;
-      }
-      const gainImmo = gainAuDeces(etatsImmo, bienAbrite, mortId);
-      const tt = impotAuDeces(mort, ageMort, annee, gainImmo);
-      impotTotalVieReel += tt * deflateur;
-      annees[annees.length - 1].impotTotal += tt;
-      valeurNetteFinaleReelle = (valeurNette(mort.comptes) + equiteTotale(etatsImmo) - tt) * deflateur;
-      return null;
-    };
-    if (vivant1 && age1 === h.personne1.ageDeces) {
-      const d = deces(etat1, etat2, 1, 2, age1, vivant2 && age2 < h.personne2.ageDeces);
-      if (d) defunt = d;
+    // --- Mutations, après l'enregistrement de l'année ---
+    if (premierDeces) {
+      roulement(premierDeces.mort, premierDeces.survivant);
+      roulementImmeubles(etatsImmo, premierDeces.mortId, premierDeces.survId); // sans impôt
+      premierDeces.survivant.survivant = true;
+      defunt = premierDeces.mort.p;
     }
-    if (vivant2 && age2 === h.personne2.ageDeces) {
-      const d = deces(etat2, etat1, 2, 1, age2, vivant1 && age1 < h.personne1.ageDeces);
-      if (d) defunt = d;
+    if (decesFinaux.length > 0) {
+      // CUMUL, et non affectation : deux conjoints peuvent mourir la même année. L'équité
+      // immobilière, elle, ne s'ajoute qu'UNE fois — les biens sont comptés en entier, pas par
+      // propriétaire (`gainAuDeces` répartit déjà un bien commun à 50 % pour l'impôt).
+      const comptesTransmis = decesFinaux.reduce((s, d) => s + valeurNette(d.etat.comptes) - d.impot, 0);
+      valeurNetteFinaleReelle = (comptesTransmis + equiteTotale(etatsImmo)) * deflateur;
     }
   }
 

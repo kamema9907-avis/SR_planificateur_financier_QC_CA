@@ -25,7 +25,7 @@ s'ouvre vierge ; un bouton **« Réinitialiser »** remet les champs à zéro à
 ```bash
 npm install       # installer les dépendances
 npm run dev       # serveur de développement (http://localhost:5173)
-npm test          # lancer les 343 cas-tests
+npm test          # lancer les 353 cas-tests
 npm run typecheck # vérifier les types (« npx tsc --noEmit » ne vérifie RIEN ici :
                   #   tsconfig.json est un fichier de références, avec "files": [])
 npm run build     # bâtir la version de production (dossier dist/)
@@ -48,7 +48,7 @@ src/
 │   ├── projection/          # Cycle de vie : comptes, rentes, immobilier, héritage, décaissement,
 │   │                        #   couple, optimiseur, dépense soutenable, traçabilité
 │   ├── index.ts             # API publique du moteur
-│   └── *.test.ts            # 265 cas-tests du moteur (dont validation croisée des taux publiés)
+│   └── *.test.ts            # 275 cas-tests du moteur (dont validation croisée des taux publiés)
 └── interface/               # Interface React (habillage) — aucune règle fiscale ici
     ├── atelier/             # Coquille de saisie : rail d'étapes, étape courante, résultat collant
     ├── projection/          # Vues solo et couple, tableaux, graphiques, tiroirs de détail
@@ -115,6 +115,10 @@ l'inflation** chaque année (calcul nominal, affichage en dollars d'aujourd'hui)
 - **Impôt au décès** (dispositions présumées des comptes enregistrés + gains latents), **retranché du
   patrimoine transmis** : la « valeur nette au décès » annoncée est nette, et le tiroir de la dernière
   année montre la soustraction. C'est aussi ce chiffre net que l'optimiseur maximise.
+- **En couple, le décès se décortique** : l'année du premier décès, le tiroir liste le **roulement au
+  conjoint survivant** compte par compte — sans impôt, mais à imposition *différée* — ce qui explique
+  pourquoi les soldes du survivant bondissent l'année suivante. Au second décès, ou aux deux s'ils
+  tombent la même année, les dispositions présumées de chaque conjoint s'affichent séparément.
 - Sorties : graphique du patrimoine, tableau annuel, indicateurs (« le capital dure jusqu'à X ans »,
   valeur nette au décès, **impôt total sur la vie**). Onglet « Projection (cycle de vie) ».
 - **Traçabilité au clic** : tout montant souligné ouvre sa décomposition, et chaque décomposition

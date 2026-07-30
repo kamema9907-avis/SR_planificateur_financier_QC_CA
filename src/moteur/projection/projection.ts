@@ -223,6 +223,9 @@ function construireDetailAnnee(
       etatsImmo.map((e) => ({ libelle: e.bien.nom, montant: e.vendu ? 0 : Math.max(0, e.valeur - e.hypotheque) })),
     ),
     impotDeces,
+    // Le roulement au conjoint n'existe pas en mode solo : personne à qui transmettre sans impôt.
+    roulement: [],
+    roulementVers: null,
   };
 
   return { disponible, impot: fiscal, valeurNette, droits: c.droits };

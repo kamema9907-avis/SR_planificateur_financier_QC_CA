@@ -3,7 +3,13 @@
 > **Document vivant** : synthèse de tout ce que le projet fait à ce jour. À mettre à jour au fil des
 > phases. Voir le [journal des modifications](#-journal-des-modifications) à la fin pour l'historique.
 >
-> Dernière mise à jour : **2026-07-29** — **le REER contre le CELI, enfin arbitrable**. Un nouveau
+> Dernière mise à jour : **2026-07-30** — **le décès en couple, entièrement décortiquable**. Trois
+> trous comblés d'un coup : les comptes d'un conjoint disparaissaient du patrimoine transmis quand les
+> deux mouraient la même année (**601 237 $** sur un dossier réaliste) ; le tiroir ne pouvait pas
+> expliquer l'impôt des dispositions présumées ; et le **roulement au survivant** — des centaines de
+> milliers de dollars changeant de titulaire sans impôt — était totalement invisible. Il se lit
+> maintenant compte par compte, avec la mention d'imposition différée.
+> Plus tôt : **le REER contre le CELI, enfin arbitrable**. Un nouveau
 > réglage réinvestit le remboursement d'impôt REER au lieu de le laisser au train de vie, ce qui met
 > les deux comptes à coût égal — sans quoi le CELI gagnait par construction. L'**optimiseur choisit
 > alors lui-même** le taux marginal au-delà duquel verser au REER d'abord : 40 % sur un dossier, 36 %
@@ -144,6 +150,11 @@ Projette le patrimoine et l'impôt **année par année**, de l'âge actuel jusqu
   toujours en dollars nominaux, ce bloc ignorant la bascule d'affichage). L'année du décès, le tiroir
   de la valeur nette retranche l'**impôt des dispositions présumées** et affiche le **patrimoine
   transmis**, qui est le chiffre du panneau de synthèse.
+- **Le décès en couple, décortiqué** : l'année d'un premier décès porte un badge 💀 et son tiroir liste
+  le **roulement au conjoint survivant** compte par compte — des centaines de milliers de dollars qui
+  changent de titulaire **sans impôt**, avec la mention que c'est une imposition *différée* et non une
+  exonération. Au second décès (ou aux deux, s'ils tombent la même année), les dispositions présumées
+  de **chaque** conjoint s'affichent séparément.
 
 ### Optimiseur automatique (bouton dans la Projection) — Phase 4
 Le bouton « Optimiser la stratégie » (solo et couple) explore les stratégies avec notre simulateur et
@@ -179,7 +190,7 @@ Deux conjoints entièrement modélisés (colonnes côte à côte), un ménage à
   est annoncée quand elle change.
 
 ### Qualité / validation
-- **343 cas-tests automatisés** — 265 moteur (fiscalité, cotisations, plafonds CELIAPP/CELI/REER,
+- **353 cas-tests automatisés** — 275 moteur (fiscalité, cotisations, plafonds CELIAPP/CELI/REER,
   fonds de travailleurs, indexation, comptes, projection, décaissement, couple, immobilier dont
   terrain, optimiseur, dépense soutenable, traçabilité dont les droits de cotisation, patrimoine
   transmis net de l'impôt au décès, réinvestissement du remboursement d'impôt) + 78 interface
@@ -253,7 +264,7 @@ src/
 │   │   ├── couple.ts               # Boucle du ménage (fractionnement, survie)
 │   │   └── projection.ts           # Boucle année par année (cycle de vie)
 │   ├── index.ts                    # API publique du moteur
-│   └── *.test.ts                   # 265 cas-tests (moteur)
+│   └── *.test.ts                   # 275 cas-tests (moteur)
 └── interface/                      # UI React (habillage)
     ├── Champ.tsx                   # Champs de saisie réutilisables
     ├── format.ts                   # Formatage $ / % (fr-CA)
@@ -339,7 +350,7 @@ Chaque chantier d'ampleur a son plan, écrit **avant** le code et conservé avec
 ```bash
 npm install      # installer les dépendances
 npm run dev      # développement (http://localhost:5173)
-npm test         # les 343 cas-tests
+npm test         # les 353 cas-tests
 npm run build    # version de production (dossier dist/, à héberger)
 npm run preview  # prévisualiser la version de production
 ```
@@ -405,6 +416,68 @@ options d'employé, analyse de sensibilité / Monte Carlo, autres provinces.
 ---
 
 ## 📓 Journal des modifications
+
+### 2026-07-30 — Le décès en couple, entièrement décortiquable (et un bogue à 601 237 $)
+
+Trois dettes réglées, toutes sur le même moment : celui où de l'argent change de mains et où l'impôt
+frappe. **Demande de l'utilisateur** : « une clarté absolue de comment les sommes d'argent sont
+attribuées et consommées ».
+
+**Dette A — décès simultanés : les comptes d'un conjoint disparaissaient.**
+`valeurNetteFinaleReelle` était **affectée**, pas cumulée. Les deux conjoints mourant la même année,
+`deces()` était appelée deux fois — `autreSurvit` étant faux dans les deux cas — et la seconde
+affectation écrasait la première. Le patrimoine transmis ne comptait que les comptes du conjoint 2.
+Les deux impôts au décès, eux, étaient bien facturés.
+
+Mesuré sur un dossier où les deux conjoints ont 70 ans, meurent à 80, avec 520 000 $ de comptes
+chacun : **442 870 $ annoncés au lieu de 1 044 107 $**, soit **601 237 $ de patrimoine disparu**. Le
+dossier par défaut y échappait (45→89 et 43→92), mais deux conjoints du même âge mourant au même âge
+— saisie courante — tombaient dedans immédiatement.
+
+Le diagnostic venait d'une **lecture** du code ; le test rouge de l'étape 1 l'a transformé en fait
+avant toute correction (9 tests sur 10 au rouge). Correctif : cumul au lieu d'affectation, l'équité
+immobilière n'étant ajoutée qu'**une** fois — les biens se comptent en entier, pas par propriétaire,
+`gainAuDeces` répartissant déjà un bien commun à 50 % pour l'impôt.
+
+**Dette B — le tiroir ne pouvait pas expliquer l'impôt au décès.**
+`construireDetailCouple` recevait `impotDeces: 0` et `[]`, parce que l'impôt était calculé **après**
+la construction de la trace. La boucle sépare désormais **mesurer** de **muter** : la mesure précède
+l'enregistrement de l'année (pour que le tiroir l'explique), la mutation le suit (sinon les soldes du
+défunt disparaîtraient de la ligne de sa propre année de décès). L'interface, elle, savait déjà
+afficher tout ça depuis la veille — c'était de la plomberie, pas un nouvel écran.
+
+**Dette C — le roulement au survivant était invisible.**
+Les comptes du défunt passent au survivant sans impôt, et rien ne le disait : ses soldes
+disparaissaient d'une ligne du tableau à l'autre et ceux du survivant gonflaient d'autant. Le tiroir
+de la valeur nette le montre maintenant compte par compte, vérifié à l'écran :
+
+```
+COMPTES DE PLACEMENT
+  REER — Alice                296 092 $
+  CELI — Alice                269 684 $
+  Non-enregistré — Alice      158 447 $
+  REER — Benoît               296 092 $
+  CELI — Benoît               267 793 $
+  Valeur nette              1 288 108 $
+
+ROULEMENT AU CONJOINT SURVIVANT
+  REER — Alice                296 092 $
+  CELI — Alice                269 684 $
+  Non-enregistré — Alice      158 447 $
+  = Transmis à Benoît         724 222 $
+```
+
+Avec la mention que le roulement au conjoint est à **imposition différée, pas exonéré** : l'impôt
+viendra au second décès, sur le patrimoine réuni. Et **aucun impôt** au premier décès, ce qu'un test
+fige.
+
+**Badge 💀 sur l'année du décès en couple.** Le 🕊️ ne marquait que les années de survie, qui
+*suivent* le décès ; l'année du décès elle-même était introuvable en balayant la colonne des âges.
+
+- **353 cas-tests verts** (+10), typecheck et build OK, 0 px de débordement.
+- Vérifié sur le **build de production** (bundle `index-3nzg5_Sa.js`, confirmé identique à `dist/`) —
+  le second processus `vite preview` avait échoué à prendre le port, l'ancien servant le même `dist/`
+  depuis le disque. Contrôle nécessaire : sans lui, la vérification aurait pu porter sur du code périmé.
 
 ### 2026-07-29 — Le remboursement d'impôt REER, et l'optimiseur qui choisit lui-même le seuil
 
