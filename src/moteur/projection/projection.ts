@@ -32,6 +32,7 @@ import { totalRentesEmployeur } from './rentesEmployeur';
 import { totalRevenuTravail } from './periodesTravail';
 import { totalHeritage } from './heritage';
 import { placerCapital, placerSurplusRetraite, verserReerPrioritaire } from './placementSurplus';
+import { remplirCeli } from './remplissageCeli';
 import { clonerImmeubles, determinerBienAbrite, gainAuDeces, traiterImmeublesAnnee, type AgregatImmo, type EtatImmeuble, type VenteRealisee } from './immobilier';
 import { fondreReer } from './fonteReer';
 import {
@@ -256,8 +257,12 @@ export function projeter(h: HypothesesProjection, options: { trace?: boolean } =
   let droitsCeliRestaures = 0;
   let droitsReer = h.droitsReerDisponibles ?? 0; // droits REER (report), sans restauration au retrait
   const soldeCeliTotal = () => comptes.filter((c) => c.type === 'CELI').reduce((s, c) => s + c.solde, 0);
+  const soldeNonEnrTotal = () =>
+    comptes.filter((c) => estNonEnregistre(c.type)).reduce((s, c) => s + c.solde, 0);
   // Seuil du versement REER prioritaire. Absent ou ≥ 1 : règle désactivée, chaîne historique.
   const seuilReer = h.seuilMarginalReer ?? 1;
+  // Absent vaut ACTIVÉ : voir `HypothesesProjection.remplirDroitsCeli`.
+  const remplirDroitsCeli = h.remplirDroitsCeli ?? true;
   const LIBELLE_PRIORITAIRE = `Versement REER prioritaire (marginal > ${Math.round(seuilReer * 100)} %)`;
 
   for (let i = 0; h.ageActuel + i <= h.ageDeces; i++) {
@@ -650,6 +655,31 @@ export function projeter(h: HypothesesProjection, options: { trace?: boolean } =
       }
 
       const cible = h.depensesRetraite * facteurInflation + immo.paiement;
+      const encaisseForcee =
+        revenuTravail - retenuesTravail + rrq + sv + minimumFERR + renteEmp + immo.loyerCash +
+        immo.cashVente + heritageRecu;
+
+      /**
+       * Remplissage annuel du CELI depuis le non-enregistré, AVANT le solveur (voir
+       * `remplissageCeli.ts`). Le gain réalisé entre dans l'entrée fiscale de l'année et le solveur
+       * financera l'impôt correspondant en même temps que la dépense — aucune rétroaction.
+       *
+       * On laisse liquide ce que les comptes devront fournir cette année (`cible` moins l'encaisse
+       * déjà en main), sinon le solveur ressortirait du CELI ce qu'on vient d'y verser.
+       */
+      let gainRemplissage = 0;
+      if (remplirDroitsCeli) {
+        const r = remplirCeli(
+          comptes, profilDefaut, droitsCeli,
+          soldeNonEnrTotal() - Math.max(0, cible - encaisseForcee),
+        );
+        if (r.montant > 0) {
+          droitsCeli -= r.montant;
+          gainRemplissage = r.gainRealise;
+          consoCeli.push({ libelle: 'Transfert annuel du non-enregistré vers le CELI', montant: -r.montant });
+        }
+      }
+
       const entreeForcee: EntreeFiscale = {
         ...nouvelleEntree(age, h.vitSeul),
         revenuEmploi: revenuTravail,
@@ -658,11 +688,8 @@ export function projeter(h: HypothesesProjection, options: { trace?: boolean } =
         revenuPensionPrivee: minimumFERR + renteEmp,
         autresRevenus: interetNonEnr + immo.revenuImposable,
         dividendesDetermines: dividendesNonEnr,
-        gainsCapital: immo.gainBrut,
+        gainsCapital: immo.gainBrut + gainRemplissage,
       };
-      const encaisseForcee =
-        revenuTravail - retenuesTravail + rrq + sv + minimumFERR + renteEmp + immo.loyerCash +
-        immo.cashVente + heritageRecu;
       const celiAvantRetraits = soldeCeliTotal();
       const res = financerDepenses(comptes, h.ordreDecaissement, entreeForcee, encaisseForcee, cible, annee, age);
       // Un retrait CELI restaure les droits équivalents l'année suivante (règle du 1er janvier).

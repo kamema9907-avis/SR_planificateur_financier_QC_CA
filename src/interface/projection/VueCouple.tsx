@@ -23,6 +23,8 @@ import { DetailAnneesCouple } from './DetailAnneesCouple';
 function detailsCouple(s: HypothesesCouple): { label: string; valeur: string }[] {
   const d: { label: string; valeur: string }[] = [];
   d.push({ label: 'Fonte du REER', valeur: s.cibleFonteReer && s.cibleFonteReer > 0 ? `${formatDollars(s.cibleFonteReer)} / an` : 'Aucune' });
+  // Absent vaut ACTIVÉ, comme dans le moteur : annoncer « Non » sur un dossier neuf serait faux.
+  d.push({ label: 'Remplir les droits CELI', valeur: (s.remplirDroitsCeli ?? true) ? 'Oui' : 'Non' });
   // Ce levier n'existe que si le remboursement d'impôt est réinvesti : ne l'annoncer que s'il a joué.
   if (s.seuilMarginalReer != null && s.seuilMarginalReer < 1) {
     d.push({ label: 'REER prioritaire si marginal >', valeur: `${Math.round(s.seuilMarginalReer * 100)} %` });

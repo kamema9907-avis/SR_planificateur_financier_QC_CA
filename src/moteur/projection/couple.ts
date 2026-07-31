@@ -33,6 +33,7 @@ import { rrqNominale, svNominale, renteSurvivantRRQ } from './rentesPubliques';
 import { totalRentesEmployeur } from './rentesEmployeur';
 import { totalRevenuTravail } from './periodesTravail';
 import { placerCapital, placerSurplusRetraite, verserReerPrioritaire } from './placementSurplus';
+import { remplirCeli } from './remplissageCeli';
 import { totalHeritage } from './heritage';
 import { impotCoupleOptimal } from './fractionnement';
 import { fondreReer } from './fonteReer';
@@ -157,6 +158,25 @@ function poserDroitsReerNeufs(etat: EtatPersonne, salaire: number, fe: number, a
 /** Solde total des comptes CELI d'une personne. */
 const soldeCeli = (etat: EtatPersonne) =>
   etat.comptes.filter((c) => c.type === 'CELI').reduce((s, c) => s + c.solde, 0);
+
+/** Solde total non-enregistré d'une personne : la source du remplissage du CELI. */
+const soldeNonEnr = (etat: EtatPersonne) =>
+  etat.comptes.filter((c) => estNonEnregistre(c.type)).reduce((s, c) => s + c.solde, 0);
+
+const LIBELLE_REMPLISSAGE = 'Transfert annuel du non-enregistré vers le CELI';
+
+/**
+ * Remplit le CELI d'une personne depuis son non-enregistré, AVANT le solveur. MUTE son état et son
+ * contexte : le gain réalisé rejoint l'entrée fiscale, et c'est le solveur qui financera l'impôt
+ * correspondant en même temps que la dépense de l'année.
+ */
+function remplirCeliAnnuel(etat: EtatPersonne, ctx: Contexte, plafond: number): void {
+  const r = remplirCeli(etat.comptes, etat.profilDefaut, etat.droitsCeli, plafond);
+  if (r.montant <= 0) return;
+  etat.droitsCeli -= r.montant;
+  etat.traceDroits.consoCeli.push({ libelle: LIBELLE_REMPLISSAGE, montant: -r.montant });
+  ctx.entree = { ...ctx.entree, gainsCapital: ctx.entree.gainsCapital + r.gainRealise };
+}
 
 /**
  * Contexte du versement REER prioritaire d'une personne pour une année.
@@ -550,6 +570,24 @@ function appliquerRetrait(e: EntreeFiscale, c: Compte, montant: number, age: num
     : { ...e, autresRevenus: e.autresRevenus + montant };
 }
 
+/**
+ * Retrait qui hisse le revenu imposable de `courant` à celui de `autre`. Renvoie 0 s'il est déjà au
+ * moins aussi élevé, ou si retirer de ce compte n'a **aucun** effet fiscal — il n'y a alors rien à
+ * égaliser, et l'appelant se rabat sur un partage à parts égales.
+ *
+ * `revenuTotalImpose` est LINÉAIRE en le montant retiré, pour un type de compte donné : une seule
+ * évaluation suffit à en mesurer la pente. On évite ainsi de coder en dur le taux d'inclusion des
+ * gains en capital, qui n'appartient pas à ce module et qui peut changer.
+ */
+function retraitEgalisant(courant: EntreeFiscale, autre: EntreeFiscale, c: Compte, age: number): number {
+  const base = niveauImposable(courant);
+  const ecart = niveauImposable(autre) - base;
+  if (ecart <= 0) return 0;
+  const PAS = 1_000;
+  const pente = (niveauImposable(appliquerRetrait(courant, c, PAS, age)) - base) / PAS;
+  return pente > 1e-9 ? ecart / pente : 0;
+}
+
 /** Décaissement coordonné du couple : finance la cible du ménage en équilibrant les revenus. */
 function financerCouple(
   etat1: EtatPersonne, etat2: EtatPersonne, ctx1: Contexte, ctx2: Contexte,
@@ -576,7 +614,15 @@ function financerCouple(
       if (estLibreImpot(type)) {
         choisi = cands.reduce((a, b) => (b.c.solde > a.c.solde ? b : a));
       } else {
-        const prefere: 1 | 2 = niveauImposable(e1) <= niveauImposable(e2) ? 1 : 2;
+        const n1 = niveauImposable(e1);
+        const n2 = niveauImposable(e2);
+        // À revenus imposables ÉGAUX, servir le plus gros solde. Le retrait coûte alors exactement
+        // la même chose des deux côtés : autant puiser là où il y a le plus, ce qui garde les deux
+        // capitaux comparables — donc les revenus de placement futurs partagés. L'ancien `<=`
+        // désignait le conjoint 1 à chaque égalité, et le vidait année après année.
+        const soldeDe = (o: 1 | 2) => cands.reduce((s, x) => (x.owner === o ? s + x.c.solde : s), 0);
+        const prefere: 1 | 2 =
+          Math.abs(n1 - n2) < TOL ? (soldeDe(1) >= soldeDe(2) ? 1 : 2) : n1 < n2 ? 1 : 2;
         choisi = cands.find((x) => x.owner === prefere) ?? cands[0];
       }
       const { c, owner } = choisi;
@@ -589,21 +635,86 @@ function financerCouple(
         return encaisse + w - (impotTotalPour(em, annee) + autre);
       };
 
-      let w: number;
-      if (dispoAvec(c.solde) <= cible - TOL) {
-        w = c.solde;
-      } else {
+      /** Compte de MÊME type chez le conjoint : sans lui, il n'y a personne avec qui partager. */
+      const jumelle = estLibreImpot(type) ? undefined : cands.find((x) => x.owner !== owner);
+      const aEgalite = jumelle != null && Math.abs(niveauImposable(e1) - niveauImposable(e2)) < TOL;
+
+      /** Disponible si CHACUN des deux conjoints retirait `w` de son compte de ce type. */
+      const dispoAvecDeux = (w: number) => {
+        const em = appliquerRetrait(courant(), c, w, age);
+        const ageJ = jumelle!.owner === 1 ? ctx1.age : ctx2.age;
+        const ej = appliquerRetrait(jumelle!.owner === 1 ? e1 : e2, jumelle!.c, w, ageJ);
+        return encaisse + 2 * w - (impotTotalPour(em, annee) + impotTotalPour(ej, annee));
+      };
+
+      const dichotomie = (haut: number, dispo: (w: number) => number) => {
+        if (dispo(haut) <= cible - TOL) return haut;
         let lo = 0;
-        let hi = c.solde;
+        let hi = haut;
         for (let k = 0; k < 50; k++) {
           const mid = (lo + hi) / 2;
-          if (dispoAvec(mid) < cible) lo = mid;
+          if (dispo(mid) < cible) lo = mid;
           else hi = mid;
           if (hi - lo < TOL) break;
         }
-        w = hi;
+        return hi;
+      };
+
+      /**
+       * **À égalité, on résout le partage, on ne l'approxime pas.**
+       *
+       * Chercher le retrait qui atteint la cible en supposant UN SEUL payeur le surestime : ce payeur
+       * unique supporte tout l'impôt, donc il faut retirer davantage. En prendre la moitié donnait
+       * un partage à 59 / 41, pas à 50 / 50, et les deux conjoints affichaient des impôts différents
+       * une année sur deux. On cherche donc directement le `w` tel que `w` de CHAQUE côté atteigne
+       * la cible, et on n'en sert qu'un ici : le tour suivant servira l'autre, à égalité parfaite,
+       * puisqu'il ne restera exactement que ce montant-là à combler.
+       */
+      let w = aEgalite
+        ? dichotomie(Math.min(c.solde, jumelle!.c.solde), dispoAvecDeux)
+        : dichotomie(c.solde, dispoAvec);
+
+      /**
+       * **Plafonner au point d'égalisation.** La dichotomie ci-dessus prend tout le besoin de
+       * l'année d'un seul coup : la boucle `while`, censée réévaluer qui est le moins imposé à
+       * chaque tour, ne s'exécutait donc qu'UNE fois, et l'on dépassait largement l'égalité que le
+       * décaissement coordonné prétend viser.
+       *
+       * Conséquence mesurée sur un ménage héritant de 2 M$ chacun : le conjoint 1 finançait seul le
+       * train de vie, son capital fondait pendant que l'autre composait, et comme il avait dès lors
+       * moins de revenu il restait « le moins imposé » — donc repris l'année suivante. Le choix se
+       * verrouillait. À 40 ans : 10 178 $ d'impôt d'un côté, 61 129 $ de l'autre, et un capital
+       * réduit à 768 000 $ contre 7 818 000 $.
+       *
+       * Le plancher à `w / 2` garantit la progression quand les deux revenus sont DÉJÀ égaux
+       * (`retraitEgalisant` renvoie alors 0) : chacun prend la moitié du besoin restant, et la
+       * boucle converge géométriquement. Il couvre aussi le cas d'un retrait sans effet fiscal — un
+       * non-enregistré sans gain latent — où il n'y a rien à égaliser mais tout à gagner à ne pas
+       * vider un seul des deux.
+       *
+       * Aucun plafond si le conjoint n'a aucun compte de ce type : il n'y a alors personne avec qui
+       * partager, et plafonner ne ferait que multiplier les tours de boucle. Aucun non plus dans le
+       * cas d'égalité traité ci-dessus, où le partage est déjà exact.
+       */
+      if (jumelle && !aEgalite) {
+        const egalisant = retraitEgalisant(courant(), owner === 1 ? e2 : e1, c, age);
+        w = Math.min(w, Math.max(egalisant, w / 2));
       }
 
+      /**
+       * ORDRE CRITIQUE : imposer d'abord, réduire le coût de base ensuite, le solde en dernier —
+       * exactement comme `financerDepenses` en solo.
+       *
+       * L'inverse (coût de base réduit avant le calcul du gain) faisait déclarer un gain qui
+       * n'existe pas. Pour un retrait `w` sur un compte de solde `S` et de coût de base `B`, le gain
+       * correct vaut `w(S−B)/S` ; lu après la mutation du seul coût de base, il valait
+       * `w(S−B)/S + w²B/S²`. Le terme de trop varie en `w²/S` : discret sur un gros compte, il
+       * explose à mesure qu'il se vide. Mesuré sur un ménage héritant de 2 M$ chacun — donc à coût
+       * de base ÉGAL au solde, où le retrait devrait être entièrement non imposable — 7 231 $ de
+       * gain inventé dès la première année, et 1 338 $ d'impôt supporté par le seul conjoint qui
+       * décaissait.
+       */
+      poser(appliquerRetrait(courant(), c, w, age));
       if (estNonEnregistre(c.type)) {
         c.coutBase = (c.coutBase ?? 0) * (1 - w / c.solde);
         if (owner === 1) retraits.nonenr1 += w; else retraits.nonenr2 += w;
@@ -612,7 +723,6 @@ function financerCouple(
       } else {
         if (owner === 1) retraits.enr1 += w; else retraits.enr2 += w;
       }
-      poser(appliquerRetrait(courant(), c, w, age));
       encaisse += w;
       c.solde -= w;
     }
@@ -694,6 +804,22 @@ const LIBELLE_COMPTE: Record<TypeCompte, string> = {
   NON_ENREGISTRE: 'Non-enregistré', REEE: 'REEE',
 };
 
+/**
+ * Où le capital réinvesti d'une année a abouti, **par conjoint**.
+ *
+ * Le total seul ne suffisait pas : il montrait bien « 3 964 326 $ au non-enregistré » sans dire que
+ * la totalité atterrissait chez un seul des deux. C'est précisément ce que le tiroir devait rendre
+ * visible.
+ */
+interface VentilationSurplus {
+  celi1: number; reer1: number; nonEnr1: number;
+  celi2: number; reer2: number; nonEnr2: number;
+}
+
+const VENTILATION_VIDE: VentilationSurplus = {
+  celi1: 0, reer1: 0, nonEnr1: 0, celi2: 0, reer2: 0, nonEnr2: 0,
+};
+
 /** Composantes agrégées du ménage pour bâtir la traçabilité d'une année de couple. */
 interface CompMenage {
   travail: number;
@@ -723,7 +849,9 @@ interface CompMenage {
   /** Part conservée par le survivant ; 1 tant que les deux conjoints vivent. */
   fractionSurvivant: number;
   facteurInflation: number;
-  ventilSurplus: { celi: number; reer: number; nonEnr: number };
+  ventilSurplus: VentilationSurplus;
+  /** Apport de chaque conjoint au pot commun : la clé de répartition du surplus (0/0 s'il n'y en a pas). */
+  apports: { p1: number; p2: number };
 }
 
 /**
@@ -802,10 +930,19 @@ function construireDetailCouple(
     ventes: detaillerVentes(comp.ventesRealisees, comp.impotSupporteVente),
     ventesSeuleSourceDeCapital: comp.heritage <= 0.5,
     surplus,
+    // Chaque destination nomme SON conjoint : c'est la seule façon de voir qu'un placement part
+    // tout entier d'un côté. Même motif que les postes de valeur nette, plus bas.
     destinationSurplus: postesSignificatifs([
-      { libelle: 'CELI', montant: comp.ventilSurplus.celi },
-      { libelle: 'REER', montant: comp.ventilSurplus.reer },
-      { libelle: 'Non-enregistré', montant: comp.ventilSurplus.nonEnr },
+      { libelle: `CELI — ${nom1}`, montant: comp.ventilSurplus.celi1 },
+      { libelle: `REER — ${nom1}`, montant: comp.ventilSurplus.reer1 },
+      { libelle: `Non-enregistré — ${nom1}`, montant: comp.ventilSurplus.nonEnr1 },
+      { libelle: `CELI — ${nom2}`, montant: comp.ventilSurplus.celi2 },
+      { libelle: `REER — ${nom2}`, montant: comp.ventilSurplus.reer2 },
+      { libelle: `Non-enregistré — ${nom2}`, montant: comp.ventilSurplus.nonEnr2 },
+    ]),
+    apportsSurplus: postesSignificatifs([
+      { libelle: `Apport de ${nom1}`, montant: comp.apports.p1 },
+      { libelle: `Apport de ${nom2}`, montant: comp.apports.p2 },
     ]),
   };
 
@@ -871,6 +1008,8 @@ export function projeterCouple(h: HypothesesCouple, options: { trace?: boolean }
       ? null
       : { entree: ctx.entree, annee, age: ctx.age, seuil: seuilReer, libelle: LIBELLE_PRIORITAIRE };
   const fonteActive = (h.cibleFonteReer ?? 0) > 0;
+  // Absent vaut ACTIVÉ : voir `HypothesesCouple.remplirDroitsCeli`.
+  const remplirDroitsCeli = h.remplirDroitsCeli ?? true;
 
   const etatsImmo = clonerImmeubles(h.immeubles);
   const bienAbrite = determinerBienAbrite(h.immeubles);
@@ -919,7 +1058,8 @@ export function projeterCouple(h: HypothesesCouple, options: { trace?: boolean }
 
     // Capture pour la traçabilité (remplie dans chaque branche ; assemblée au push, après la croissance).
     let traceData: { phase: AnneeCouple['phase']; comp: CompMenage; e1: EntreeFiscale | null; e2: EntreeFiscale | null; transfert: number } | null = null;
-    let traceVentil = { celi: 0, reer: 0, nonEnr: 0 };
+    let traceVentil: VentilationSurplus = { ...VENTILATION_VIDE };
+    let traceApports = { p1: 0, p2: 0 };
 
     // Immobilier : amortissement, loyers, ventes, appréciation (par propriétaire).
     const ageProprio = (p: 1 | 2 | 'commun'): number | null =>
@@ -951,6 +1091,23 @@ export function projeterCouple(h: HypothesesCouple, options: { trace?: boolean }
       if (!ctx1.travaille || !ctx2.travaille) {
         phase = 'decaissement';
         const cible = h.depensesRetraite * facteurInflation + paiementImmo;
+
+        /**
+         * Remplissage annuel du CELI, avant le solveur (voir `remplissageCeli.ts`).
+         *
+         * On laisse liquide ce que les comptes devront fournir cette année — `cible` moins
+         * l'encaisse déjà en main — réparti au prorata du non-enregistré de chacun. Sans cette
+         * réserve, le solveur ressortirait du CELI ce qu'on vient d'y verser.
+         */
+        if (remplirDroitsCeli) {
+          const n1 = soldeNonEnr(etat1);
+          const n2 = soldeNonEnr(etat2);
+          const besoin = Math.max(0, cible - ctx1.encaisse - ctx2.encaisse);
+          const reserve = (part: number) => (n1 + n2 > 0 ? (besoin * part) / (n1 + n2) : 0);
+          remplirCeliAnnuel(etat1, ctx1, n1 - reserve(n1));
+          remplirCeliAnnuel(etat2, ctx2, n2 - reserve(n2));
+        }
+
         const celiAvant1 = soldeCeli(etat1);
         const celiAvant2 = soldeCeli(etat2);
         const res = financerCouple(etat1, etat2, ctx1, ctx2, cible, annee, h.ordreDecaissement);
@@ -979,10 +1136,16 @@ export function projeterCouple(h: HypothesesCouple, options: { trace?: boolean }
                   ? ' (vente d’immeuble cette année)'
                   : '';
           const cibleId: 1 | 2 = niveauImposable(e1Courant) >= niveauImposable(e2Courant) ? 1 : 2;
+          const autreId: 1 | 2 = cibleId === 1 ? 2 : 1;
           const etatCible = cibleId === 1 ? etat1 : etat2;
           const etatAutre = cibleId === 1 ? etat2 : etat1;
           const ctxCible = cibleId === 1 ? ctx1 : ctx2;
           let entreeCible = cibleId === 1 ? e1Courant : e2Courant;
+
+          const ventil: VentilationSurplus = { ...VENTILATION_VIDE };
+          const noter = (id: 1 | 2, cle: 'celi' | 'reer' | 'nonEnr', montant: number) => {
+            ventil[`${cle}${id}` as keyof VentilationSurplus] += montant;
+          };
 
           // Étape prioritaire, devant les deux CELI : chez le conjoint le plus imposé, c'est là que
           // la déduction vaut le plus. Neutralisée l'année d'une fonte du REER.
@@ -1006,6 +1169,7 @@ export function projeterCouple(h: HypothesesCouple, options: { trace?: boolean }
               impotAnnee = opt.impot;
               fractionnement = Math.abs(opt.transfert);
               etatCible.traceDroits.consoReer.push({ libelle: LIBELLE_PRIORITAIRE, montant: -prioritaire });
+              noter(cibleId, 'reer', prioritaire);
             }
           }
 
@@ -1013,50 +1177,78 @@ export function projeterCouple(h: HypothesesCouple, options: { trace?: boolean }
           // que chez l'autre : réserver tout le surplus au conjoint le plus imposé (ce qui se
           // justifie pour le REER, dont la déduction vaut le taux marginal) laissait dormir les
           // droits du second — jusqu'à 109 000 $ envoyés au non-enregistré pour rien.
-          let celiPartage = 0;
-          for (const etat of [etatCible, etatAutre]) {
+          //
+          // Cette étape reste volontairement PARTAGÉE, même après la répartition par propriétaire
+          // ci-dessous : donner à son conjoint de quoi cotiser à SON CELI est permis, et c'est le
+          // seul cas où le revenu échappe aux règles d'attribution (al. 74.5(12)c) LIR).
+          for (const [etat, id] of [[etatCible, cibleId], [etatAutre, autreId]] as const) {
             const montant = Math.min(surplus, Math.max(0, etat.droitsCeli));
             if (montant <= 0) continue;
             trouverOuCreer(etat.comptes, 'CELI', etat.profilDefaut).solde += montant;
             etat.droitsCeli -= montant;
             surplus -= montant;
-            celiPartage += montant;
+            noter(id, 'celi', montant);
             etat.traceDroits.consoCeli.push({ libelle: `Surplus du ménage réinvesti${venueSurplus}`, montant: -montant });
           }
-          if (surplus <= 0.5) {
-            traceVentil = { celi: celiPartage, reer: prioritaire, nonEnr: 0 };
-          } else {
 
-          // Le reste suit la chaîne chez le conjoint le plus imposé : son CELI étant désormais
-          // plein, `placerSurplusRetraite` enchaîne sur le REER (déduction la plus utile) puis le
-          // non-enregistré.
-          const droits = { droitsCeli: etatCible.droitsCeli, droitsReer: etatCible.droitsReer };
-          const pose = placerSurplusRetraite(
-            etatCible.comptes, etatCible.profilDefaut, droits, surplus, ctxCible.age, entreeCible, impotAnnee,
-            (montantReer) => {
-              const eCible: EntreeFiscale = { ...entreeCible, deductionReer: entreeCible.deductionReer + montantReer };
-              const e1n = cibleId === 1 ? eCible : e1Courant;
-              const e2n = cibleId === 2 ? eCible : e2Courant;
-              const opt = impotCoupleOptimal(e1n, e2n, annee, splittable(e1n, ctx1.age, ctx1.renteEmp), splittable(e2n, ctx2.age, ctx2.renteEmp));
-              fractionnement = Math.abs(opt.transfert);
-              return { impot: opt.impot, entree: eCible };
-            },
-          );
-          etatCible.droitsCeli = droits.droitsCeli;
-          etatCible.droitsReer = droits.droitsReer;
-          impotAnnee = pose.impot;
-          // Le CELI de `etatCible` a déjà été servi par le partage ci-dessus : ce qui reste ici est
-          // son REER. Sa part CELI y est nulle, le poste sera donc filtré.
-          etatCible.traceDroits.consoCeli.push({ libelle: `Surplus du ménage réinvesti${venueSurplus}`, montant: -pose.ventilation.celi });
-          etatCible.traceDroits.consoReer.push({ libelle: `Surplus du ménage réinvesti${venueSurplus}`, montant: -pose.ventilation.reer });
-          traceVentil = {
-            ...pose.ventilation,
-            celi: pose.ventilation.celi + celiPartage,
-            reer: pose.ventilation.reer + prioritaire,
-          };
-          if (cibleId === 1) e1Courant = pose.entree;
-          else e2Courant = pose.entree;
+          /**
+           * Le reste revient à chacun **au prorata de son apport** au pot commun de l'année.
+           *
+           * L'ancienne règle envoyait tout chez le conjoint le plus imposé. Cela se défend pour une
+           * déduction REER, qui vaut le taux marginal — pas pour du non-enregistré, dont les revenus
+           * sont imposés dans les mains du propriétaire. Le défaut était double : le choix
+           * s'auto-entretenait (le placement rendait son bénéficiaire encore plus imposé, donc cible
+           * à perpétuité), et il faisait **changer de propriétaire** l'héritage de l'autre conjoint —
+           * un transfert qui n'existe pas, et qui déclencherait sinon les règles d'attribution
+           * (art. 74.1 LIR, art. 462 LI). Mesuré sur un ménage héritant de 2 M$ chacun : 3 964 326 $
+           * chez le conjoint 1 et zéro chez le 2, tout l'impôt de placement sur une seule tête.
+           *
+           * L'apport contient déjà tout ce qu'une personne verse au pot : salaire net de retenues,
+           * rentes, minimum FERR, héritage, loyers, produit de vente (`encaisse`) et retraits de SES
+           * comptes. Dépenses et impôt du ménage sont donc partagés au prorata, ce qui est la
+           * convention voulue. La phase d'accumulation fait déjà exactement cela via `poserCapital` :
+           * c'est l'écart entre les deux branches qui trahissait le défaut.
+           */
+          if (surplus > 0.5) {
+            const apport1 = Math.max(0, ctx1.encaisse + res.retraits.enr1 + res.retraits.nonenr1 + res.retraits.libre1);
+            const apport2 = Math.max(0, ctx2.encaisse + res.retraits.enr2 + res.retraits.nonenr2 + res.retraits.libre2);
+            const totalApports = apport1 + apport2;
+            traceApports = { p1: apport1, p2: apport2 };
+            // Repli à parts égales : un surplus sans apport mesurable n'a pas de propriétaire désigné.
+            const part1 = totalApports > 0 ? (surplus * apport1) / totalApports : surplus / 2;
+
+            for (const [id, part] of [[1, part1], [2, surplus - part1]] as const) {
+              if (part <= 0.5) continue;
+              const etat = id === 1 ? etat1 : etat2;
+              const ctx = id === 1 ? ctx1 : ctx2;
+              const entree = id === 1 ? e1Courant : e2Courant;
+              const droits = { droitsCeli: etat.droitsCeli, droitsReer: etat.droitsReer };
+              const pose = placerSurplusRetraite(
+                etat.comptes, etat.profilDefaut, droits, part, ctx.age, entree, impotAnnee,
+                (montantReer) => {
+                  const eMaj: EntreeFiscale = { ...entree, deductionReer: entree.deductionReer + montantReer };
+                  const e1n = id === 1 ? eMaj : e1Courant;
+                  const e2n = id === 2 ? eMaj : e2Courant;
+                  const opt = impotCoupleOptimal(e1n, e2n, annee, splittable(e1n, ctx1.age, ctx1.renteEmp), splittable(e2n, ctx2.age, ctx2.renteEmp));
+                  fractionnement = Math.abs(opt.transfert);
+                  return { impot: opt.impot, entree: eMaj };
+                },
+              );
+              etat.droitsCeli = droits.droitsCeli;
+              etat.droitsReer = droits.droitsReer;
+              impotAnnee = pose.impot;
+              if (id === 1) e1Courant = pose.entree;
+              else e2Courant = pose.entree;
+              // Le CELI de ce conjoint a déjà été servi par le partage ci-dessus : sa part CELI est
+              // nulle ici, le poste sera donc filtré.
+              etat.traceDroits.consoCeli.push({ libelle: `Surplus du ménage réinvesti${venueSurplus}`, montant: -pose.ventilation.celi });
+              etat.traceDroits.consoReer.push({ libelle: `Surplus du ménage réinvesti${venueSurplus}`, montant: -pose.ventilation.reer });
+              noter(id, 'celi', pose.ventilation.celi);
+              noter(id, 'reer', pose.ventilation.reer);
+              noter(id, 'nonEnr', pose.ventilation.nonEnr);
+            }
           }
+          traceVentil = ventil;
           revenuDisponible = cible;
         } else if (res.disponible < cible - 1 && anneeEpuisement === null) {
           anneeEpuisement = annee;
@@ -1102,6 +1294,7 @@ export function projeterCouple(h: HypothesesCouple, options: { trace?: boolean }
               fractionSurvivant: 1,
               facteurInflation,
               ventilSurplus: traceVentil,
+              apports: traceApports,
             },
             e1: e1Courant,
             e2: e2Courant,
@@ -1190,11 +1383,13 @@ export function projeterCouple(h: HypothesesCouple, options: { trace?: boolean }
               cibleSaisie: h.depensesRetraite,
               fractionSurvivant: 1,
               facteurInflation,
+              // Chaque conjoint place SON capital dans SES comptes : la ventilation le dit
+              // désormais poste par poste, au lieu de fondre les deux en un seul total.
               ventilSurplus: {
-                celi: her1.celi + her2.celi,
-                reer: her1.reer + her2.reer,
-                nonEnr: her1.nonEnr + her2.nonEnr,
+                celi1: her1.celi, reer1: her1.reer, nonEnr1: her1.nonEnr,
+                celi2: her2.celi, reer2: her2.reer, nonEnr2: her2.nonEnr,
               },
+              apports: { p1: her1.place, p2: her2.place },
             },
             e1,
             e2,
@@ -1250,7 +1445,8 @@ export function projeterCouple(h: HypothesesCouple, options: { trace?: boolean }
               cibleSaisie: h.depensesRetraite,
               fractionSurvivant: h.fractionSurvivant,
               facteurInflation,
-              ventilSurplus: { celi: 0, reer: 0, nonEnr: 0 },
+              ventilSurplus: { ...VENTILATION_VIDE },
+              apports: { p1: 0, p2: 0 },
             },
             e1: idVivant === 1 ? e : null,
             e2: idVivant === 2 ? e : null,
@@ -1259,6 +1455,10 @@ export function projeterCouple(h: HypothesesCouple, options: { trace?: boolean }
         }
       } else {
         const cible = h.depensesRetraite * h.fractionSurvivant * facteurInflation + paiementImmo;
+        // Remplissage annuel du CELI, comme en décaissement à deux : la survie décaisse elle aussi.
+        if (remplirDroitsCeli) {
+          remplirCeliAnnuel(vivant, ctx, soldeNonEnr(vivant) - Math.max(0, cible - ctx.encaisse));
+        }
         const celiAvant = soldeCeli(vivant);
         const res = financerDepenses(vivant.comptes, h.ordreDecaissement, ctx.entree, ctx.encaisse, cible, annee, ctx.age);
         vivant.droitsCeliRestaures += Math.max(0, celiAvant - soldeCeli(vivant));
@@ -1301,7 +1501,13 @@ export function projeterCouple(h: HypothesesCouple, options: { trace?: boolean }
           vivant.droitsCeli = droits.droitsCeli;
           vivant.droitsReer = droits.droitsReer;
           impotAnnee = pose.impot;
-          traceVentil = { ...pose.ventilation, reer: pose.ventilation.reer + prioritaire };
+          // Une seule personne vivante : tout est porté à sa colonne, jamais à celle du défunt.
+          traceVentil = {
+            ...VENTILATION_VIDE,
+            [`celi${idVivant}`]: pose.ventilation.celi,
+            [`reer${idVivant}`]: pose.ventilation.reer + prioritaire,
+            [`nonEnr${idVivant}`]: pose.ventilation.nonEnr,
+          };
           entreeCourante = pose.entree;
           revenuDisponible = cible;
           const venue =
@@ -1347,6 +1553,7 @@ export function projeterCouple(h: HypothesesCouple, options: { trace?: boolean }
               fractionSurvivant: h.fractionSurvivant,
               facteurInflation,
               ventilSurplus: traceVentil,
+              apports: { p1: 0, p2: 0 },
             },
             e1: idVivant === 1 ? entreeCourante : null,
             e2: idVivant === 2 ? entreeCourante : null,

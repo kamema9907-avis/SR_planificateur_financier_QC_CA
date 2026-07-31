@@ -176,6 +176,17 @@ export interface HypothesesProjection {
    * Absent ou faux : comportement historique, au dollar près.
    */
   readonly reinvestirRemboursementReer?: boolean;
+  /**
+   * Transférer chaque année du non-enregistré vers le CELI, jusqu'à épuisement des droits, pendant
+   * le décaissement. Voir `remplissageCeli.ts` pour le mécanisme et le trou qu'il bouche.
+   *
+   * **Attention, ce réglage est le seul de la maison dont le défaut n'est PAS le comportement
+   * historique** : absent vaut ACTIVÉ. Laisser dormir de la place à l'abri en détenant du capital
+   * pleinement imposable n'est pas une stratégie mais une occasion manquée, et un dossier neuf doit
+   * donc en profiter sans qu'on ait à y penser. Mettre `false` restitue l'ancien comportement au
+   * cent près.
+   */
+  readonly remplirDroitsCeli?: boolean;
 }
 
 /** Résultat d'une année de projection (montants NOMINAUX). */

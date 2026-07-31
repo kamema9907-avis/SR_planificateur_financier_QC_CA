@@ -3,7 +3,24 @@
 > **Document vivant** : synthèse de tout ce que le projet fait à ce jour. À mettre à jour au fil des
 > phases. Voir le [journal des modifications](#-journal-des-modifications) à la fin pour l'historique.
 >
-> Dernière mise à jour : **2026-07-30** — **la dépense recommandée réapparaît** pour les dossiers dont
+> Dernière mise à jour : **2026-07-30** — **un gain en capital fantôme**, et le conjoint qui
+> décaissait seul. `financerCouple` réduisait le coût de base AVANT de calculer le gain : chaque
+> retrait déclarait `w²B/S²` de trop, un gain qui n'existe pas. Sur un ménage dont le coût de base
+> égalait le solde — donc dont le retrait aurait dû être **entièrement non imposable** — 7 231 $ de
+> gain inventé dès la première année. Le mode solo faisait déjà l'inverse, correctement. Et comme la
+> dichotomie prenait toute la dépense de l'année d'un seul coup, un conjoint se vidait pendant que
+> l'autre composait : à 40 ans, 10 178 $ d'impôt contre 61 129 $. Les retraits **s'égalisent**
+> désormais. Résultat : **0,00 %** d'écart entre les conjoints, impôt comme capital, et
+> **+5,4 M$** réels au dernier décès.
+> Plus tôt le même jour : **à qui appartient l'argent du ménage**, deux défauts
+> corrigés. En décaissement, tout le surplus partait chez **un seul** conjoint (le plus imposé, et le
+> nº 1 à égalité) : sur un couple héritant de 2 M$ chacun, **3 964 326 $ chez l'un et zéro chez
+> l'autre**, tout l'impôt de placement sur une seule tête. Il se répartit désormais **au prorata de
+> l'apport** de chacun. Et les **droits CELI ne servaient jamais** en décaissement — le solveur ne
+> dégageant aucun surplus, rien ne cotisait plus : 1 341 500 $ de place inutilisée par conjoint.
+> Un transfert annuel du non-enregistré vers le CELI les consomme, **activé par défaut**.
+> Ensemble : **+8 M$** réels au dernier décès sur le dossier signalé.
+> Plus tôt le même jour : **la dépense recommandée réapparaît** pour les dossiers dont
 > la richesse ne vient pas d'un salaire : la garde d'affichage ignorait les héritages, le travail à la
 > retraite et l'immobilier, faisant disparaître l'encadré entier — bouton compris. Trou présent depuis
 > la création de la fonctionnalité, le 28 juillet, et non une régression récente.
@@ -137,6 +154,11 @@ Projette le patrimoine et l'impôt **année par année**, de l'âge actuel jusqu
   Le terrain et l'immeuble à revenu sont **toujours imposables** (jamais abrités). Équité au patrimoine.
 - **Phase d'accumulation** (épargne + croissance) puis **décaissement** : un solveur retire dans l'ordre
   choisi pour financer une cible de dépenses **nette d'impôt**.
+- **Remplissage annuel des droits CELI** (mode Avancé, **activé par défaut**) : chaque année de
+  retraite, l'outil transfère du non-enregistré vers le CELI jusqu'à épuisement des droits. Sans lui,
+  la place à l'abri s'accumulait sans jamais servir — le solveur ne dégageant aucun surplus en
+  décaissement, plus rien ne cotisait. Le gain latent réalisé est imposé et tracé. Le décocher a du
+  sens quand le non-enregistré finance le train de vie : l'optimiseur essaie les deux.
 - **Impôt au décès** (dispositions présumées des comptes enregistrés + gains latents).
 - **Dépense de retraite recommandée** (solo **et** ménage) : sous le champ de dépenses, l'outil
   affiche le montant maximal que le capital finance jusqu'au décès et en recommande 85 % par
@@ -163,13 +185,18 @@ Projette le patrimoine et l'impôt **année par année**, de l'âge actuel jusqu
 ### Optimiseur automatique (bouton dans la Projection) — Phase 4
 Le bouton « Optimiser la stratégie » (solo et couple) explore les stratégies avec notre simulateur et
 retourne celle qui **maximise le patrimoine net au décès** : ordre de décaissement, **fonte du REER**,
-âges de début RRQ/SV, moment des ventes immobilières. Affiche le gain (patrimoine + / impôt −) et
-permet d'appliquer la stratégie recommandée.
+seuil du versement REER prioritaire, **remplissage des droits CELI**, âges de début RRQ/SV, moment des
+ventes immobilières. Affiche le gain (patrimoine + / impôt −) et permet d'appliquer la stratégie
+recommandée.
 
 ### Mode « Couple » (bascule dans l'onglet Projection) — Phase 3
 Deux conjoints entièrement modélisés (colonnes côte à côte), un ménage à optimiser :
 - **Fractionnement du revenu de pension** optimisé automatiquement chaque année.
 - **Décaissement coordonné** : le conjoint le moins imposé retire en premier (équilibre les revenus).
+- **Le surplus reste à son propriétaire** : ce que le ménage n'a pas dépensé revient à chaque conjoint
+  **au prorata de son apport** de l'année (héritage, salaire, retraits de ses comptes). Un héritage ne
+  change pas de mains en traversant le budget du ménage. Le CELI fait exception et reste partagé :
+  cotiser au CELI de son conjoint est permis et échappe aux règles d'attribution.
 - **REER de conjoint** (cotisations croisées).
 - **Phase de survie** : roulement sans impôt au premier décès, **rente de survivant RRQ**, dépenses du
   survivant ajustables (~67 %), impôt au dernier décès.
@@ -194,10 +221,11 @@ Deux conjoints entièrement modélisés (colonnes côte à côte), un ménage à
   est annoncée quand elle change.
 
 ### Qualité / validation
-- **373 cas-tests automatisés** — 279 moteur (fiscalité, cotisations, plafonds CELIAPP/CELI/REER,
+- **401 cas-tests automatisés** — 307 moteur (fiscalité, cotisations, plafonds CELIAPP/CELI/REER,
   fonds de travailleurs, indexation, comptes, projection, décaissement, couple, immobilier dont
   terrain, optimiseur, dépense soutenable, traçabilité dont les droits de cotisation, patrimoine
-  transmis net de l'impôt au décès, réinvestissement du remboursement d'impôt) + 94 interface
+  transmis net de l'impôt au décès, réinvestissement du remboursement d'impôt, répartition du surplus
+  entre conjoints, remplissage annuel du CELI, égalisation des retraits du couple) + 94 interface
   (validations dont droits face à un apport de capital, garde d'affichage de la dépense recommandée,
   verdict, fichier, scénarios, routage, thème).
 - Propriété clé du couple : le **fractionnement ne hausse jamais** l'impôt combiné (testé).
@@ -264,12 +292,13 @@ src/
 │   │   ├── periodesTravail.ts      # Travail poursuivi à la retraite
 │   │   ├── heritage.ts             # Héritage : indexation du montant reçu
 │   │   ├── placementSurplus.ts     # placerCapital / placerSurplusRetraite (CELI → REER → non-enr.)
+│   │   ├── remplissageCeli.ts      # Transfert annuel non-enregistré → CELI (décaissement)
 │   │   ├── depenseSoutenable.ts    # Dépense de retraite maximale et recommandée (dichotomie)
 │   │   ├── immobilier.ts           # Biens, hypothèque, vente, exemption résidence
 │   │   ├── couple.ts               # Boucle du ménage (fractionnement, survie)
 │   │   └── projection.ts           # Boucle année par année (cycle de vie)
 │   ├── index.ts                    # API publique du moteur
-│   └── *.test.ts                   # 279 cas-tests (moteur)
+│   └── *.test.ts                   # 307 cas-tests (moteur)
 └── interface/                      # UI React (habillage)
     ├── Champ.tsx                   # Champs de saisie réutilisables
     ├── format.ts                   # Formatage $ / % (fr-CA)
@@ -355,7 +384,7 @@ Chaque chantier d'ampleur a son plan, écrit **avant** le code et conservé avec
 ```bash
 npm install      # installer les dépendances
 npm run dev      # développement (http://localhost:5173)
-npm test         # les 373 cas-tests
+npm test         # les 401 cas-tests
 npm run build    # version de production (dossier dist/, à héberger)
 npm run preview  # prévisualiser la version de production
 ```
@@ -384,6 +413,13 @@ sur GitHub Pages (~1-2 min). Si un test échoue, le déploiement est bloqué (ga
   est reportable indéfiniment dans la réalité. Le moteur ne le suit pas, et borne donc les versements
   REER issus d'un héritage ou d'une vente à la déduction utilisable immédiatement — choix
   conservateur, qui ne surestime jamais l'avantage fiscal.
+- **Remplissage du CELI limité au décaissement et à la survie** — les phases où le solveur ne laisse
+  aucun surplus, donc où les droits dormaient. En accumulation, l'épargne planifiée et le placement
+  des capitaux reçus consomment déjà les droits.
+- Couple : les retraits s'égalisent sur le **revenu imposable**, alors que minimiser l'impôt du
+  ménage voudrait égaliser les **taux marginaux**. Les deux coïncident tant que les conjoints
+  partagent barèmes et crédits ; ils divergent un peu avec le crédit en raison de l'âge, la
+  récupération de la SV et le crédit pour revenu de pension.
 - Rendements **déterministes** (pas encore de Monte Carlo).
 
 Conséquence : les montants sont de bonnes **estimations de planification**, pas une déclaration au dollar près.
@@ -421,6 +457,196 @@ options d'employé, analyse de sensibilité / Monte Carlo, autres provinces.
 ---
 
 ## 📓 Journal des modifications
+
+### 2026-07-30 — Un gain en capital fantôme au retrait, et le conjoint qui décaissait tout seul
+
+**Question de l'utilisateur**, sur le dossier corrigé le matin même : « pourquoi avec les mêmes
+placements et le même rendement l'impôt des 2 n'est pas le même, et pourquoi à 36 ans le conjoint 1
+ne paie plus d'impôt et le conjoint 2 paie 44 500 $ ? » Deux causes, sans rapport l'une avec l'autre.
+La première est un **bogue**.
+
+#### Cause nº 1 — un gain en capital qui n'existait pas
+
+`financerCouple` exécutait trois opérations dans le mauvais ordre : le coût de base était réduit
+**avant** que le gain ne soit calculé, sur un solde encore intact. Pour un retrait `w` d'un compte de
+solde `S` et de coût de base `B`, le gain déclaré valait `w(S−B)/S` **+ `w²B/S²`**. Le second terme
+est un gain inventé.
+
+Le dossier le rendait flagrant : l'héritage venant d'être placé, le coût de base **égalait** le
+solde, donc le retrait aurait dû être entièrement non imposable. Le code inventait 7 231 $ de gain
+dès la première année, soit 1 338 $ d'impôt — et comme un seul conjoint décaissait, un seul le
+supportait. C'est exactement l'écart observé.
+
+Le terme varie en `w²/S` : discret sur un gros compte, il **explose à mesure qu'il se vide**
+(300 000 $ de solde, 150 000 $ de retrait → 75 000 $ de gain inventé). Effet secondaire : la
+dichotomie visait sa cible avec le coût de base d'AVANT mutation, puis inscrivait un impôt plus
+élevé — le ménage était légèrement sous-financé chaque année.
+
+**Ce n'était pas une simplification assumée** : le mode solo faisait déjà l'inverse, et correctement,
+dans `decaissement.ts`. Les huit autres écritures de `coutBase` du moteur ont été vérifiées une à
+une ; `financerCouple` était le seul fautif. **Correctif** : imposer d'abord, réduire le coût de base
+ensuite, le solde en dernier — l'ordre exact du solo.
+
+#### Cause nº 2 — le retrait dépassait le point d'équilibre
+
+Le décaissement coordonné annonce « le conjoint le moins imposé retire en premier ». L'intention
+était juste, l'exécution la trahissait : la dichotomie prenait **tout le besoin de l'année d'un seul
+coup**, si bien que la boucle censée réévaluer qui est le moins imposé ne tournait **qu'une fois**.
+Au lieu de s'arrêter à l'égalité, on la dépassait largement — et à égalité parfaite le `<=`
+désignait toujours le conjoint 1.
+
+Trois effets s'enchaînaient : son capital stagnait pendant que l'autre composait ; ayant dès lors
+moins de revenu, il restait « le moins imposé », donc repris l'année suivante — **le choix se
+verrouillait** ; et il payait, de son propre capital, l'impôt engendré par le capital de l'autre.
+À 36 ans il était épuisé, donc à 0 $ d'impôt, l'autre portant seul les 44 500 $.
+
+**Correctif, en deux temps.**
+
+- **Quand les revenus imposables sont déjà égaux**, on ne devine plus : on cherche directement le
+  retrait `w` tel que `w` de **chaque** côté atteigne la cible, et on n'en sert qu'un — le tour
+  suivant sert l'autre, à égalité parfaite. Chercher un montant en supposant un payeur unique le
+  surestime (ce payeur supporte tout l'impôt) ; en prendre la moitié donnait un partage à 59 / 41,
+  et les deux conjoints affichaient des impôts différents une année sur deux.
+- **Sinon**, le retrait est plafonné au montant qui hisse le conjoint servi au niveau de l'autre.
+  `retraitEgalisant` mesure la pente de `revenuTotalImpose` par une seule évaluation — la relation
+  est linéaire — plutôt que de coder en dur le taux d'inclusion des gains en capital.
+
+À égalité de revenus, le choix se fait désormais sur le **plus gros solde** : le retrait coûte alors
+la même chose des deux côtés, autant puiser là où il y a le plus et garder les capitaux comparables.
+
+#### Résultat mesuré, dossier signalé
+
+| | avant | après |
+|---|---|---|
+| Impôt à 20 ans — conjoint 1 / conjoint 2 | 7 873 $ / 6 535 $ | **6 535 $ / 6 535 $** |
+| Impôt à 40 ans — conjoint 1 / conjoint 2 | 10 178 $ / 61 129 $ | 29 919 $ / 29 919 $ |
+| Impôt du ménage à 36 ans | 56 116 $ | 46 279 $ |
+| Non-enregistré à 40 ans — conjoint 1 / conjoint 2 | 768 000 $ / 7 818 000 $ | 4 334 832 $ / 4 334 832 $ |
+| Patrimoine au dernier décès (réel) | 23 009 827 $ | **28 375 260 $** |
+
+Écart entre les deux conjoints, impôt comme capital : **0,00 % chaque année**. Optimiseur du couple
+sur ce dossier : 476 ms, aucun ralentissement malgré les tours de boucle supplémentaires.
+
+**Aucun cas-test existant n'a bougé** — et c'est en soi le diagnostic : rien dans la suite ne
+vérifiait la répartition entre conjoints, ce qui est précisément pourquoi le bogue a survécu. Neuf
+cas-tests neufs comblent le trou, dont deux qui l'auraient attrapé : « un retrait sans gain latent ne
+coûte rien, quelle que soit son ampleur » et « le couple et le solo imposent le même retrait de la
+même façon ».
+
+**Limite levée** : « les retraits ne s'équilibrent pas entre conjoints à l'intérieur d'une même
+année », inscrite le matin même, ne tient plus.
+
+**Limite qui demeure** : minimiser l'impôt du ménage veut dire égaliser les **taux marginaux**, pas
+les revenus imposables. Les deux coïncident tant que les conjoints partagent barèmes et crédits ; ils
+divergent un peu avec le crédit en raison de l'âge, la récupération de la SV et le crédit pour revenu
+de pension.
+
+### 2026-07-30 — Le surplus du ménage appartenait au mauvais conjoint, et les droits CELI dormaient
+
+**Signalé par l'utilisateur**, dossier reproductible : deux conjoints de 18 ans, retraite à 19,
+héritage de **2 000 000 $ chacun** à 19 ans, dépenses de 103 500 $/an, rendement de 7 % partout,
+aucun droit REER ni CELI au départ. « Il met tout le reste du 4 000 000 $ dans le non-enregistré du
+conjoint 1, rien dans le conjoint 2 [...] l'impôt est supporté seulement par le conjoint 1 [...] et
+les montants CELI disponibles des 2 conjoints augmentent année après année. »
+
+Les deux observations étaient exactes, et correspondaient à **deux défauts sans rapport l'un avec
+l'autre**.
+
+#### Défaut nº 1 — le surplus changeait de propriétaire
+
+En décaissement, `couple.ts` envoyait tout le surplus non abrité chez **un seul** conjoint :
+`cibleId = niveauImposable(e1) >= niveauImposable(e2) ? 1 : 2`. Trois conséquences.
+
+1. **À égalité, le `>=` désignait le conjoint 1.** Un héritage n'étant pas imposable, les deux
+   entrées fiscales valaient 0 à 19 ans : le conjoint 1 raflait les 3 964 326 $ par simple
+   tie-break.
+2. **Le choix se verrouillait.** Le placement créait chez lui des intérêts et dividendes qui le
+   rendaient définitivement le plus imposé — donc cible à perpétuité.
+3. **La propriété était détruite.** Les 2 M$ hérités par le conjoint 2 devenaient la propriété du
+   conjoint 1. Pas une approximation : un transfert qui n'existe pas, et qui déclencherait sinon les
+   règles d'attribution (art. 74.1 LIR, art. 462 LI).
+
+Le revenu de placement n'étant **jamais** fractionnable (`splittable` ne retient que la pension
+privée à 65 ans et plus), la concentration était intégralement punitive.
+
+**L'incohérence qui trahissait le défaut** : en accumulation, `poserCapital` plaçait déjà l'héritage
+de chacun dans SES comptes. Reculer la retraite de 19 à 20 ans suffisait à faire basculer le même
+héritage dans la bonne branche. Un cas-test épingle désormais cette symétrie.
+
+**Correctif** : le reste du surplus revient à chacun **au prorata de son apport** au pot commun
+(`encaisse` + retraits de ses comptes) — ce qui partage implicitement dépenses et impôt du ménage
+dans la même proportion. Les deux étapes qui précèdent ne bougent pas : le versement REER prioritaire
+reste chez le plus imposé (la valeur d'une déduction est bien son taux marginal), et le CELI reste
+**partagé** entre les deux — donner à son conjoint de quoi cotiser à son CELI est permis, et c'est le
+seul cas exclu des règles d'attribution (al. 74.5(12)c) LIR).
+
+#### Défaut nº 2 — les droits CELI ne servaient jamais en décaissement
+
+Le revenu de placement n'est pas de l'encaisse : il grossit **dans** les comptes. Le solveur retire
+donc pile la dépense visée, `disponible ≈ cible`, la condition `disponible > cible + 1` est fausse,
+aucun surplus n'est placé — et **plus rien ne cotise jamais au CELI**. Sur le dossier signalé,
+**1 341 500 $** de droits inutilisés par conjoint à 95 ans pendant que 4 M$ dormaient en
+non-enregistré. Le mode **solo avait le même trou**.
+
+**Correctif** : nouveau module pur `remplissageCeli.ts`, branché en décaissement et en survie, dans
+les deux modes. Il transfère du non-enregistré vers le CELI jusqu'à épuisement des droits, **avant le
+solveur** : le gain latent réalisé entre dans l'entrée fiscale de l'année et le solveur finance
+l'impôt en même temps que la dépense — aucune rétroaction, là où un transfert après coup aurait exigé
+un tour d'itération pour financer son propre impôt. Une réserve laisse liquide ce que les comptes
+doivent fournir cette année-là, sinon le solveur ressortirait du CELI ce qu'on vient d'y verser.
+
+Réglage `remplirDroitsCeli`, **absent vaut ACTIVÉ** — seul réglage du moteur dans ce cas, et c'est
+délibéré : laisser dormir de la place à l'abri en détenant du capital pleinement imposable n'est pas
+une stratégie mais une occasion manquée.
+
+#### Ce n'est pourtant pas gagné d'avance — d'où un levier d'optimiseur
+
+Le CELI est toujours le meilleur *contenant*, mais il est **dernier dans l'ordre de décaissement**.
+Y verser du non-enregistré prive le ménage de sa source de retrait la moins chère et le pousse plus
+tôt dans son REER, imposable au premier dollar. Mesuré sur un retraité de 60 ans (REER 300 000 $,
+non-enregistré 60 000 $, dépenses 45 000 $, hypothèque de 12 000 $/an) : 52 000 $ déplacés vers le
+CELI ont imposé **78 000 $ de retraits REER de plus**, et le patrimoine au décès a reculé de 9 177 $.
+Sans l'hypothèque, le même dossier bascule et le remplissage redevient gagnant de 483 $ — l'arbitrage
+est serré.
+
+D'où le 7ᵉ levier de l'optimiseur, qui coûte quatre projections et tranche dossier par dossier. Le
+cas-test n'exige pas qu'il *éteigne* le réglage : la descente de coordonnées bouge aussi l'ordre de
+décaissement, et sur ce dossier elle garde le remplissage allumé avec un ordre qui le rend payant.
+Ce qu'on exige, c'est qu'elle ne fasse jamais moins bien qu'aucun des deux réglages figés.
+
+#### Traçabilité
+
+`destinationSurplus` nomme désormais **le conjoint qui reçoit** (« Non-enregistré — Vigile ») : le
+défaut nº 1 était invisible dans le tiroir, qui affichait un total sans dire qu'il partait d'un seul
+côté. S'y ajoute `apportsSurplus`, la clé de répartition elle-même, vérifiable au dollar près. Le
+transfert annuel apparaît dans le tiroir des droits sous « Transfert annuel du non-enregistré vers le
+CELI ». La ventilation de la phase d'accumulation, qui fondait les deux conjoints en un seul total,
+est séparée au passage.
+
+#### Résultat mesuré, dossier signalé
+
+| | avant | après |
+|---|---|---|
+| Non-enregistré à 19 ans — conjoint 1 / conjoint 2 | 3 964 326 $ / **0 $** | 1 982 163 $ / 1 982 163 $ |
+| Impôt du ménage à 20 ans | 29 197 $ | 14 408 $ |
+| Droits CELI inutilisés à 95 ans (chacun) | 1 341 500 $ | 0 $ |
+| Patrimoine au dernier décès (réel) | 15 010 520 $ | **23 009 827 $** |
+
+**Un cas-test existant a changé de valeur**, et il a été corrigé plutôt que re-calibré : le scénario
+de `trace.test.ts` meurt désormais avec une succession entièrement en CELI, donc un impôt au décès
+**nul** — la bonne réponse, mais qui ne teste plus la séparation des deux impôts. Le REER du scénario
+a été grossi pour qu'il reste des dispositions présumées à 88 ans.
+
+**Limite assumée** : le remplissage ne joue qu'en décaissement et en survie, les phases où le solveur
+ne laisse aucun surplus. En accumulation, l'épargne planifiée et `poserCapital` consomment déjà les
+droits.
+
+**Reste à trancher** — signalé mais non corrigé, hors du périmètre convenu : après la correction, le
+solveur puise ses retraits chez le conjoint le **moins** imposé, et à égalité chez le nº 1. Le même
+verrouillage joue alors en sens inverse — le conjoint 1 se vide pendant que le nº 2 compose, jusqu'à
+lui laisser 1 102 331 $ de droits CELI inutilisables faute de non-enregistré à 95 ans. Répartir aussi
+les **retraits** jusqu'à égaliser les revenus imposables réduirait l'impôt du ménage, la fonction
+d'impôt étant convexe.
 
 ### 2026-07-30 — La dépense recommandée disparaissait quand la richesse ne venait pas d'un salaire
 

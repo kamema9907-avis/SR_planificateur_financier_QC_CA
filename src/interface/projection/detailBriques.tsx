@@ -263,6 +263,20 @@ export function BlocDisponible({ d, facteur, onLien }: {
         <>
           <LigneTotal libelle="− Dépenses visées" montant={-d.depenses} facteur={facteur} />
           <LigneTotal libelle="= Surplus épargné" montant={d.surplus} facteur={facteur} accent />
+          {/*
+            La clé de répartition avant les destinations : sans elle, voir « Non-enregistré — Vigile
+            1 982 163 $ » ne dit pas POURQUOI c'est lui. Le surplus revient à chacun au prorata de ce
+            qu'il a versé dans le pot commun de l'année.
+          */}
+          {d.apportsSurplus && d.apportsSurplus.length > 0 && (
+            <>
+              <Section titre="Réparti au prorata des apports" postes={d.apportsSurplus} facteur={facteur} />
+              <p className="mb-3 text-xs leading-relaxed text-doux">
+                Un héritage, un salaire ou un retrait ne changent pas de propriétaire en traversant le
+                budget du ménage : chaque conjoint récupère le surplus à hauteur de ce qu'il y a versé.
+              </p>
+            </>
+          )}
           <Section titre="Réinvesti dans" postes={d.destinationSurplus} facteur={facteur} />
         </>
       )}

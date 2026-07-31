@@ -26,7 +26,7 @@ const maison: Immeuble = {
 };
 
 /** Scénario couvrant accumulation, décaissement, surplus (retraité-actif), immobilier et décès. */
-const scenario = (): HypothesesProjection =>
+const scenario = (partiel: Partial<HypothesesProjection> = {}): HypothesesProjection =>
   hypotheses({
     ageActuel: 60, ageRetraite: 65, ageDeces: 88,
     revenuEmploi: 80_000,
@@ -41,6 +41,7 @@ const scenario = (): HypothesesProjection =>
       { type: 'CELI', solde: 80_000, profil: 'equilibre' },
       { type: 'NON_ENREGISTRE', solde: 60_000, profil: 'equilibre', coutBase: 40_000 },
     ],
+    ...partiel,
   });
 
 describe('traçabilité (trace)', () => {
@@ -100,7 +101,14 @@ describe('traçabilité (trace)', () => {
   });
 
   it('sépare impôt courant et impôt au décès l’année du décès', () => {
-    const r = projeter(scenario(), { trace: true });
+    // Le scénario de base meurt désormais avec une succession entièrement en CELI — le remplissage
+    // annuel des droits y transfère tout le non-enregistré, et le REER finit épuisé. Un impôt de
+    // décès NUL y est donc la bonne réponse, mais ne teste plus rien. On grossit le REER pour qu'il
+    // reste des dispositions présumées à 88 ans : c'est leur ventilation qu'on vérifie ici.
+    const r = projeter(
+      scenario({ comptes: [{ type: 'REER', solde: 900_000, profil: 'equilibre' }] }),
+      { trace: true },
+    );
     const deces = r.annees.find((a) => a.age === 88)!;
     expect(deces.detail!.impot.impotDeces).toBeGreaterThan(0);
     expect(deces.detail!.impot.detailDeces.length).toBeGreaterThan(0);

@@ -70,6 +70,14 @@ export interface HypothesesCouple {
    * Voir `HypothesesProjection.reinvestirRemboursementReer` pour le raisonnement.
    */
   reinvestirRemboursementReer?: boolean;
+  /**
+   * Transférer chaque année le non-enregistré de CHAQUE conjoint vers SON CELI, jusqu'à épuisement
+   * de SES droits, pendant le décaissement et la survie.
+   *
+   * **Absent vaut ACTIVÉ** — seul réglage du moteur dans ce cas. Voir
+   * `HypothesesProjection.remplirDroitsCeli` et `remplissageCeli.ts`.
+   */
+  remplirDroitsCeli?: boolean;
 }
 
 /** Résultat d'une année de projection du couple (montants NOMINAUX). */

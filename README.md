@@ -25,7 +25,7 @@ s'ouvre vierge ; un bouton **« Réinitialiser »** remet les champs à zéro à
 ```bash
 npm install       # installer les dépendances
 npm run dev       # serveur de développement (http://localhost:5173)
-npm test          # lancer les 373 cas-tests
+npm test          # lancer les 401 cas-tests
 npm run typecheck # vérifier les types (« npx tsc --noEmit » ne vérifie RIEN ici :
                   #   tsconfig.json est un fichier de références, avec "files": [])
 npm run build     # bâtir la version de production (dossier dist/)
@@ -48,7 +48,7 @@ src/
 │   ├── projection/          # Cycle de vie : comptes, rentes, immobilier, héritage, décaissement,
 │   │                        #   couple, optimiseur, dépense soutenable, traçabilité
 │   ├── index.ts             # API publique du moteur
-│   └── *.test.ts            # 279 cas-tests du moteur (dont validation croisée des taux publiés)
+│   └── *.test.ts            # 307 cas-tests du moteur (dont validation croisée des taux publiés)
 └── interface/               # Interface React (habillage) — aucune règle fiscale ici
     ├── atelier/             # Coquille de saisie : rail d'étapes, étape courante, résultat collant
     ├── projection/          # Vues solo et couple, tableaux, graphiques, tiroirs de détail
@@ -112,6 +112,12 @@ l'inflation** chaque année (calcul nominal, affichage en dollars d'aujourd'hui)
   **coût égal de votre poche** : sans lui, le CELI gagne par construction, puisque 8 000 $ au REER
   coûtent moins que 8 000 $ au CELI. Le réglage allumé, l'**optimiseur cherche lui-même** le taux
   marginal au-delà duquel il vaut mieux verser au REER d'abord — la réponse dépend du dossier.
+- **Vos droits CELI ne dorment plus** : un réglage avancé, **allumé par défaut**, transfère chaque
+  année de retraite du non-enregistré vers le CELI jusqu'à épuisement des droits. Sans lui, la place
+  à l'abri s'accumulait sans jamais servir — en décaissement le solveur retire pile la dépense visée,
+  il ne reste aucun surplus, donc plus rien ne cotisait. Le décocher garde un sens quand le
+  non-enregistré finance votre train de vie : le CELI étant décaissé en dernier, y verser l'argent
+  peut vous pousser plus tôt dans votre REER. L'optimiseur essaie les deux.
 - **Impôt au décès** (dispositions présumées des comptes enregistrés + gains latents), **retranché du
   patrimoine transmis** : la « valeur nette au décès » annoncée est nette, et le tiroir de la dernière
   année montre la soustraction. C'est aussi ce chiffre net que l'optimiseur maximise.
@@ -149,8 +155,16 @@ côte), un ménage à optimiser.
 
 - **Fractionnement du revenu de pension** optimisé automatiquement chaque année (transfert minimisant
   l'impôt combiné).
-- **Décaissement coordonné** : le conjoint le moins imposé retire en premier pour équilibrer les
-  revenus et exploiter deux fois les tranches basses et les crédits.
+- **Décaissement coordonné** : le conjoint le moins imposé retire en premier, et **le retrait
+  s'arrête au point d'égalité** des revenus imposables au lieu de le dépasser. Deux assiettes égales
+  coûtent moins que deux inégales — la fonction d'impôt est convexe — et surtout aucun des deux ne
+  se vide pendant que l'autre compose. Sur deux conjoints strictement identiques, l'impôt et le
+  capital restent égaux **au cent près**, année après année.
+- **Le surplus reste à son propriétaire** : ce que le ménage n'a pas dépensé revient à chacun **au
+  prorata de son apport** de l'année — son héritage, son salaire, les retraits de ses comptes. Un
+  héritage ne change pas de mains en traversant le budget du ménage, et le tiroir publie la clé de
+  répartition. Seul le CELI reste partagé : cotiser au CELI de son conjoint est permis et échappe aux
+  règles d'attribution.
 - **REER de conjoint** (cotisations croisées : un déduit, l'autre possède).
 - **Phase de survie** : au premier décès, roulement sans impôt des comptes enregistrés au survivant,
   **rente de conjoint survivant RRQ**, dépenses du survivant ajustables (~67 %), puis impôt au dernier décès.
@@ -184,8 +198,8 @@ net au décès** (le capital ne doit pas s'épuiser), puis affiche l'améliorati
 - **Approche par recherche** (pas de programmation linéaire) : on évalue les stratégies candidates avec
   le simulateur exact (`projeter` / `projeterCouple`) et on garde la meilleure — descente de coordonnées.
 - **Leviers optimisés** : ordre de décaissement, **fonte anticipée du REER** (remplir les tranches basses
-  tôt en retraite, réinvestir au CELI), **âges de début RRQ (60-72) et SV (65-70)**, **moment des ventes
-  immobilières**.
+  tôt en retraite, réinvestir au CELI), **seuil du versement REER prioritaire**, **remplissage des
+  droits CELI**, **âges de début RRQ (60-72) et SV (65-70)**, **moment des ventes immobilières**.
 - Résultat : gain de patrimoine au décès, réduction de l'impôt sur la vie, et la stratégie recommandée.
 
 *Révision de la décision n°7 : l'approche par recherche remplace `glpk.js`, car l'impôt QC+fédéral est

@@ -59,6 +59,31 @@ function ChampRemboursement({ valeur, onChange }: { valeur: boolean; onChange: (
   );
 }
 
+/**
+ * Remplissage annuel des droits CELI depuis le non-enregistré, pendant le décaissement.
+ *
+ * **Coché par défaut**, contrairement aux autres réglages avancés : en décaissement le solveur ne
+ * dégage aucun surplus, donc rien ne cotisait plus jamais au CELI et les droits s'empilaient sans
+ * fin. Ce n'est pas une stratégie, c'est une occasion manquée — d'où le défaut inversé.
+ *
+ * Le décocher a un vrai sens quand le non-enregistré finance le train de vie : le CELI étant DERNIER
+ * dans l'ordre de décaissement, y verser l'argent force des retraits REER imposables au premier
+ * dollar. L'optimiseur essaie les deux.
+ */
+function ChampRemplissageCeli({ valeur, onChange }: { valeur: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <div className="sm:col-span-2">
+      <Interrupteur label="Remplir les droits CELI depuis le non-enregistré" valeur={valeur} onChange={onChange} />
+      <p className="mt-1 text-xs text-doux">
+        Chaque année de retraite, transfère du non-enregistré vers le CELI jusqu’à épuisement des
+        droits. Le gain latent réalisé est imposé, mais l’argent croît ensuite{' '}
+        <strong>à l’abri pour de bon</strong>. Éteint, vos droits CELI s’accumulent sans jamais
+        servir.
+      </p>
+    </div>
+  );
+}
+
 /** Pose une dépense de retraite dans des hypothèses, sans toucher au reste. */
 const poserDepenseSolo = (h: HypothesesProjection, montant: number) => ({
   ...h,
@@ -358,6 +383,10 @@ export function groupeSolo(h: HypothesesProjection, onChange: (h: HypothesesProj
               valeur={h.reinvestirRemboursementReer ?? false}
               onChange={(v) => maj('reinvestirRemboursementReer', v)}
             />
+            <ChampRemplissageCeli
+              valeur={h.remplirDroitsCeli ?? true}
+              onChange={(v) => maj('remplirDroitsCeli', v)}
+            />
           </Avance>
         </div>
       ),
@@ -487,6 +516,10 @@ export function groupeMenage(h: HypothesesCouple, onChange: (h: HypothesesCouple
             <ChampRemboursement
               valeur={h.reinvestirRemboursementReer ?? false}
               onChange={(v) => onChange({ ...h, reinvestirRemboursementReer: v })}
+            />
+            <ChampRemplissageCeli
+              valeur={h.remplirDroitsCeli ?? true}
+              onChange={(v) => onChange({ ...h, remplirDroitsCeli: v })}
             />
           </Avance>
         </div>

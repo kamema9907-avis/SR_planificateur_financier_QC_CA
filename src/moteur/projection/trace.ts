@@ -150,8 +150,18 @@ export interface DetailDisponible {
   readonly ventesSeuleSourceDeCapital: boolean;
   /** Surplus = revenus nets − dépenses (≥ 0 ; 0 s'il n'y a pas de surplus). */
   readonly surplus: number;
-  /** Destination du surplus réinvesti (CELI / REER / non-enregistré). */
+  /**
+   * Destination du surplus réinvesti (CELI / REER / non-enregistré). En couple, chaque poste nomme
+   * aussi le conjoint qui reçoit — sans quoi rien ne montrait que tout atterrissait chez un seul.
+   */
   readonly destinationSurplus: readonly Poste[];
+  /**
+   * Couple seulement : ce que chaque conjoint a versé dans le pot commun cette année-là. C'est la
+   * **clé de répartition** du surplus entre les deux — le surplus non abrité revient à chacun au
+   * prorata de son apport, parce qu'un héritage ou un salaire ne change pas de propriétaire en
+   * traversant le budget du ménage. Absent en solo, et les années sans surplus.
+   */
+  readonly apportsSurplus?: readonly Poste[];
 }
 
 /** Décomposition de l'impôt d'une année. */

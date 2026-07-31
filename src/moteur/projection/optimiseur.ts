@@ -27,6 +27,21 @@ const FONTE: readonly number[] = [0, 40_000, 50_000, 60_000, 75_000, 90_000];
  * `1` = comportement historique, CELI d'abord.
  */
 const SEUILS_REER: readonly number[] = [1, 0.5, 0.45, 0.4, 0.36, 0.3, 0];
+/**
+ * Remplissage annuel du CELI depuis le non-enregistré (voir `remplissageCeli.ts`).
+ *
+ * **Pourquoi c'est un vrai levier, et non une évidence.** Le CELI est toujours le meilleur contenant :
+ * un dollar y croît et en sort sans impôt. Mais il est **dernier dans l'ordre de décaissement**, si
+ * bien qu'y transférer du non-enregistré prive le ménage de sa source de retrait la moins chère et le
+ * pousse plus tôt dans son REER, imposable au premier dollar. Mesuré sur un retraité de 60 ans
+ * (REER 300 000 $, non-enregistré 60 000 $, dépenses 45 000 $) : 52 000 $ déplacés vers le CELI ont
+ * imposé 78 000 $ de retraits REER de plus, et le patrimoine au décès a reculé de 9 177 $.
+ *
+ * Le gain, lui, est majeur quand le non-enregistré est un surplus durable : sur un ménage héritant de
+ * 2 M$ chacun, +8 M$ réels au dernier décès. C'est exactement le genre d'arbitrage que la recherche
+ * doit trancher dossier par dossier, plutôt qu'une règle imposée.
+ */
+const REMPLISSAGE_CELI: readonly boolean[] = [true, false];
 const AGES_RRQ: readonly number[] = [60, 62, 65, 67, 70, 72];
 const AGES_SV: readonly number[] = [65, 67, 70];
 const AGES_VENTE: readonly (number | null)[] = [null, 60, 65, 70, 75, 80];
@@ -114,6 +129,7 @@ export function optimiserProjection(h: HypothesesProjection): ResultatOptimisati
     (b) => ORDRES.map((ordreDecaissement) => ({ ...b, ordreDecaissement })),
     (b) => FONTE.map((cibleFonteReer) => ({ ...b, cibleFonteReer })),
     (b) => seuilsCandidats(b.reinvestirRemboursementReer).map((seuilMarginalReer) => ({ ...b, seuilMarginalReer })),
+    (b) => REMPLISSAGE_CELI.map((remplirDroitsCeli) => ({ ...b, remplirDroitsCeli })),
     (b) => (b.rrqA65 > 0 ? AGES_RRQ.map((ageDebutRRQ) => ({ ...b, ageDebutRRQ })) : []),
     (b) => (b.svA65 > 0 ? AGES_SV.map((ageDebutSV) => ({ ...b, ageDebutSV })) : []),
     (b) =>
@@ -143,6 +159,7 @@ export function optimiserCouple(h: HypothesesCouple): ResultatOptimisation<Hypot
     (b) => ORDRES.map((ordreDecaissement) => ({ ...b, ordreDecaissement })),
     (b) => FONTE.map((cibleFonteReer) => ({ ...b, cibleFonteReer })),
     (b) => seuilsCandidats(b.reinvestirRemboursementReer).map((seuilMarginalReer) => ({ ...b, seuilMarginalReer })),
+    (b) => REMPLISSAGE_CELI.map((remplirDroitsCeli) => ({ ...b, remplirDroitsCeli })),
     (b) => (b.personne1.rrqA65 > 0 ? AGES_RRQ.map((a) => ({ ...b, personne1: { ...b.personne1, ageDebutRRQ: a } })) : []),
     (b) => (b.personne2.rrqA65 > 0 ? AGES_RRQ.map((a) => ({ ...b, personne2: { ...b.personne2, ageDebutRRQ: a } })) : []),
     (b) => (b.personne1.svA65 > 0 ? AGES_SV.map((a) => ({ ...b, personne1: { ...b.personne1, ageDebutSV: a } })) : []),
